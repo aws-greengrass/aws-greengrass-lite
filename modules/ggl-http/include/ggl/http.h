@@ -5,8 +5,8 @@
 #ifndef GGHTTPLIB_H
 #define GGHTTPLIB_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <stdint.h>
 
 typedef struct CertificateDetails {
@@ -20,15 +20,15 @@ typedef struct CertificateDetails {
 /// Use fetch_token() to retrieve id, key, and token
 typedef struct SigV4Details {
     /// AWS region code (e.g. "us-east-2")
-    GglBuffer aws_region;
+    GgBuffer aws_region;
     /// AWS service endpoint name (e.g. "s3" or "lambda")
-    GglBuffer aws_service;
+    GgBuffer aws_service;
     /// Temporary AWS ID
-    GglBuffer access_key_id;
+    GgBuffer access_key_id;
     /// Temporary AWS Key
-    GglBuffer secret_access_key;
+    GgBuffer secret_access_key;
     /// Temporary AWS Token
-    GglBuffer session_token;
+    GgBuffer session_token;
 } SigV4Details;
 
 /// @brief Fetches temporary AWS credentials.
@@ -38,7 +38,7 @@ typedef struct SigV4Details {
 /// fetched.
 /// @param[in] certificate_details The certificate and private kye details to be
 /// used for authentication.
-/// @param[inout] GglBuffer with enough space to contain the fetched token
+/// @param[inout] GgBuffer with enough space to contain the fetched token
 /// (~1500 bytes).
 ///
 /// @return void
@@ -46,17 +46,17 @@ typedef struct SigV4Details {
 /// This function sends a request to the IoT credentials endpoint URL using the
 /// provided certificate and private keys details to authenticate the request.
 /// The response containing the temporary credentials from the server is
-/// expected to contain a token, which is returned as a GglBuffer object.
+/// expected to contain a token, which is returned as a GgBuffer object.
 ///
 /// @note The called need to make sure that the paths of these certificates are
 /// accessible in general without special privileges.
 ///
-/// @return error code on failure, GGL_ERR_OK on success,
-GglError fetch_token(
+/// @return error code on failure, GG_ERR_OK on success,
+GgError fetch_token(
     const char *url_for_token,
-    GglBuffer thing_name,
+    GgBuffer thing_name,
     CertificateDetails certificate_details,
-    GglBuffer *buffer
+    GgBuffer *buffer
 );
 
 /// @brief Downloads the content from the specified URL and saves it to the
@@ -75,8 +75,8 @@ GglError fetch_token(
 /// the
 ///          provided `url_for_generic_download` and `fd` are valid.
 ///
-/// @return error code on failure, GGL_ERR_OK on success
-GglError generic_download(const char *url_for_generic_download, int fd);
+/// @return error code on failure, GG_ERR_OK on success
+GgError generic_download(const char *url_for_generic_download, int fd);
 
 /// @brief Downloads the content from the specified URL and saves it to the
 /// given file path. Uses temporary credentials.
@@ -95,23 +95,23 @@ GglError generic_download(const char *url_for_generic_download, int fd);
 /// the input parameters. It is the responsibility of the caller to ensure that
 /// the provided inputs are valid.
 ///
-/// @return error code on failure, GGL_ERR_OK on success
-GglError sigv4_download(
+/// @return error code on failure, GG_ERR_OK on success
+GgError sigv4_download(
     const char *url_for_sigv4_download,
-    GglBuffer host,
-    GglBuffer file_path,
+    GgBuffer host,
+    GgBuffer file_path,
     int fd,
     SigV4Details sigv4_details,
     uint16_t *http_response_code
 );
 
-GglError gg_dataplane_call(
-    GglBuffer endpoint,
-    GglBuffer port,
-    GglBuffer uri_path,
+GgError gg_dataplane_call(
+    GgBuffer endpoint,
+    GgBuffer port,
+    GgBuffer uri_path,
     CertificateDetails certificate_details,
     const char *body,
-    GglBuffer *response_buffer
+    GgBuffer *response_buffer
 );
 
 #endif

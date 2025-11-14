@@ -7,8 +7,8 @@
 
 #include "ggl/http.h"
 #include <curl/curl.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 
 typedef struct CurlData {
     CURL *curl;
@@ -22,7 +22,7 @@ typedef struct CurlData {
  * CURL handle and headers.
  * @param[in] url The URL for the HTTP request.
  *
- * @return GGL_ERR_OK on success, or GGL_ERR_FAILURE if the CURL handle cannot
+ * @return GG_ERR_OK on success, or GGL_ERR_FAILURE if the CURL handle cannot
  * be created.
  *
  * This function initializes a CURL handle and sets the URL for the HTTP
@@ -30,9 +30,9 @@ typedef struct CurlData {
  * structure, and the `headers_list` member is initialized to NULL.
  *
  * If the CURL handle cannot be created, an error message is logged, and the
- * function returns GGL_ERR_FAILURE.
+ * function returns GG_ERR_FAILURE.
  */
-GglError gghttplib_init_curl(CurlData *curl_data, const char *url);
+GgError gghttplib_init_curl(CurlData *curl_data, const char *url);
 
 void gghttplib_destroy_curl(CurlData *curl_data);
 
@@ -43,11 +43,11 @@ void gghttplib_destroy_curl(CurlData *curl_data);
  * headers list.
  * @param[in] header_key The key of the header to be added.
  * @param[in] header_value The value of the header to be added.
- * @return GGL_ERR_OK on success, else an error value on failure
+ * @return GG_ERR_OK on success, else an error value on failure
  * @note curl_data is unmodified on failure.
  */
-GglError gghttplib_add_header(
-    CurlData *curl_data, GglBuffer header_key, GglBuffer header_value
+GgError gghttplib_add_header(
+    CurlData *curl_data, GgBuffer header_key, GgBuffer header_value
 );
 
 /**
@@ -61,7 +61,7 @@ GglError gghttplib_add_header(
  * @param[in] request_data A CertificateDetails struct containing the paths to
  * the certificate, private key, and root CA files.
  */
-GglError gghttplib_add_certificate_data(
+GgError gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
 
@@ -74,7 +74,7 @@ GglError gghttplib_add_certificate_data(
  * handle.
  * @param[in] body The content to be added to the request in the body.
  */
-GglError gghttplib_add_post_body(CurlData *curl_data, const char *body);
+GgError gghttplib_add_post_body(CurlData *curl_data, const char *body);
 
 /// @brief Processes an HTTP request using the provided cURL data.
 ///
@@ -83,10 +83,10 @@ GglError gghttplib_add_post_body(CurlData *curl_data, const char *body);
 ///
 /// @param[in] curl_data A pointer to the CurlData struct containing the cURL
 /// handle and other request data.
-/// @return A GglBuffer struct containing the response data from the HTTP
+/// @return A GgBuffer struct containing the response data from the HTTP
 /// request.
-GglError gghttplib_process_request(
-    CurlData *curl_data, GglBuffer *response_buffer
+GgError gghttplib_process_request(
+    CurlData *curl_data, GgBuffer *response_buffer
 );
 
 /// @brief Processes an HTTP request using the provided cURL data.
@@ -97,7 +97,7 @@ GglError gghttplib_process_request(
 /// @param[in] curl_data A pointer to the CurlData struct containing the cURL
 /// handle and other request data.
 /// @param[in] fd A file descriptor to the write the data to
-/// @return A GglError for success status report
-GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd);
+/// @return A GgError for success status report
+GgError gghttplib_process_request_with_fd(CurlData *curl_data, int fd);
 
 #endif

@@ -5,7 +5,7 @@
 #ifndef RECIPE_RUNNER_H
 #define RECIPE_RUNNER_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
 typedef struct {
     char *component_name;
@@ -13,6 +13,6 @@ typedef struct {
     char *phase;
 } RecipeRunnerArgs;
 
-GglError run_recipe_runner(RecipeRunnerArgs *args);
+GgError run_recipe_runner(RecipeRunnerArgs *args);
 
 #endif

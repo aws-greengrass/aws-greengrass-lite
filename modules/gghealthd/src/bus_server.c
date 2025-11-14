@@ -5,47 +5,47 @@
 #include "bus_server.h"
 #include "health.h"
 #include "subscriptions.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/flags.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/error.h>
-#include <ggl/flags.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
 #include <ggl/nucleus/constants.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define LIFECYCLE_STATE_MAX_LEN (sizeof("INSTALLED") - 1U)
 
-static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
+static GgError get_status(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
-    GglObject *component_name_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *component_name_obj;
+    GgError ret = gg_map_validate(
         params,
-        GGL_MAP_SCHEMA({ GGL_STR("component_name"),
-                         GGL_REQUIRED,
-                         GGL_TYPE_BUF,
-                         &component_name_obj })
+        GG_MAP_SCHEMA({ GG_STR("component_name"),
+                        GG_REQUIRED,
+                        GG_TYPE_BUF,
+                        &component_name_obj })
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("get_status received invalid arguments.");
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("get_status received invalid arguments.");
+        return GG_ERR_INVALID;
     }
-    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    GgBuffer component_name = gg_obj_into_buf(*component_name_obj);
     if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("`component_name` too long");
-        return GGL_ERR_RANGE;
+        GG_LOGE("`component_name` too long");
+        return GG_ERR_RANGE;
     }
 
-    GglBuffer status = { 0 };
-    GglError error = gghealthd_get_status(component_name, &status);
-    if (error != GGL_ERR_OK) {
+    GgBuffer status = { 0 };
+    GgError error = gghealthd_get_status(component_name, &status);
+    if (error != GG_ERR_OK) {
         return error;
     }
 
-    GGL_LOGD(
+    GG_LOGD(
         "%.*s is %.*s",
         (int) component_name.len,
         component_name.data,
@@ -54,181 +54,178 @@ static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
     );
     ggl_respond(
         handle,
-        ggl_obj_map(GGL_MAP(
-            ggl_kv(GGL_STR("component_name"), ggl_obj_buf(component_name)),
-            ggl_kv(GGL_STR("lifecycle_state"), ggl_obj_buf(status)),
+        gg_obj_map(GG_MAP(
+            gg_kv(GG_STR("component_name"), gg_obj_buf(component_name)),
+            gg_kv(GG_STR("lifecycle_state"), gg_obj_buf(status)),
         ))
     );
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError update_status(void *ctx, GglMap params, uint32_t handle) {
+static GgError update_status(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
-    GglObject *component_name_obj;
-    GglObject *state_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *component_name_obj;
+    GgObject *state_obj;
+    GgError ret = gg_map_validate(
         params,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("component_name"),
-              GGL_REQUIRED,
-              GGL_TYPE_BUF,
+        GG_MAP_SCHEMA(
+            { GG_STR("component_name"),
+              GG_REQUIRED,
+              GG_TYPE_BUF,
               &component_name_obj },
-            { GGL_STR("lifecycle_state"),
-              GGL_REQUIRED,
-              GGL_TYPE_BUF,
-              &state_obj },
+            { GG_STR("lifecycle_state"), GG_REQUIRED, GG_TYPE_BUF, &state_obj },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("update_status received invalid arguments.");
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("update_status received invalid arguments.");
+        return GG_ERR_INVALID;
     }
-    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
-    GglBuffer state = ggl_obj_into_buf(*state_obj);
+    GgBuffer component_name = gg_obj_into_buf(*component_name_obj);
+    GgBuffer state = gg_obj_into_buf(*state_obj);
 
     if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("`component_name` too long");
-        return GGL_ERR_RANGE;
+        GG_LOGE("`component_name` too long");
+        return GG_ERR_RANGE;
     }
     if (state.len > LIFECYCLE_STATE_MAX_LEN) {
-        GGL_LOGE("`lifecycle_state` too long");
-        return GGL_ERR_RANGE;
+        GG_LOGE("`lifecycle_state` too long");
+        return GG_ERR_RANGE;
     }
 
-    GglError error = gghealthd_update_status(component_name, state);
-    if (error != GGL_ERR_OK) {
+    GgError error = gghealthd_update_status(component_name, state);
+    if (error != GG_ERR_OK) {
         return error;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL);
-    return GGL_ERR_OK;
+    ggl_respond(handle, GG_OBJ_NULL);
+    return GG_ERR_OK;
 }
 
-static GglError get_health(void *ctx, GglMap params, uint32_t handle) {
+static GgError get_health(void *ctx, GgMap params, uint32_t handle) {
     (void) params;
     (void) ctx;
-    GglBuffer status = { 0 };
-    GglError error = gghealthd_get_health(&status);
+    GgBuffer status = { 0 };
+    GgError error = gghealthd_get_health(&status);
 
-    if (error != GGL_ERR_OK) {
+    if (error != GG_ERR_OK) {
         return error;
     }
 
-    ggl_respond(handle, ggl_obj_buf(status));
-    return GGL_ERR_OK;
+    ggl_respond(handle, gg_obj_buf(status));
+    return GG_ERR_OK;
 }
 
 // TODO: implement or remove this
-static GglError subscribe_to_deployment_updates(
-    void *ctx, GglMap params, uint32_t handle
+static GgError subscribe_to_deployment_updates(
+    void *ctx, GgMap params, uint32_t handle
 ) {
     (void) ctx;
     (void) params;
     (void) handle;
-    return GGL_ERR_UNSUPPORTED;
+    return GG_ERR_UNSUPPORTED;
 }
 
-static GglError subscribe_to_lifecycle_completion(
-    void *ctx, GglMap params, uint32_t handle
+static GgError subscribe_to_lifecycle_completion(
+    void *ctx, GgMap params, uint32_t handle
 ) {
     (void) ctx;
-    GglObject *component_name_obj = NULL;
-    GglError ret = ggl_map_validate(
+    GgObject *component_name_obj = NULL;
+    GgError ret = gg_map_validate(
         params,
-        GGL_MAP_SCHEMA({ GGL_STR("component_name"),
-                         GGL_REQUIRED,
-                         GGL_TYPE_BUF,
-                         &component_name_obj })
+        GG_MAP_SCHEMA({ GG_STR("component_name"),
+                        GG_REQUIRED,
+                        GG_TYPE_BUF,
+                        &component_name_obj })
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("subscribe_to_lifecycle_completion received invalid arguments."
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("subscribe_to_lifecycle_completion received invalid arguments."
         );
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
-    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    GgBuffer component_name = gg_obj_into_buf(*component_name_obj);
     if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("`component_name` too long");
-        return GGL_ERR_RANGE;
+        GG_LOGE("`component_name` too long");
+        return GG_ERR_RANGE;
     }
 
     ret = gghealthd_register_lifecycle_subscription(component_name, handle);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    GglBuffer status;
-    GglError error = gghealthd_get_status(component_name, &status);
-    if (error != GGL_ERR_OK) {
+    GgBuffer status;
+    GgError error = gghealthd_get_status(component_name, &status);
+    if (error != GG_ERR_OK) {
         // Sub has been accepted
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
-    if (ggl_buffer_eq(GGL_STR("BROKEN"), status)
-        || ggl_buffer_eq(GGL_STR("FINISHED"), status)
-        || ggl_buffer_eq(GGL_STR("RUNNING"), status)) {
-        GGL_LOGD("Sending early response.");
+    if (gg_buffer_eq(GG_STR("BROKEN"), status)
+        || gg_buffer_eq(GG_STR("FINISHED"), status)
+        || gg_buffer_eq(GG_STR("RUNNING"), status)) {
+        GG_LOGD("Sending early response.");
         ggl_sub_respond(
             handle,
-            ggl_obj_map(GGL_MAP(
-                ggl_kv(GGL_STR("component_name"), *component_name_obj),
-                ggl_kv(GGL_STR("lifecycle_state"), ggl_obj_buf(status))
+            gg_obj_map(GG_MAP(
+                gg_kv(GG_STR("component_name"), *component_name_obj),
+                gg_kv(GG_STR("lifecycle_state"), gg_obj_buf(status))
             ))
         );
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError restart_component(void *ctx, GglMap params, uint32_t handle) {
+static GgError restart_component(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
-    GglObject *component_name_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *component_name_obj;
+    GgError ret = gg_map_validate(
         params,
-        GGL_MAP_SCHEMA({ GGL_STR("component_name"),
-                         GGL_REQUIRED,
-                         GGL_TYPE_BUF,
-                         &component_name_obj })
+        GG_MAP_SCHEMA({ GG_STR("component_name"),
+                        GG_REQUIRED,
+                        GG_TYPE_BUF,
+                        &component_name_obj })
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("restart_component received invalid arguments.");
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("restart_component received invalid arguments.");
+        return GG_ERR_INVALID;
     }
-    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    GgBuffer component_name = gg_obj_into_buf(*component_name_obj);
     if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("`component_name` too long");
-        return GGL_ERR_RANGE;
+        GG_LOGE("`component_name` too long");
+        return GG_ERR_RANGE;
     }
 
-    GglError error = gghealthd_restart_component(component_name);
-    if (error != GGL_ERR_OK) {
+    GgError error = gghealthd_restart_component(component_name);
+    if (error != GG_ERR_OK) {
         return error;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL);
-    return GGL_ERR_OK;
+    ggl_respond(handle, GG_OBJ_NULL);
+    return GG_ERR_OK;
 }
 
-GglError run_gghealthd(void) {
-    GglError error = gghealthd_init();
-    if (error != GGL_ERR_OK) {
+GgError run_gghealthd(void) {
+    GgError error = gghealthd_init();
+    if (error != GG_ERR_OK) {
         return error;
     }
     static GglRpcMethodDesc handlers[]
-        = { { GGL_STR("get_status"), false, get_status, NULL },
-            { GGL_STR("update_status"), false, update_status, NULL },
-            { GGL_STR("get_health"), false, get_health, NULL },
-            { GGL_STR("restart_component"), false, restart_component, NULL },
-            { GGL_STR("subscribe_to_deployment_updates"),
+        = { { GG_STR("get_status"), false, get_status, NULL },
+            { GG_STR("update_status"), false, update_status, NULL },
+            { GG_STR("get_health"), false, get_health, NULL },
+            { GG_STR("restart_component"), false, restart_component, NULL },
+            { GG_STR("subscribe_to_deployment_updates"),
               true,
               subscribe_to_deployment_updates,
               NULL },
-            { GGL_STR("subscribe_to_lifecycle_completion"),
+            { GG_STR("subscribe_to_lifecycle_completion"),
               true,
               subscribe_to_lifecycle_completion,
               NULL } };
     static const size_t HANDLERS_LEN = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglError ret = ggl_listen(GGL_STR("gg_health"), handlers, HANDLERS_LEN);
-    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
+    GgError ret = ggl_listen(GG_STR("gg_health"), handlers, HANDLERS_LEN);
+    GG_LOGE("Exiting with error %u.", (unsigned) ret);
 
-    return GGL_ERR_FAILURE;
+    return GG_ERR_FAILURE;
 }

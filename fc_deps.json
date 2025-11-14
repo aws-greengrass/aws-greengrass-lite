@@ -9,9 +9,9 @@
     "rev": "f0409ced6c2c9430f0e972019b7e8f20bbf58f4e",
     "hash": "sha256-6is4ymM/Ct9JntgpFHF4Vlv5+GUwy0HZvEiEV+ALJkw="
   },
-  "ggl_sdk": {
+  "gg_sdk": {
     "url": "https://github.com/aws-greengrass/aws-greengrass-sdk-lite.git",
-    "rev": "febee8463690b30580a8fdfddcceebb66596195d",
-    "hash": "sha256-yObuWnBN+VTcIpyo9ihVf2/7uXb/cA/QilC8TrwSFVo="
+    "rev": "08be374523066becf92dce52c84d3cb9bf3825a5",
+    "hash": "sha256-mpbcK18nRJYLo/tRgecQUT0bnEL+KCtKCQgKOYAaojY="
   }
 }

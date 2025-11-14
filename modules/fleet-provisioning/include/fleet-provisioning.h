@@ -5,7 +5,7 @@
 #ifndef FLEET_PROVISIONING_H
 #define FLEET_PROVISIONING_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
 typedef struct {
     char *claim_cert;
@@ -19,5 +19,5 @@ typedef struct {
     char *output_dir;
 } FleetProvArgs;
 
-GglError run_fleet_prov(FleetProvArgs *args);
+GgError run_fleet_prov(FleetProvArgs *args);
 #endif

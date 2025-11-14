@@ -4,21 +4,21 @@
 
 #include "pubsub.h"
 #include "../../ipc_service.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 
 static GglIpcOperation operations[] = {
     {
-        GGL_STR("aws.greengrass#PublishToTopic"),
+        GG_STR("aws.greengrass#PublishToTopic"),
         ggl_handle_publish_to_topic,
     },
     {
-        GGL_STR("aws.greengrass#SubscribeToTopic"),
+        GG_STR("aws.greengrass#SubscribeToTopic"),
         ggl_handle_subscribe_to_topic,
     },
 };
 
 GglIpcService ggl_ipc_service_pubsub = {
-    .name = GGL_STR("aws.greengrass.ipc.pubsub"),
+    .name = GG_STR("aws.greengrass.ipc.pubsub"),
     .operations = operations,
     .operation_count = sizeof(operations) / sizeof(*operations),
 };

@@ -7,14 +7,14 @@
 #include <assert.h>
 #include <curl/curl.h>
 #include <errno.h>
-#include <ggl/arena.h>
-#include <ggl/backoff.h>
-#include <ggl/cleanup.h>
+#include <gg/arena.h>
+#include <gg/backoff.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/file.h>
+#include <gg/log.h>
+#include <gg/vector.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/error.h>
-#include <ggl/file.h>
-#include <ggl/log.h>
-#include <ggl/vector.h>
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
@@ -30,7 +30,7 @@ __attribute__((constructor)) static void init_curl(void) {
     // TODO: set up a heap4 and init curl instead with curl_global_init_mem()
     CURLcode e = curl_global_init(CURL_GLOBAL_DEFAULT);
     if (e != CURLE_OK) {
-        GGL_LOGE(
+        GG_LOGE(
             "Failed to init curl with CURLcode %d (reason: \"%s\").",
             e,
             curl_easy_strerror(e)
@@ -39,19 +39,19 @@ __attribute__((constructor)) static void init_curl(void) {
     }
 }
 
-static GglError translate_curl_code(CURLcode code) {
+static GgError translate_curl_code(CURLcode code) {
     switch (code) {
     case CURLE_OK:
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     case CURLE_AGAIN:
-        return GGL_ERR_RETRY;
+        return GG_ERR_RETRY;
     case CURLE_URL_MALFORMAT:
-        return GGL_ERR_PARSE;
+        return GG_ERR_PARSE;
     case CURLE_ABORTED_BY_CALLBACK:
     case CURLE_WRITE_ERROR:
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     default:
-        return GGL_ERR_REMOTE;
+        return GG_ERR_REMOTE;
     }
 }
 
@@ -100,20 +100,20 @@ typedef struct CurlRequestRetryCtx {
     CurlData *curl_data;
 
     // reset response_data for next attempt
-    GglError (*retry_fn)(void *);
+    GgError (*retry_fn)(void *);
     void *response_data;
 
     // Needed to propagate errors when retrying is impossible.
-    GglError err;
+    GgError err;
 } CurlRequestRetryCtx;
 
-static GglError clear_buffer(void *response_data) {
-    GglByteVec *vector = (GglByteVec *) response_data;
+static GgError clear_buffer(void *response_data) {
+    GgByteVec *vector = (GgByteVec *) response_data;
     vector->buf.len = 0;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError truncate_file(void *response_data) {
+static GgError truncate_file(void *response_data) {
     int fd = *(int *) response_data;
 
     int ret;
@@ -122,93 +122,91 @@ static GglError truncate_file(void *response_data) {
     } while ((ret == -1) && (errno == EINTR));
 
     if (ret == -1) {
-        GGL_LOGE("Failed to truncate fd for write (errno=%d).", errno);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Failed to truncate fd for write (errno=%d).", errno);
+        return GG_ERR_FAILURE;
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError curl_request_retry_wrapper(void *ctx) {
+static GgError curl_request_retry_wrapper(void *ctx) {
     CurlRequestRetryCtx *retry_ctx = (CurlRequestRetryCtx *) ctx;
     CurlData *curl_data = retry_ctx->curl_data;
 
     CURLcode curl_error = curl_easy_perform(curl_data->curl);
     if (can_retry(curl_error, curl_data)) {
-        GglError err = retry_ctx->retry_fn(retry_ctx->response_data);
-        if (err != GGL_ERR_OK) {
+        GgError err = retry_ctx->retry_fn(retry_ctx->response_data);
+        if (err != GG_ERR_OK) {
             retry_ctx->err = err;
-            return GGL_ERR_OK;
+            return GG_ERR_OK;
         }
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
     if (curl_error != CURLE_OK) {
-        GGL_LOGE(
+        GG_LOGE(
             "Curl request failed due to error: %s",
             curl_easy_strerror(curl_error)
         );
         retry_ctx->err = translate_curl_code(curl_error);
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
     long http_status_code = 0;
     curl_error = curl_easy_getinfo(
         curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code
     );
     if (curl_error != CURLE_OK) {
-        retry_ctx->err = GGL_ERR_FAILURE;
-        return GGL_ERR_OK;
+        retry_ctx->err = GG_ERR_FAILURE;
+        return GG_ERR_OK;
     }
 
     if ((http_status_code >= 200) && (http_status_code < 300)) {
-        retry_ctx->err = GGL_ERR_OK;
-        return GGL_ERR_OK;
+        retry_ctx->err = GG_ERR_OK;
+        return GG_ERR_OK;
     }
 
     if ((http_status_code >= 500) && (http_status_code < 600)) {
-        retry_ctx->err = GGL_ERR_REMOTE;
+        retry_ctx->err = GG_ERR_REMOTE;
     } else {
-        retry_ctx->err = GGL_ERR_FAILURE;
+        retry_ctx->err = GG_ERR_FAILURE;
     }
-    GGL_LOGE(
+    GG_LOGE(
         "Curl request failed due to HTTP status code %ld.", http_status_code
     );
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError do_curl_request(
-    CurlData *curl_data, GglByteVec *response_buffer
+static GgError do_curl_request(
+    CurlData *curl_data, GgByteVec *response_buffer
 ) {
     CurlRequestRetryCtx ctx = { .curl_data = curl_data,
                                 .response_data = (void *) response_buffer,
                                 .retry_fn = clear_buffer,
-                                .err = GGL_ERR_OK };
-    GglError ret = ggl_backoff(
-        1000, 64000, 7, curl_request_retry_wrapper, (void *) &ctx
-    );
-    if (ret != GGL_ERR_OK) {
+                                .err = GG_ERR_OK };
+    GgError ret
+        = gg_backoff(1000, 64000, 7, curl_request_retry_wrapper, (void *) &ctx);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
-    if (ctx.err != GGL_ERR_OK) {
+    if (ctx.err != GG_ERR_OK) {
         return ctx.err;
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError do_curl_request_fd(CurlData *curl_data, int fd) {
+static GgError do_curl_request_fd(CurlData *curl_data, int fd) {
     CurlRequestRetryCtx ctx = { .curl_data = curl_data,
                                 .response_data = (void *) &fd,
                                 .retry_fn = truncate_file,
-                                .err = GGL_ERR_OK };
-    GglError ret = ggl_backoff(
-        1000, 64000, 7, curl_request_retry_wrapper, (void *) &ctx
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Curl request failed; retries exhausted.");
+                                .err = GG_ERR_OK };
+    GgError ret
+        = gg_backoff(1000, 64000, 7, curl_request_retry_wrapper, (void *) &ctx);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Curl request failed; retries exhausted.");
         return ret;
     }
-    if (ctx.err != GGL_ERR_OK) {
+    if (ctx.err != GG_ERR_OK) {
         return ctx.err;
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 /// @brief Callback function to write the HTTP response data to a buffer.
@@ -231,15 +229,15 @@ static size_t write_response_to_buffer(
         return 0;
     }
     size_t size_of_response_data = size * nmemb;
-    GglBuffer response_buffer
-        = (GglBuffer) { .data = response_data, .len = size_of_response_data };
+    GgBuffer response_buffer
+        = (GgBuffer) { .data = response_data, .len = size_of_response_data };
     assert(output_vector_void != NULL);
-    GglByteVec *output_vector = output_vector_void;
-    GglError ret = ggl_byte_vec_append(output_vector, response_buffer);
-    if (ret != GGL_ERR_OK) {
+    GgByteVec *output_vector = output_vector_void;
+    GgError ret = gg_byte_vec_append(output_vector, response_buffer);
+    if (ret != GG_ERR_OK) {
         size_t remaining_capacity
-            = ggl_byte_vec_remaining_capacity(*output_vector).len;
-        GGL_LOGE(
+            = gg_byte_vec_remaining_capacity(*output_vector).len;
+        GG_LOGE(
             "Not enough space to hold full body. Est. remaining bytes: %zu. Buffer remaining capacity: %zu",
             size_of_response_data,
             remaining_capacity
@@ -270,12 +268,12 @@ static size_t write_response_to_fd(
         return 0;
     }
     size_t size_of_response_data = size * nmemb;
-    GglBuffer response_buffer
-        = (GglBuffer) { .data = response_data, .len = size_of_response_data };
+    GgBuffer response_buffer
+        = (GgBuffer) { .data = response_data, .len = size_of_response_data };
     assert(fd_void != NULL);
     int *fd = (int *) fd_void;
-    GglError err = ggl_file_write(*fd, response_buffer);
-    if (err != GGL_ERR_OK) {
+    GgError err = gg_file_write(*fd, response_buffer);
+    if (err != GG_ERR_OK) {
         return 0;
     }
     return size_of_response_data;
@@ -290,56 +288,56 @@ static size_t write_response_to_fd(
 ///
 /// @param[in] curl_data A pointer to the curl data which is to be updated with
 /// the proxy configuration.
-/// @return GGL_ERR_OK on success, error code otherwise.
-static GglError set_curl_proxy_config(CurlData *curl_data) {
+/// @return GG_ERR_OK on success, error code otherwise.
+static GgError set_curl_proxy_config(CurlData *curl_data) {
     assert(curl_data != NULL);
 
     if (curl_data == NULL) {
-        GGL_LOGE("Pointer to curl data cannot be NULL");
-        return GGL_ERR_FATAL;
+        GG_LOGE("Pointer to curl data cannot be NULL");
+        return GG_ERR_FATAL;
     }
 
     uint8_t proxy_uri_mem[PATH_MAX] = { 0 };
-    GglArena alloc_proxy = ggl_arena_init(
-        ggl_buffer_substr(GGL_BUF(proxy_uri_mem), 0, sizeof(proxy_uri_mem) - 1)
+    GgArena alloc_proxy = gg_arena_init(
+        gg_buffer_substr(GG_BUF(proxy_uri_mem), 0, sizeof(proxy_uri_mem) - 1)
     );
-    GglBuffer proxy_uri;
-    GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.NucleusLite"),
-            GGL_STR("configuration"),
-            GGL_STR("networkProxy"),
-            GGL_STR("proxy"),
-            GGL_STR("url")
+    GgBuffer proxy_uri;
+    GgError ret = ggl_gg_config_read_str(
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.NucleusLite"),
+            GG_STR("configuration"),
+            GG_STR("networkProxy"),
+            GG_STR("proxy"),
+            GG_STR("url")
         ),
         &alloc_proxy,
         &proxy_uri
     );
 
-    if (ret == GGL_ERR_OK) {
+    if (ret == GG_ERR_OK) {
         proxy_uri_mem[proxy_uri.len] = '\0';
 
         if ((proxy_uri.len > 5)
             && (strncmp((const char *) proxy_uri_mem, "https", 5) == 0)) {
             uint8_t ca_mem[PATH_MAX] = { 0 };
-            GglArena alloc_ca = ggl_arena_init(
-                ggl_buffer_substr(GGL_BUF(ca_mem), 0, sizeof(ca_mem) - 1)
+            GgArena alloc_ca = gg_arena_init(
+                gg_buffer_substr(GG_BUF(ca_mem), 0, sizeof(ca_mem) - 1)
             );
-            GglBuffer ca;
+            GgBuffer ca;
 
             ret = ggl_gg_config_read_str(
-                GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
+                GG_BUF_LIST(GG_STR("system"), GG_STR("rootCaPath")),
                 &alloc_ca,
                 &ca
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("No root CA provided for https proxy.");
-                return GGL_ERR_FAILURE;
+            if (ret != GG_ERR_OK) {
+                GG_LOGE("No root CA provided for https proxy.");
+                return GG_ERR_FAILURE;
             }
 
             ca_mem[ca.len] = '\0';
-            GGL_LOGI("Proxy CA path %s", ca_mem);
+            GG_LOGI("Proxy CA path %s", ca_mem);
             CURLcode curl_error = curl_easy_setopt(
                 curl_data->curl, CURLOPT_PROXY_CAINFO, ca_mem
             );
@@ -348,64 +346,64 @@ static GglError set_curl_proxy_config(CurlData *curl_data) {
             }
 
             uint8_t cert_mem[PATH_MAX] = { 0 };
-            GglArena alloc_cert = ggl_arena_init(
-                ggl_buffer_substr(GGL_BUF(cert_mem), 0, sizeof(cert_mem) - 1)
+            GgArena alloc_cert = gg_arena_init(
+                gg_buffer_substr(GG_BUF(cert_mem), 0, sizeof(cert_mem) - 1)
             );
-            GglBuffer cert;
+            GgBuffer cert;
 
             ret = ggl_gg_config_read_str(
-                GGL_BUF_LIST(
-                    GGL_STR("services"),
-                    GGL_STR("aws.greengrass.NucleusLite"),
-                    GGL_STR("configuration"),
-                    GGL_STR("networkProxy"),
-                    GGL_STR("proxy"),
-                    GGL_STR("proxyCertPath")
+                GG_BUF_LIST(
+                    GG_STR("services"),
+                    GG_STR("aws.greengrass.NucleusLite"),
+                    GG_STR("configuration"),
+                    GG_STR("networkProxy"),
+                    GG_STR("proxy"),
+                    GG_STR("proxyCertPath")
                 ),
                 &alloc_cert,
                 &cert
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGD(
+            if (ret != GG_ERR_OK) {
+                GG_LOGD(
                     "No certificate provided to be used with https proxy. Not setting cert/key in curl config."
                 );
 
                 // Return here with success.
-                return GGL_ERR_OK;
+                return GG_ERR_OK;
             }
             cert_mem[cert.len] = '\0';
 
             uint8_t key_mem[PATH_MAX] = { 0 };
-            GglArena alloc_key = ggl_arena_init(
-                ggl_buffer_substr(GGL_BUF(key_mem), 0, sizeof(key_mem) - 1)
+            GgArena alloc_key = gg_arena_init(
+                gg_buffer_substr(GG_BUF(key_mem), 0, sizeof(key_mem) - 1)
             );
-            GglBuffer key;
+            GgBuffer key;
 
             ret = ggl_gg_config_read_str(
-                GGL_BUF_LIST(
-                    GGL_STR("services"),
-                    GGL_STR("aws.greengrass.NucleusLite"),
-                    GGL_STR("configuration"),
-                    GGL_STR("networkProxy"),
-                    GGL_STR("proxy"),
-                    GGL_STR("proxyKeyPath")
+                GG_BUF_LIST(
+                    GG_STR("services"),
+                    GG_STR("aws.greengrass.NucleusLite"),
+                    GG_STR("configuration"),
+                    GG_STR("networkProxy"),
+                    GG_STR("proxy"),
+                    GG_STR("proxyKeyPath")
                 ),
                 &alloc_key,
                 &key
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGD(
+            if (ret != GG_ERR_OK) {
+                GG_LOGD(
                     "No key provided to be used with https proxy. Not setting cert/key in curl config."
                 );
 
                 // Return here with success.
-                return GGL_ERR_OK;
+                return GG_ERR_OK;
             }
             key_mem[key.len] = '\0';
 
             // Once we have paths for key and cert, try to add them to the curl
             // config.
-            GGL_LOGI("Proxy cert path %s", cert_mem);
+            GG_LOGI("Proxy cert path %s", cert_mem);
             curl_error = curl_easy_setopt(
                 curl_data->curl, CURLOPT_PROXY_SSLCERT, cert_mem
             );
@@ -413,7 +411,7 @@ static GglError set_curl_proxy_config(CurlData *curl_data) {
                 return translate_curl_code(curl_error);
             }
 
-            GGL_LOGW("Proxy key path %s", key_mem);
+            GG_LOGW("Proxy key path %s", key_mem);
             curl_error = curl_easy_setopt(
                 curl_data->curl, CURLOPT_PROXY_SSLKEY, key_mem
             );
@@ -423,7 +421,7 @@ static GglError set_curl_proxy_config(CurlData *curl_data) {
         }
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 void gghttplib_destroy_curl(CurlData *curl_data) {
@@ -435,13 +433,13 @@ void gghttplib_destroy_curl(CurlData *curl_data) {
     curl_easy_cleanup(curl_data->curl);
 }
 
-GglError gghttplib_init_curl(CurlData *curl_data, const char *url) {
+GgError gghttplib_init_curl(CurlData *curl_data, const char *url) {
     curl_data->headers_list = NULL;
     curl_data->curl = curl_easy_init();
 
     if (curl_data->curl == NULL) {
-        GGL_LOGE("Cannot create instance of curl for the url=%s", url);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Cannot create instance of curl for the url=%s", url);
+        return GG_ERR_FAILURE;
     }
 
     CURLcode err = curl_easy_setopt(curl_data->curl, CURLOPT_URL, url);
@@ -449,34 +447,34 @@ GglError gghttplib_init_curl(CurlData *curl_data, const char *url) {
     return translate_curl_code(err);
 }
 
-GglError gghttplib_add_header(
-    CurlData *curl_data, GglBuffer header_key, GglBuffer header_value
+GgError gghttplib_add_header(
+    CurlData *curl_data, GgBuffer header_key, GgBuffer header_value
 ) {
     assert(curl_data != NULL);
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
-    GGL_MTX_SCOPE_GUARD(&mtx);
+    GG_MTX_SCOPE_GUARD(&mtx);
     static char header[MAX_HEADER_LENGTH];
-    GglByteVec header_vec = GGL_BYTE_VEC(header);
-    GglError err = GGL_ERR_OK;
+    GgByteVec header_vec = GG_BYTE_VEC(header);
+    GgError err = GG_ERR_OK;
     // x-header-key: header-value
-    ggl_byte_vec_chain_append(&err, &header_vec, header_key);
-    ggl_byte_vec_chain_push(&err, &header_vec, ':');
-    ggl_byte_vec_chain_push(&err, &header_vec, ' ');
-    ggl_byte_vec_chain_append(&err, &header_vec, header_value);
-    ggl_byte_vec_chain_push(&err, &header_vec, '\0');
-    if (err != GGL_ERR_OK) {
+    gg_byte_vec_chain_append(&err, &header_vec, header_key);
+    gg_byte_vec_chain_push(&err, &header_vec, ':');
+    gg_byte_vec_chain_push(&err, &header_vec, ' ');
+    gg_byte_vec_chain_append(&err, &header_vec, header_value);
+    gg_byte_vec_chain_push(&err, &header_vec, '\0');
+    if (err != GG_ERR_OK) {
         return err;
     }
     struct curl_slist *new_head
         = curl_slist_append(curl_data->headers_list, header);
     if (new_head == NULL) {
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
     curl_data->headers_list = new_head;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError gghttplib_add_certificate_data(
+GgError gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 ) {
     assert(curl_data != NULL);
@@ -498,19 +496,19 @@ GglError gghttplib_add_certificate_data(
     return translate_curl_code(err);
 }
 
-GglError gghttplib_add_post_body(CurlData *curl_data, const char *body) {
+GgError gghttplib_add_post_body(CurlData *curl_data, const char *body) {
     assert(curl_data != NULL);
     CURLcode err = curl_easy_setopt(curl_data->curl, CURLOPT_POSTFIELDS, body);
     return translate_curl_code(err);
 }
 
-GglError gghttplib_process_request(
-    CurlData *curl_data, GglBuffer *response_buffer
+GgError gghttplib_process_request(
+    CurlData *curl_data, GgBuffer *response_buffer
 ) {
     assert(curl_data != NULL);
-    GglByteVec response_vector = (response_buffer != NULL)
-        ? ggl_byte_vec_init(*response_buffer)
-        : (GglByteVec) { 0 };
+    GgByteVec response_vector = (response_buffer != NULL)
+        ? gg_byte_vec_init(*response_buffer)
+        : (GgByteVec) { 0 };
 
     CURLcode curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
@@ -519,8 +517,8 @@ GglError gghttplib_process_request(
         return translate_curl_code(curl_error);
     }
 
-    GglError ret = set_curl_proxy_config(curl_data);
-    if (ret != GGL_ERR_OK) {
+    GgError ret = set_curl_proxy_config(curl_data);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
@@ -542,13 +540,13 @@ GglError gghttplib_process_request(
     }
 
     ret = do_curl_request(curl_data, &response_vector);
-    if ((response_buffer != NULL) && (ret == GGL_ERR_OK)) {
+    if ((response_buffer != NULL) && (ret == GG_ERR_OK)) {
         response_buffer->len = response_vector.buf.len;
     }
     return ret;
 }
 
-GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
+GgError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
     CURLcode curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
     );
@@ -556,8 +554,8 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
         return translate_curl_code(curl_error);
     }
 
-    GglError ret = set_curl_proxy_config(curl_data);
-    if (ret != GGL_ERR_OK) {
+    GgError ret = set_curl_proxy_config(curl_data);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 

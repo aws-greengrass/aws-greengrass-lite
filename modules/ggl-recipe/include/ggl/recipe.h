@@ -8,55 +8,55 @@
 //! Greengrass recipe utils
 
 #include "stdbool.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 
 typedef struct GglRecipeVariable {
-    GglBuffer component_dependency_name;
-    GglBuffer type;
-    GglBuffer key;
+    GgBuffer component_dependency_name;
+    GgBuffer type;
+    GgBuffer key;
 } GglRecipeVariable;
 
-GglError ggl_recipe_get_from_file(
+GgError ggl_recipe_get_from_file(
     int root_path_fd,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglArena *arena,
-    GglObject *recipe
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgArena *arena,
+    GgObject *recipe
 );
 
-GglError fetch_script_section(
-    GglMap selected_lifecycle,
-    GglBuffer selected_phase,
+GgError fetch_script_section(
+    GgMap selected_lifecycle,
+    GgBuffer selected_phase,
     bool *is_root,
-    GglBuffer *out_selected_script_as_buf,
-    GglMap *out_set_env_as_map,
-    GglBuffer *out_timeout_value
+    GgBuffer *out_selected_script_as_buf,
+    GgMap *out_set_env_as_map,
+    GgBuffer *out_timeout_value
 );
 
-GglError select_linux_lifecycle(
-    GglMap recipe_map, GglMap *out_selected_lifecycle_map
+GgError select_linux_lifecycle(
+    GgMap recipe_map, GgMap *out_selected_lifecycle_map
 );
-GglError select_linux_manifest(
-    GglMap recipe_map, GglMap *out_selected_linux_manifest
+GgError select_linux_manifest(
+    GgMap recipe_map, GgMap *out_selected_linux_manifest
 );
 
-GglBuffer get_current_architecture(void);
+GgBuffer get_current_architecture(void);
 
-GglError ggl_get_recipe_artifacts_for_platform(
-    GglMap recipe_map, GglList *out_platform_artifacts
+GgError ggl_get_recipe_artifacts_for_platform(
+    GgMap recipe_map, GgList *out_platform_artifacts
 );
 
 /// Returns true if the given string is a recipe variable
-/// e.g. GGL_STR("{configuration:/version}")
-bool ggl_is_recipe_variable(GglBuffer str);
+/// e.g. GG_STR("{configuration:/version}")
+bool ggl_is_recipe_variable(GgBuffer str);
 
 /// Parses a string into a recipe variable without modifying it.
 /// The output will contain substrings of the input string on success.
-GglError ggl_parse_recipe_variable(
-    GglBuffer str, GglRecipeVariable *out_variable
+GgError ggl_parse_recipe_variable(
+    GgBuffer str, GglRecipeVariable *out_variable
 );
 
 #endif

@@ -18,14 +18,14 @@ pthread_mutex_t *coremqtt_get_state_mtx(const struct MQTTContext *ctx);
 
 #ifdef CORE_MQTT_SOURCE
 
-#include "ggl/log.h"
+#include <gg/log.h>
 
 #define GGL_MQTT_LOGUNPACK(...) __VA_ARGS__
 
-#define LogDebug(body) GGL_LOGD(GGL_MQTT_LOGUNPACK body)
-#define LogInfo(body) GGL_LOGI(GGL_MQTT_LOGUNPACK body)
-#define LogWarn(body) GGL_LOGW(GGL_MQTT_LOGUNPACK body)
-#define LogError(body) GGL_LOGE(GGL_MQTT_LOGUNPACK body)
+#define LogDebug(body) GG_LOGD(GGL_MQTT_LOGUNPACK body)
+#define LogInfo(body) GG_LOGI(GGL_MQTT_LOGUNPACK body)
+#define LogWarn(body) GG_LOGW(GGL_MQTT_LOGUNPACK body)
+#define LogError(body) GG_LOGE(GGL_MQTT_LOGUNPACK body)
 
 #define MQTT_PRE_STATE_UPDATE_HOOK(pContext) \
     pthread_mutex_lock(coremqtt_get_state_mtx(pContext));

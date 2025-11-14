@@ -5,8 +5,8 @@
 #ifndef GGPUBSUBD_H
 #define GGPUBSUBD_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_ggpubsubd(void);
+GgError run_ggpubsubd(void);
 
 #endif

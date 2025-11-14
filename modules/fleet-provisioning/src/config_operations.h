@@ -6,21 +6,21 @@
 #define CONFIG_OPERATIONS_H
 
 #include "fleet-provisioning.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdbool.h>
 
-GglError ggl_update_iot_endpoints(FleetProvArgs *args);
-GglError ggl_has_provisioning_config(GglArena alloc, bool *prov_enabled);
-GglError ggl_is_already_provisioned(GglArena alloc, bool *provisioned);
-GglError ggl_get_configuration(FleetProvArgs *args);
-GglError ggl_load_template_params(
-    FleetProvArgs *args, GglArena *alloc, GglMap *template_params
+GgError ggl_update_iot_endpoints(FleetProvArgs *args);
+GgError ggl_has_provisioning_config(GgArena alloc, bool *prov_enabled);
+GgError ggl_is_already_provisioned(GgArena alloc, bool *provisioned);
+GgError ggl_get_configuration(FleetProvArgs *args);
+GgError ggl_load_template_params(
+    FleetProvArgs *args, GgArena *alloc, GgMap *template_params
 );
-GglError ggl_update_system_cert_paths(
-    GglBuffer output_dir_path, FleetProvArgs *args, GglBuffer thing_name
+GgError ggl_update_system_cert_paths(
+    GgBuffer output_dir_path, FleetProvArgs *args, GgBuffer thing_name
 );
 
 #endif

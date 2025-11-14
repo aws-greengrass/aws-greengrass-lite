@@ -5,8 +5,8 @@
 #ifndef GG_FLEET_STATUSD_H
 #define GG_FLEET_STATUSD_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_gg_fleet_statusd(void);
+GgError run_gg_fleet_statusd(void);
 
 #endif

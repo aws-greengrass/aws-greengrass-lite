@@ -6,14 +6,14 @@
 #define GGL_IPC_DISPATCH_H
 
 #include "ipc_error.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdint.h>
 
-GglError ggl_ipc_handle_operation(
-    GglBuffer operation,
-    GglMap args,
+GgError ggl_ipc_handle_operation(
+    GgBuffer operation,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error

@@ -5,8 +5,8 @@
 #ifndef URIPARSE_TEST_H
 #define URIPARSE_TEST_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_uriparse_test(void);
+GgError run_uriparse_test(void);
 
 #endif

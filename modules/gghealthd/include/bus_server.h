@@ -5,8 +5,8 @@
 #ifndef GGHEALTHD_H
 #define GGHEALTHD_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_gghealthd(void);
+GgError run_gghealthd(void);
 
 #endif

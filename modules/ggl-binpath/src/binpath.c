@@ -2,15 +2,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/vector.h>
 #include <ggl/binpath.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/vector.h>
 #include <stddef.h>
 
-GglError ggl_binpath_get_dir(GglBuffer argv0, GglByteVec *result) {
+GgError ggl_binpath_get_dir(GgBuffer argv0, GgByteVec *result) {
     if (argv0.data == NULL || result == NULL) {
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
     // Find last slash in argv0
@@ -21,21 +21,21 @@ GglError ggl_binpath_get_dir(GglBuffer argv0, GglByteVec *result) {
         }
     }
 
-    GglBuffer dir = ggl_buffer_substr(argv0, 0, last_slash);
-    return ggl_byte_vec_append(result, dir);
+    GgBuffer dir = gg_buffer_substr(argv0, 0, last_slash);
+    return gg_byte_vec_append(result, dir);
 }
 
-GglError ggl_binpath_append_name(
-    GglBuffer argv0, GglBuffer name, GglByteVec *result
+GgError ggl_binpath_append_name(
+    GgBuffer argv0, GgBuffer name, GgByteVec *result
 ) {
     if (name.data == NULL) {
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
-    GglError err = ggl_binpath_get_dir(argv0, result);
-    if (err != GGL_ERR_OK) {
+    GgError err = ggl_binpath_get_dir(argv0, result);
+    if (err != GG_ERR_OK) {
         return err;
     }
 
-    return ggl_byte_vec_append(result, name);
+    return gg_byte_vec_append(result, name);
 }

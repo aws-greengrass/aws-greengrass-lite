@@ -5,15 +5,15 @@
 #ifndef GGL_FLEETPROV_CLOUD_REQUEST_H
 #define GGL_FLEETPROV_CLOUD_REQUEST_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 
-GglError ggl_get_certificate_from_aws(
-    GglBuffer csr_as_ggl_buffer,
-    GglBuffer template_name,
-    GglMap template_params,
-    GglBuffer *thing_name_out,
+GgError ggl_get_certificate_from_aws(
+    GgBuffer csr_as_ggl_buffer,
+    GgBuffer template_name,
+    GgMap template_params,
+    GgBuffer *thing_name_out,
     int certificate_fd
 );
 

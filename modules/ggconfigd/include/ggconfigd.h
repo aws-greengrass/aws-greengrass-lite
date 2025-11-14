@@ -5,10 +5,10 @@
 #ifndef GGCONFIGD_H
 #define GGCONFIGD_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
-#include <ggl/vector.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <stdint.h>
 
 // TODO: we could save this static memory by having json decoding done as we
@@ -16,27 +16,25 @@
 // For now, set to something slightly smaller than GGCONFIGD_MAX_DB_READ_BYTES
 #define GGCONFIGD_MAX_OBJECT_DECODE_BYTES 9000
 
-GglError ggconfig_write_value_at_key(
-    GglList *key_path, GglBuffer *value, int64_t timestamp
+GgError ggconfig_write_value_at_key(
+    GgList *key_path, GgBuffer *value, int64_t timestamp
 );
-GglError ggconfig_write_empty_map(GglList *key_path);
-GglError ggconfig_delete_key(GglList *key_path);
-GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value);
-GglError ggconfig_list_subkeys(GglList *key_path, GglList *subkeys);
-GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle);
-GglError ggconfig_open(void);
-GglError ggconfig_close(void);
+GgError ggconfig_write_empty_map(GgList *key_path);
+GgError ggconfig_delete_key(GgList *key_path);
+GgError ggconfig_get_value_from_key(GgList *key_path, GgObject *value);
+GgError ggconfig_list_subkeys(GgList *key_path, GgList *subkeys);
+GgError ggconfig_get_key_notification(GgList *key_path, uint32_t handle);
+GgError ggconfig_open(void);
+GgError ggconfig_close(void);
 
 void ggconfigd_start_server(void);
 
-GglError ggconfig_load_file(GglBuffer path);
-GglError ggconfig_load_dir(GglBuffer path);
+GgError ggconfig_load_file(GgBuffer path);
+GgError ggconfig_load_dir(GgBuffer path);
 
-GglError ggconfig_process_nonmap(
-    GglObjVec *key_path, GglObject value, int64_t timestamp
+GgError ggconfig_process_nonmap(
+    GgObjVec *key_path, GgObject value, int64_t timestamp
 );
-GglError ggconfig_process_map(
-    GglObjVec *key_path, GglMap map, int64_t timestamp
-);
+GgError ggconfig_process_map(GgObjVec *key_path, GgMap map, int64_t timestamp);
 
 #endif

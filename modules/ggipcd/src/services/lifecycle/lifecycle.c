@@ -4,15 +4,15 @@
 
 #include "lifecycle.h"
 #include "../../ipc_service.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 
 static GglIpcOperation operations[] = { {
-    GGL_STR("aws.greengrass#UpdateState"),
+    GG_STR("aws.greengrass#UpdateState"),
     ggl_handle_update_state,
 } };
 
 GglIpcService ggl_ipc_service_lifecycle = {
-    .name = GGL_STR("aws.greengrass.ipc.lifecycle"),
+    .name = GG_STR("aws.greengrass.ipc.lifecycle"),
     .operations = operations,
     .operation_count = sizeof(operations) / sizeof(*operations),
 };

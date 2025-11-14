@@ -5,12 +5,12 @@
 #include "component_manager.h"
 #include "component_store.h"
 #include <assert.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/gg_healthd.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
 #include <ggl/semver.h>
 #include <limits.h>
 #include <string.h>
@@ -19,81 +19,81 @@
 
 #define LOCAL_DEPLOYMENT "LOCAL_DEPLOYMENT"
 
-static GglError find_active_version(
-    GglBuffer package_name, GglBuffer version_requirement, GglBuffer *version
+static GgError find_active_version(
+    GgBuffer package_name, GgBuffer version_requirement, GgBuffer *version
 ) {
     // check the config to see if the provided package name is already a running
     // service
 
     // find the version of the active running component
     static uint8_t version_resp_mem[128] = { 0 };
-    GglArena alloc = ggl_arena_init(GGL_BUF(version_resp_mem));
-    GglBuffer version_resp;
-    GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("services"), package_name, GGL_STR("version")),
+    GgArena alloc = gg_arena_init(GG_BUF(version_resp_mem));
+    GgBuffer version_resp;
+    GgError ret = ggl_gg_config_read_str(
+        GG_BUF_LIST(GG_STR("services"), package_name, GG_STR("version")),
         &alloc,
         &version_resp
     );
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGI(
+    if (ret != GG_ERR_OK) {
+        GG_LOGI(
             "Unable to retrieve version of %.*s. Assuming no active version found.",
             (int) package_name.len,
             package_name.data
         );
-        return GGL_ERR_NOENTRY;
+        return GG_ERR_NOENTRY;
     }
 
     // active component found, update the version if it is a valid version
     if (!is_in_range(version_resp, version_requirement)) {
-        return GGL_ERR_NOENTRY;
+        return GG_ERR_NOENTRY;
     }
 
     // Check that the component is actually running (or finished)
     uint8_t component_status_buf[NAME_MAX];
-    alloc = ggl_arena_init(GGL_BUF(component_status_buf));
-    GglBuffer component_status;
+    alloc = gg_arena_init(GG_BUF(component_status_buf));
+    GgBuffer component_status;
     ret = ggl_gghealthd_retrieve_component_status(
         package_name, &alloc, &component_status
     );
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGI(
+    if (ret != GG_ERR_OK) {
+        GG_LOGI(
             "Component status not found for component %.*s despite finding active version. Not using this version.",
             (int) package_name.len,
             package_name.data
         );
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
-    if (!ggl_buffer_eq(component_status, GGL_STR("RUNNING"))
-        && !ggl_buffer_eq(component_status, GGL_STR("FINISHED"))) {
-        GGL_LOGI(
+    if (!gg_buffer_eq(component_status, GG_STR("RUNNING"))
+        && !gg_buffer_eq(component_status, GG_STR("FINISHED"))) {
+        GG_LOGI(
             "Component %.*s is not in the RUNNING or FINISHED states. Not using the active version.",
             (int) package_name.len,
             package_name.data
         );
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
     *version = version_resp;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError find_best_candidate_locally(
-    GglBuffer component_name, GglBuffer version_requirement, GglBuffer *version
+static GgError find_best_candidate_locally(
+    GgBuffer component_name, GgBuffer version_requirement, GgBuffer *version
 ) {
-    GGL_LOGD("Searching for the best local candidate on the device.");
+    GG_LOGD("Searching for the best local candidate on the device.");
 
-    GglError ret
+    GgError ret
         = find_active_version(component_name, version_requirement, version);
 
-    if (ret == GGL_ERR_OK) {
-        GGL_LOGI("Found running component which meets the version requirements."
+    if (ret == GG_ERR_OK) {
+        GG_LOGI("Found running component which meets the version requirements."
         );
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
-    GGL_LOGI(
+    GG_LOGI(
         "No running component satisfies the version requirements. Searching in the local component store."
     );
 
@@ -103,21 +103,21 @@ static GglError find_best_candidate_locally(
 }
 
 bool resolve_component_version(
-    GglBuffer component_name,
-    GglBuffer version_requirement,
-    GglBuffer *resolved_version
+    GgBuffer component_name,
+    GgBuffer version_requirement,
+    GgBuffer *resolved_version
 ) {
-    GGL_LOGD("Resolving component version.");
+    GG_LOGD("Resolving component version.");
 
     // find best local candidate
     uint8_t local_version_arr[NAME_MAX];
-    GglBuffer local_version = GGL_BUF(local_version_arr);
-    GglError ret = find_best_candidate_locally(
+    GgBuffer local_version = GG_BUF(local_version_arr);
+    GgError ret = find_best_candidate_locally(
         component_name, version_requirement, &local_version
     );
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGI(
+    if (ret != GG_ERR_OK) {
+        GG_LOGI(
             "Failed to find a local candidate that satisfies the requrement."
         );
         return false;
@@ -125,7 +125,7 @@ bool resolve_component_version(
 
     // TODO: also check that the component region matches the expected region
     // (component store functionality)
-    GGL_LOGI(
+    GG_LOGI(
         "Found local candidate for %.*s that satisfies version requirements. Using the local candidate as the resolved version without negotiating with the cloud.",
         (int) component_name.len,
         (char *) component_name.data

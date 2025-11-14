@@ -6,8 +6,8 @@
 #define IOTCORED_MQTT_H
 
 #include "iotcored.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -16,21 +16,21 @@
 #define GGL_MQTT_MAX_SUBSCRIBE_FILTERS 10
 
 typedef struct {
-    GglBuffer topic;
-    GglBuffer payload;
+    GgBuffer topic;
+    GgBuffer payload;
 } IotcoredMsg;
 
-GglError iotcored_mqtt_connect(const IotcoredArgs *args);
+GgError iotcored_mqtt_connect(const IotcoredArgs *args);
 
 bool iotcored_mqtt_connection_status(void);
 
-GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos);
-GglError iotcored_mqtt_subscribe(
-    GglBuffer *topic_filters, size_t count, uint8_t qos
+GgError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos);
+GgError iotcored_mqtt_subscribe(
+    GgBuffer *topic_filters, size_t count, uint8_t qos
 );
-GglError iotcored_mqtt_unsubscribe(GglBuffer *topic_filters, size_t count);
+GgError iotcored_mqtt_unsubscribe(GgBuffer *topic_filters, size_t count);
 
-bool iotcored_mqtt_topic_filter_match(GglBuffer topic_filter, GglBuffer topic);
+bool iotcored_mqtt_topic_filter_match(GgBuffer topic_filter, GgBuffer topic);
 
 void iotcored_mqtt_receive(const IotcoredMsg *msg);
 

@@ -5,8 +5,8 @@
 #ifndef GGCONFIGD_HELPERS_H
 #define GGCONFIGD_HELPERS_H
 
-#include <ggl/object.h>
+#include <gg/object.h>
 
-char *print_key_path(GglList *key_path);
+char *print_key_path(GgList *key_path);
 
 #endif

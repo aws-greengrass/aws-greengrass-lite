@@ -268,8 +268,8 @@ check_c_source_compiles(
 # Add components
 #
 
-add_subdirectory(${ggl_sdk_SOURCE_DIR} ggl-sdk)
-target_include_directories(ggl-sdk INTERFACE ${ggl_sdk_SOURCE_DIR}/priv_include)
+add_subdirectory(${gg_sdk_SOURCE_DIR} gg-sdk)
+target_include_directories(gg-sdk INTERFACE ${gg_sdk_SOURCE_DIR}/priv_include)
 
 # Common setup for a GGL module
 function(ggl_init_module name)
@@ -296,7 +296,7 @@ function(ggl_init_module name)
   # src/dummy.c
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
-    target_compile_definitions(${name} PRIVATE "GGL_MODULE=(\"${name}\")")
+    target_compile_definitions(${name} PRIVATE "GG_MODULE=(\"${name}\")")
     target_include_directories(${name} PUBLIC ${COMP_ARG_INCDIRS})
     target_link_libraries(${name} PRIVATE ${COMP_ARG_LIBS})
   endif()
@@ -325,7 +325,7 @@ function(ggl_init_module name)
     get_filename_component(bin_name ${bin} NAME_WLE)
     add_executable(${bin_name}-bin ${bin})
     target_compile_definitions(${bin_name}-bin
-                               PRIVATE "GGL_MODULE=(\"${name}\")")
+                               PRIVATE "GG_MODULE=(\"${name}\")")
     if(NOT SRCS_LEN EQUAL 0)
       target_link_libraries(${bin_name}-bin PRIVATE ${name})
     endif()

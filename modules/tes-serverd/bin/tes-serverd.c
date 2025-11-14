@@ -5,13 +5,13 @@
 // tes-serverd -- A lightweight http server daemon for GGLite
 
 #include "tes-serverd.h"
-#include <ggl/error.h>
+#include <gg/error.h>
 #include <ggl/nucleus/init.h>
 
 int main(void) {
     ggl_nucleus_init();
-    GglError ret = run_tes_serverd();
-    if (ret != GGL_ERR_OK) {
+    GgError ret = run_tes_serverd();
+    if (ret != GG_ERR_OK) {
         return 1;
     }
 }

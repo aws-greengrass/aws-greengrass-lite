@@ -5,8 +5,8 @@
 #ifndef SEMVER_TEST_H
 #define SEMVER_TEST_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_semver_test(void);
+GgError run_semver_test(void);
 
 #endif

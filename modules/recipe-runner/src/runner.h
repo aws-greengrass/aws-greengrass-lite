@@ -7,10 +7,10 @@
 #define RUNNER_H
 
 #include "recipe-runner.h"
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError get_file_content(const char *file_path, char *return_value);
+GgError get_file_content(const char *file_path, char *return_value);
 
-GglError runner(const RecipeRunnerArgs *args);
+GgError runner(const RecipeRunnerArgs *args);
 
 #endif

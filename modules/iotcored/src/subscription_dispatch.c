@@ -4,13 +4,13 @@
 
 #include "subscription_dispatch.h"
 #include "mqtt.h"
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
@@ -39,31 +39,31 @@ static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t mqtt_status_handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mqtt_status_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static GglBuffer topic_filter_buf(size_t index) {
-    return ggl_buffer_substr(
-        GGL_BUF(sub_topic_filters[index]), 0, topic_filter_len[index]
+static GgBuffer topic_filter_buf(size_t index) {
+    return gg_buffer_substr(
+        GG_BUF(sub_topic_filters[index]), 0, topic_filter_len[index]
     );
 }
 
-GglError iotcored_register_subscriptions(
-    GglBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
+GgError iotcored_register_subscriptions(
+    GgBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
 ) {
     for (size_t i = 0; i < count; i++) {
         if (topic_filters[i].len == 0) {
-            GGL_LOGE("Attempted to register a 0 length topic filter.");
-            return GGL_ERR_INVALID;
+            GG_LOGE("Attempted to register a 0 length topic filter.");
+            return GG_ERR_INVALID;
         }
     }
     for (size_t i = 0; i < count; i++) {
         if (topic_filters[i].len > AWS_IOT_MAX_TOPIC_SIZE) {
-            GGL_LOGE("Topic filter exceeds max length.");
-            return GGL_ERR_RANGE;
+            GG_LOGE("Topic filter exceeds max length.");
+            return GG_ERR_RANGE;
         }
     }
 
-    GGL_LOGD("Registering subscriptions.");
+    GG_LOGD("Registering subscriptions.");
 
-    GGL_MTX_SCOPE_GUARD(&mtx);
+    GG_MTX_SCOPE_GUARD(&mtx);
 
     size_t filter_index = 0;
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
@@ -78,11 +78,11 @@ GglError iotcored_register_subscriptions(
             topic_qos[i] = qos;
             filter_index += 1;
             if (filter_index == count) {
-                return GGL_ERR_OK;
+                return GG_ERR_OK;
             }
         }
     }
-    GGL_LOGE("Configured maximum subscriptions exceeded.");
+    GG_LOGE("Configured maximum subscriptions exceeded.");
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {
@@ -90,12 +90,12 @@ GglError iotcored_register_subscriptions(
         }
     }
 
-    return GGL_ERR_NOMEM;
+    return GG_ERR_NOMEM;
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe) {
-    GGL_MTX_SCOPE_GUARD(&mtx);
+    GG_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {
@@ -122,7 +122,7 @@ void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe) {
                 // This is the only subscription to this topic. Send an
                 // unsubscribe.
                 if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
-                    GglBuffer buf[] = { topic_filter_buf(i) };
+                    GgBuffer buf[] = { topic_filter_buf(i) };
                     // TODO: Should these be retried? If offline, should be
                     // queued up until online?
                     (void) iotcored_mqtt_unsubscribe(buf, 1U);
@@ -135,7 +135,7 @@ void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe) {
 }
 
 void iotcored_mqtt_receive(const IotcoredMsg *msg) {
-    GGL_MTX_SCOPE_GUARD(&mtx);
+    GG_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if ((topic_filter_len[i] != 0)
@@ -144,28 +144,28 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
             )) {
             ggl_sub_respond(
                 handles[i],
-                ggl_obj_map(GGL_MAP(
-                    ggl_kv(GGL_STR("topic"), ggl_obj_buf(msg->topic)),
-                    ggl_kv(GGL_STR("payload"), ggl_obj_buf(msg->payload))
+                gg_obj_map(GG_MAP(
+                    gg_kv(GG_STR("topic"), gg_obj_buf(msg->topic)),
+                    gg_kv(GG_STR("payload"), gg_obj_buf(msg->payload))
                 ))
             );
         }
     }
 }
 
-GglError iotcored_mqtt_status_update_register(uint32_t handle) {
-    GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
+GgError iotcored_mqtt_status_update_register(uint32_t handle) {
+    GG_MTX_SCOPE_GUARD(&mqtt_status_mtx);
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (mqtt_status_handles[i] == 0) {
             mqtt_status_handles[i] = handle;
-            return GGL_ERR_OK;
+            return GG_ERR_OK;
         }
     }
-    return GGL_ERR_NOMEM;
+    return GG_ERR_NOMEM;
 }
 
 void iotcored_mqtt_status_update_unregister(uint32_t handle) {
-    GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
+    GG_MTX_SCOPE_GUARD(&mqtt_status_mtx);
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (mqtt_status_handles[i] == handle) {
             mqtt_status_handles[i] = 0;
@@ -174,8 +174,8 @@ void iotcored_mqtt_status_update_unregister(uint32_t handle) {
     }
 }
 
-void iotcored_mqtt_status_update_send(GglObject status) {
-    GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
+void iotcored_mqtt_status_update_send(GgObject status) {
+    GG_MTX_SCOPE_GUARD(&mqtt_status_mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (mqtt_status_handles[i] != 0) {
@@ -185,21 +185,21 @@ void iotcored_mqtt_status_update_send(GglObject status) {
 }
 
 void iotcored_re_register_all_subs(void) {
-    GGL_MTX_SCOPE_GUARD(&mtx);
+    GG_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (topic_filter_len[i] != 0) {
-            GglBuffer buffer
+            GgBuffer buffer
                 = { .data = sub_topic_filters[i], .len = topic_filter_len[i] };
-            GGL_LOGD(
+            GG_LOGD(
                 "Subscribing again to:  %.*s",
                 (int) topic_filter_len[i],
                 sub_topic_filters[i]
             );
             if (iotcored_mqtt_subscribe(&buffer, 1, topic_qos[i])
-                != GGL_ERR_OK) {
+                != GG_ERR_OK) {
                 topic_filter_len[i] = 0;
-                GGL_LOGE("Failed to subscribe to topic filter.");
+                GG_LOGE("Failed to subscribe to topic filter.");
             }
         }
     }

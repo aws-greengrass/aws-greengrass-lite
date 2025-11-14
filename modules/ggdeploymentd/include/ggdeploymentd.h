@@ -5,8 +5,8 @@
 #ifndef GGDEPLOYMENTD_H
 #define GGDEPLOYMENTD_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_ggdeploymentd(const char *bin_path);
+GgError run_ggdeploymentd(const char *bin_path);
 
 #endif

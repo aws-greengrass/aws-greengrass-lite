@@ -7,48 +7,48 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "cli.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/flags.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/error.h>
-#include <ggl/flags.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <stdint.h>
 
-GglError ggl_handle_restart_component(
+GgError ggl_handle_restart_component(
     const GglIpcOperationInfo *info,
-    GglMap args,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglArena *alloc
+    GgArena *alloc
 ) {
     (void) stream_id;
     (void) alloc;
 
-    GglObject *component_name_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *component_name_obj;
+    GgError ret = gg_map_validate(
         args,
-        GGL_MAP_SCHEMA({ GGL_STR("componentName"),
-                         GGL_REQUIRED,
-                         GGL_TYPE_BUF,
-                         &component_name_obj })
+        GG_MAP_SCHEMA({ GG_STR("componentName"),
+                        GG_REQUIRED,
+                        GG_TYPE_BUF,
+                        &component_name_obj })
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("RestartComponent received invalid arguments.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("RestartComponent received invalid arguments.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
-            .message = GGL_STR("Invalid arguments provided.") };
-        return GGL_ERR_INVALID;
+            .message = GG_STR("Invalid arguments provided.") };
+        return GG_ERR_INVALID;
     }
 
-    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    GgBuffer component_name = gg_obj_into_buf(*component_name_obj);
 
     ret = ggl_ipc_auth(info, component_name, &ggl_ipc_default_policy_matcher);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
             "Component %.*s is not authorized to restart component %.*s.",
             (int) info->component.len,
             info->component.data,
@@ -57,49 +57,43 @@ GglError ggl_handle_restart_component(
         );
         *ipc_error = (GglIpcError) {
             .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
-            .message = GGL_STR("Component not authorized to restart component.")
+            .message = GG_STR("Component not authorized to restart component.")
         };
         return ret;
     }
 
-    GglObject result;
-    GglError method_error;
+    GgObject result;
+    GgError method_error;
     ret = ggl_call(
-        GGL_STR("gg_health"),
-        GGL_STR("restart_component"),
-        GGL_MAP(ggl_kv(GGL_STR("component_name"), *component_name_obj)),
+        GG_STR("gg_health"),
+        GG_STR("restart_component"),
+        GG_MAP(gg_kv(GG_STR("component_name"), *component_name_obj)),
         &method_error,
         alloc,
         &result
     );
-    if (ret != GGL_ERR_OK) {
-        if (ret == GGL_ERR_REMOTE) {
-            GGL_LOGE(
-                "Failed to restart component: %u", (unsigned) method_error
-            );
-            if (method_error == GGL_ERR_NOENTRY) {
+    if (ret != GG_ERR_OK) {
+        if (ret == GG_ERR_REMOTE) {
+            GG_LOGE("Failed to restart component: %u", (unsigned) method_error);
+            if (method_error == GG_ERR_NOENTRY) {
                 *ipc_error = (GglIpcError
                 ) { .error_code = GGL_IPC_ERR_RESOURCE_NOT_FOUND,
-                    .message = GGL_STR("Component not found.") };
+                    .message = GG_STR("Component not found.") };
                 return method_error;
             }
         }
         return ggl_ipc_response_send(
             handle,
             stream_id,
-            GGL_STR("aws.greengrass#RestartComponentResponse"),
-            GGL_MAP(
-                ggl_kv(GGL_STR("restartStatus"), ggl_obj_buf(GGL_STR("FAILED")))
-            )
+            GG_STR("aws.greengrass#RestartComponentResponse"),
+            GG_MAP(gg_kv(GG_STR("restartStatus"), gg_obj_buf(GG_STR("FAILED"))))
         );
     }
 
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#RestartComponentResponse"),
-        GGL_MAP(
-            ggl_kv(GGL_STR("restartStatus"), ggl_obj_buf(GGL_STR("SUCCEEDED")))
-        )
+        GG_STR("aws.greengrass#RestartComponentResponse"),
+        GG_MAP(gg_kv(GG_STR("restartStatus"), gg_obj_buf(GG_STR("SUCCEEDED"))))
     );
 }

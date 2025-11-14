@@ -4,7 +4,7 @@
 
 ggl_init_module(
   ggipcd
-  LIBS ggl-sdk
+  LIBS gg-sdk
        ggl-common
        ggl-constants
        core-bus

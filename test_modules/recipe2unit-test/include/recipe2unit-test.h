@@ -5,8 +5,8 @@
 #ifndef RECIPE_2_UNIT_TEST_H
 #define RECIPE_2_UNIT_TEST_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_recipe2unit_test(void);
+GgError run_recipe2unit_test(void);
 
 #endif

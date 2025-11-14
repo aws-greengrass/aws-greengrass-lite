@@ -1,12 +1,12 @@
 #ifndef GGL_EXEC_PRIV_IO_H
 #define GGL_EXEC_PRIV_IO_H
 
-#include <ggl/io.h>
+#include <gg/io.h>
 
 typedef struct FileWriterContext {
     int fd;
 } FileWriterContext;
 
-GglWriter priv_file_writer(FileWriterContext *ctx);
+GgWriter priv_file_writer(FileWriterContext *ctx);
 
 #endif

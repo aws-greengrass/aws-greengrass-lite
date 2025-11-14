@@ -5,25 +5,25 @@
 #ifndef IOTCORED_SUBSCRIPTION_DISPATCH_H
 #define IOTCORED_SUBSCRIPTION_DISPATCH_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-GglError iotcored_register_subscriptions(
-    GglBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
+GgError iotcored_register_subscriptions(
+    GgBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
 );
 
 void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe);
 
 void iotcored_re_register_all_subs(void);
 
-GglError iotcored_mqtt_status_update_register(uint32_t handle);
+GgError iotcored_mqtt_status_update_register(uint32_t handle);
 
 void iotcored_mqtt_status_update_unregister(uint32_t handle);
 
-void iotcored_mqtt_status_update_send(GglObject status);
+void iotcored_mqtt_status_update_send(GgObject status);
 
 #endif

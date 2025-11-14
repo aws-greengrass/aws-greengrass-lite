@@ -4,17 +4,17 @@
 
 #include "authorization_agent.h"
 #include "../../ipc_service.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 
 static GglIpcOperation operations[] = {
     {
-        GGL_STR("aws.greengrass#ValidateAuthorizationToken"),
+        GG_STR("aws.greengrass#ValidateAuthorizationToken"),
         ggl_handle_token_validation,
     },
 };
 
 GglIpcService ggl_ipc_service_token_validation = {
-    .name = GGL_STR("aws.greengrass.authorizationagent"),
+    .name = GG_STR("aws.greengrass.authorizationagent"),
     .operations = operations,
     .operation_count = sizeof(operations) / sizeof(*operations),
 };

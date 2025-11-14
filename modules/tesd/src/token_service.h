@@ -5,16 +5,16 @@
 #ifndef TOKEN_SERVICE_H
 #define TOKEN_SERVICE_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 
-GglError initiate_request(
-    GglBuffer root_ca,
-    GglBuffer cert_path,
-    GglBuffer key_path,
-    GglBuffer thing_name,
-    GglBuffer role_alias,
-    GglBuffer cred_endpoint
+GgError initiate_request(
+    GgBuffer root_ca,
+    GgBuffer cert_path,
+    GgBuffer key_path,
+    GgBuffer thing_name,
+    GgBuffer role_alias,
+    GgBuffer cred_endpoint
 );
 
 #endif

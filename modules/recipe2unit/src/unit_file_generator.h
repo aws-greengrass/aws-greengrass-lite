@@ -6,9 +6,9 @@
 #define UNIT_FILE_GENERATOR_H
 
 #include "ggl/recipe2unit.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 
 typedef enum {
     INSTALL,
@@ -16,11 +16,11 @@ typedef enum {
     BOOTSTRAP
 } PhaseSelection;
 
-GglError generate_systemd_unit(
-    GglMap recipe_map,
-    GglBuffer *unit_file_buffer,
+GgError generate_systemd_unit(
+    GgMap recipe_map,
+    GgBuffer *unit_file_buffer,
     Recipe2UnitArgs *args,
-    GglObject **component_name,
+    GgObject **component_name,
     PhaseSelection phase
 );
 

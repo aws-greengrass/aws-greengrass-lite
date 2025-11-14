@@ -5,13 +5,13 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_MANAGER_H
 #define GGDEPLOYMENTD_COMPONENT_MANAGER_H
 
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 #include <stdbool.h>
 
 bool resolve_component_version(
-    GglBuffer component_name,
-    GglBuffer version_requirement,
-    GglBuffer *resolved_version
+    GgBuffer component_name,
+    GgBuffer version_requirement,
+    GgBuffer *resolved_version
 );
 
 #endif

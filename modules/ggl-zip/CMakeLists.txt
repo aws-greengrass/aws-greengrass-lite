@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(ggl-zip LIBS ggl-sdk PkgConfig::libzip z)
+ggl_init_module(ggl-zip LIBS gg-sdk PkgConfig::libzip z)

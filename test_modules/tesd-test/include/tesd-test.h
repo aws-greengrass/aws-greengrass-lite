@@ -5,8 +5,8 @@
 #ifndef TESD_TEST_H
 #define TESD_TEST_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_tesd_test(void);
+GgError run_tesd_test(void);
 
 #endif

@@ -5,12 +5,12 @@
 #ifndef GGIPCD_H
 #define GGIPCD_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
 typedef struct {
     char *socket_path;
 } GglIpcArgs;
 
-GglError run_ggipcd(GglIpcArgs *args);
+GgError run_ggipcd(GglIpcArgs *args);
 
 #endif

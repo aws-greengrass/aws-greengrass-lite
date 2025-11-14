@@ -2,13 +2,13 @@
 #define GGL_STALE_COMPONENT_H
 
 #include "deployment_model.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 
-GglError disable_and_unlink_service(
-    GglBuffer *component_name, PhaseSelection phase
+GgError disable_and_unlink_service(
+    GgBuffer *component_name, PhaseSelection phase
 );
-GglError cleanup_stale_versions(GglMap latest_components_map);
+GgError cleanup_stale_versions(GgMap latest_components_map);
 
 #endif

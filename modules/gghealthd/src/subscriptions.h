@@ -5,12 +5,12 @@
 #ifndef GGHEALTHD_SUBSCRIPTIONS_H
 #define GGHEALTHD_SUBSCRIPTIONS_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <stdint.h>
 
-GglError gghealthd_register_lifecycle_subscription(
-    GglBuffer component_name, uint32_t handle
+GgError gghealthd_register_lifecycle_subscription(
+    GgBuffer component_name, uint32_t handle
 );
 
 void gghealthd_unregister_lifecycle_subscription(void *ctx, uint32_t handle);

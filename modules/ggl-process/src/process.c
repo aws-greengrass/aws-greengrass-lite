@@ -4,9 +4,9 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <ggl/cleanup.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/log.h>
 #include <ggl/process.h>
 #include <limits.h>
 #include <pthread.h>
@@ -34,7 +34,7 @@ __attribute__((constructor(101))) static void setup_sigalrm(void) {
     sigaddset(&set, SIGALRM);
     int sys_ret = pthread_sigmask(SIG_BLOCK, &set, NULL);
     if (sys_ret != 0) {
-        GGL_LOGE("pthread_sigmask failed: %d", sys_ret);
+        GG_LOGE("pthread_sigmask failed: %d", sys_ret);
         _Exit(1);
     }
 
@@ -60,7 +60,7 @@ static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
 #define CLOSE_RANGE_UNSHARE 2
 #endif
 
-GglError ggl_process_spawn(const char *const argv[], int *handle) {
+GgError ggl_process_spawn(const char *const argv[], int *handle) {
     assert(argv[0] != NULL);
     assert(handle != NULL);
 
@@ -75,15 +75,15 @@ GglError ggl_process_spawn(const char *const argv[], int *handle) {
     }
 
     if (pid < 0) {
-        GGL_LOGE("Err %d when calling fork.", errno);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Err %d when calling fork.", errno);
+        return GG_ERR_FAILURE;
     }
 
     *handle = pid;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError ggl_process_wait(int handle, bool *exit_status) {
+GgError ggl_process_wait(int handle, bool *exit_status) {
     while (true) {
         siginfo_t info = { 0 };
         int ret = waitid(P_PID, (id_t) handle, &info, WEXITED);
@@ -91,8 +91,8 @@ GglError ggl_process_wait(int handle, bool *exit_status) {
             if (errno == EINTR) {
                 continue;
             }
-            GGL_LOGE("Err %d when calling waitid.", errno);
-            return GGL_ERR_FAILURE;
+            GG_LOGE("Err %d when calling waitid.", errno);
+            return GG_ERR_FAILURE;
         }
 
         switch (info.si_code) {
@@ -100,19 +100,19 @@ GglError ggl_process_wait(int handle, bool *exit_status) {
             if (exit_status != NULL) {
                 *exit_status = info.si_status == 0;
             }
-            return GGL_ERR_OK;
+            return GG_ERR_OK;
         case CLD_KILLED:
         case CLD_DUMPED:
             if (exit_status != NULL) {
                 *exit_status = false;
             }
-            return GGL_ERR_OK;
+            return GG_ERR_OK;
         default:;
         }
     }
 }
 
-GglError ggl_process_kill(int handle, uint32_t term_timeout) {
+GgError ggl_process_kill(int handle, uint32_t term_timeout) {
     if (term_timeout == 0) {
         kill(handle, SIGKILL);
         return ggl_process_wait(handle, NULL);
@@ -133,7 +133,7 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     int waitid_err;
 
     {
-        GGL_MTX_SCOPE_GUARD(&sigalrm_mtx);
+        GG_MTX_SCOPE_GUARD(&sigalrm_mtx);
 
         pthread_sigmask(SIG_SETMASK, &set, &old_set);
 
@@ -149,12 +149,12 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     }
 
     if (waitid_ret == 0) {
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
 
     if (waitid_err != EINTR) {
-        GGL_LOGE("Err %d when calling waitid.", waitid_err);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Err %d when calling waitid.", waitid_err);
+        return GG_ERR_FAILURE;
     }
 
     kill(handle, SIGKILL);
@@ -162,16 +162,16 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     return ggl_process_wait(handle, NULL);
 }
 
-GglError ggl_process_call(const char *const argv[]) {
+GgError ggl_process_call(const char *const argv[]) {
     int handle;
-    GglError ret = ggl_process_spawn(argv, &handle);
-    if (ret != GGL_ERR_OK) {
+    GgError ret = ggl_process_spawn(argv, &handle);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
     bool exit_status = false;
     ret = ggl_process_wait(handle, &exit_status);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
-    return exit_status ? GGL_ERR_OK : GGL_ERR_FAILURE;
+    return exit_status ? GG_ERR_OK : GG_ERR_FAILURE;
 }

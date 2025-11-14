@@ -5,8 +5,8 @@
 #ifndef TESD_TEST_H
 #define TESD_TEST_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_s3_test(char *region, char *bucket, char *key, char *file_path);
+GgError run_s3_test(char *region, char *bucket, char *key, char *file_path);
 
 #endif

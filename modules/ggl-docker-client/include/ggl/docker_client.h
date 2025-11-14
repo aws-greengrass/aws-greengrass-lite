@@ -6,22 +6,22 @@
 #ifndef GGL_DOCKER_CLIENT_H
 #define GGL_DOCKER_CLIENT_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <ggl/http.h>
 #include <ggl/uri.h>
 #include <stdbool.h>
 
-GglError ggl_docker_check_server(void);
-GglError ggl_docker_pull(GglBuffer image_name);
-GglError ggl_docker_remove(GglBuffer image_name);
-GglError ggl_docker_check_image(GglBuffer image_name);
-GglError ggl_docker_credentials_store(
-    GglBuffer registry, GglBuffer username, GglBuffer secret
+GgError ggl_docker_check_server(void);
+GgError ggl_docker_pull(GgBuffer image_name);
+GgError ggl_docker_remove(GgBuffer image_name);
+GgError ggl_docker_check_image(GgBuffer image_name);
+GgError ggl_docker_credentials_store(
+    GgBuffer registry, GgBuffer username, GgBuffer secret
 );
 
 /// Request credentials from ECR and pipe them to `docker login`
-GglError ggl_docker_credentials_ecr_retrieve(
+GgError ggl_docker_credentials_ecr_retrieve(
     GglDockerUriInfo ecr_registry, SigV4Details sigv4_details
 );
 

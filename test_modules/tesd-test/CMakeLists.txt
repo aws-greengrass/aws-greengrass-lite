@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(tesd-test LIBS ggl-sdk ggl-common core-bus)
+ggl_init_module(tesd-test LIBS gg-sdk ggl-common core-bus)

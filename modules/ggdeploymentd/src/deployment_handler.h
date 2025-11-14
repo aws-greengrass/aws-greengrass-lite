@@ -5,11 +5,11 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 #define GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 
 typedef struct {
     int root_path_fd;
-    GglBuffer root_path;
+    GgBuffer root_path;
     const char *bin_path;
 } GglDeploymentHandlerThreadArgs;
 

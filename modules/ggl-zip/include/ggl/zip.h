@@ -7,14 +7,14 @@
 
 //! Zip file functionality
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <sys/types.h>
 
 /// Unarchive all entries from the zip file in a directory to the destination
 /// directory. All created, uncompressed files use the given mode.
-GglError ggl_zip_unarchive(
-    int source_dest_dir_fd, GglBuffer zip_path, int dest_dir_fd, mode_t mode
+GgError ggl_zip_unarchive(
+    int source_dest_dir_fd, GgBuffer zip_path, int dest_dir_fd, mode_t mode
 );
 
 #endif

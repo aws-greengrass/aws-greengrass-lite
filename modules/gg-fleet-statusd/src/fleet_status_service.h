@@ -5,14 +5,14 @@
 #ifndef GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 #define GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 
 #define MAX_THING_NAME_LEN 128
 
-GglError publish_fleet_status_update(
-    GglBuffer thing_name, GglBuffer trigger, GglMap deployment_info
+GgError publish_fleet_status_update(
+    GgBuffer thing_name, GgBuffer trigger, GgMap deployment_info
 );
 
 #endif // GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H

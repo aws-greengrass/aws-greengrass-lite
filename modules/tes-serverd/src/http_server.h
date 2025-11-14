@@ -5,8 +5,8 @@
 #ifndef TES_HTTP_SERVER_H
 #define TES_HTTP_SERVER_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError http_server(void);
+GgError http_server(void);
 
 #endif

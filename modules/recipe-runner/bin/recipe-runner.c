@@ -4,7 +4,7 @@
 
 #include "recipe-runner.h"
 #include <argp.h>
-#include <ggl/error.h>
+#include <gg/error.h>
 #include <ggl/nucleus/init.h>
 #include <stdlib.h>
 
@@ -53,6 +53,6 @@ int main(int argc, char **argv) {
 
     ggl_nucleus_init();
 
-    GglError ret = run_recipe_runner(&args);
-    return ret != GGL_ERR_OK;
+    GgError ret = run_recipe_runner(&args);
+    return ret != GG_ERR_OK;
 }

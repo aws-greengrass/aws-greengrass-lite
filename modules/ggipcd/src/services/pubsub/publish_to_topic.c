@@ -7,137 +7,133 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "pubsub.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/flags.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/error.h>
-#include <ggl/flags.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-GglError ggl_handle_publish_to_topic(
+GgError ggl_handle_publish_to_topic(
     const GglIpcOperationInfo *info,
-    GglMap args,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglArena *alloc
+    GgArena *alloc
 ) {
     (void) alloc;
 
-    GglObject *topic_obj;
-    GglObject *publish_message_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *topic_obj;
+    GgObject *publish_message_obj;
+    GgError ret = gg_map_validate(
         args,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), GGL_REQUIRED, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("publishMessage"),
-              GGL_REQUIRED,
-              GGL_TYPE_MAP,
+        GG_MAP_SCHEMA(
+            { GG_STR("topic"), GG_REQUIRED, GG_TYPE_BUF, &topic_obj },
+            { GG_STR("publishMessage"),
+              GG_REQUIRED,
+              GG_TYPE_MAP,
               &publish_message_obj },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
-        *ipc_error = (GglIpcError
-        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Received invalid parameters.") };
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message
+                                     = GG_STR("Received invalid parameters.") };
+        return GG_ERR_INVALID;
     }
-    GglBuffer topic = ggl_obj_into_buf(*topic_obj);
-    GglMap publish_message = ggl_obj_into_map(*publish_message_obj);
+    GgBuffer topic = gg_obj_into_buf(*topic_obj);
+    GgMap publish_message = gg_obj_into_map(*publish_message_obj);
 
-    GglObject *json_message;
-    GglObject *binary_message;
-    ret = ggl_map_validate(
+    GgObject *json_message;
+    GgObject *binary_message;
+    ret = gg_map_validate(
         publish_message,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("jsonMessage"),
-              GGL_OPTIONAL,
-              GGL_TYPE_MAP,
-              &json_message },
-            { GGL_STR("binaryMessage"),
-              GGL_OPTIONAL,
-              GGL_TYPE_MAP,
+        GG_MAP_SCHEMA(
+            { GG_STR("jsonMessage"), GG_OPTIONAL, GG_TYPE_MAP, &json_message },
+            { GG_STR("binaryMessage"),
+              GG_OPTIONAL,
+              GG_TYPE_MAP,
               &binary_message },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
-        *ipc_error = (GglIpcError
-        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Received invalid parameters.") };
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message
+                                     = GG_STR("Received invalid parameters.") };
+        return GG_ERR_INVALID;
     }
 
     if ((json_message == NULL) == (binary_message == NULL)) {
-        GGL_LOGE(
+        GG_LOGE(
             "'publishMessage' must have exactly one of 'binaryMessage' or 'jsonMessage'."
         );
-        *ipc_error = (GglIpcError
-        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Received invalid parameters.") };
-        return GGL_ERR_INVALID;
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message
+                                     = GG_STR("Received invalid parameters.") };
+        return GG_ERR_INVALID;
     }
 
     bool is_json = json_message != NULL;
 
-    GglObject *message;
-    ret = ggl_map_validate(
-        ggl_obj_into_map(*(is_json ? json_message : binary_message)),
-        GGL_MAP_SCHEMA(
-            { GGL_STR("message"),
-              GGL_REQUIRED,
-              is_json ? GGL_TYPE_NULL : GGL_TYPE_BUF,
+    GgObject *message;
+    ret = gg_map_validate(
+        gg_obj_into_map(*(is_json ? json_message : binary_message)),
+        GG_MAP_SCHEMA(
+            { GG_STR("message"),
+              GG_REQUIRED,
+              is_json ? GG_TYPE_NULL : GG_TYPE_BUF,
               &message },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
-        *ipc_error = (GglIpcError
-        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Received invalid parameters.") };
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message
+                                     = GG_STR("Received invalid parameters.") };
+        return GG_ERR_INVALID;
     }
 
     ret = ggl_ipc_auth(info, topic, ggl_ipc_default_policy_matcher);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("IPC Operation not authorized.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
-            .message = GGL_STR("IPC Operation not authorized.") };
-        return GGL_ERR_INVALID;
+            .message = GG_STR("IPC Operation not authorized.") };
+        return GG_ERR_INVALID;
     }
 
-    GglMap call_args = GGL_MAP(
-        ggl_kv(GGL_STR("topic"), *topic_obj),
-        ggl_kv(
-            GGL_STR("type"),
-            is_json ? ggl_obj_buf(GGL_STR("json"))
-                    : ggl_obj_buf(GGL_STR("base64"))
+    GgMap call_args = GG_MAP(
+        gg_kv(GG_STR("topic"), *topic_obj),
+        gg_kv(
+            GG_STR("type"),
+            is_json ? gg_obj_buf(GG_STR("json")) : gg_obj_buf(GG_STR("base64"))
         ),
-        ggl_kv(GGL_STR("message"), *message),
+        gg_kv(GG_STR("message"), *message),
     );
 
     ret = ggl_call(
-        GGL_STR("gg_pubsub"), GGL_STR("publish"), call_args, NULL, NULL, NULL
+        GG_STR("gg_pubsub"), GG_STR("publish"), call_args, NULL, NULL, NULL
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to publish the message.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to publish the message.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Failed to publish the message.") };
+            .message = GG_STR("Failed to publish the message.") };
         return ret;
     }
 
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#PublishToTopicResponse"),
-        (GglMap) { 0 }
+        GG_STR("aws.greengrass#PublishToTopicResponse"),
+        (GgMap) { 0 }
     );
 }

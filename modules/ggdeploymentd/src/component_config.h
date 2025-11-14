@@ -6,11 +6,11 @@
 #define GGDEPLOYMENTD_COMPONENT_CONFIG_H
 
 #include "deployment_model.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 
-GglError apply_configurations(
-    GglDeployment *deployment, GglBuffer component_name, GglBuffer operation
+GgError apply_configurations(
+    GglDeployment *deployment, GgBuffer component_name, GgBuffer operation
 );
 
 #endif

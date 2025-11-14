@@ -5,30 +5,30 @@
 #ifndef GGL_IPC_SUBSCRIPTIONS_H
 #define GGL_IPC_SUBSCRIPTIONS_H
 
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdint.h>
 
 /// Callback for whenever a subscription is closed.
-typedef GglError (*GglIpcSubscribeCallback)(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglArena *arena
+typedef GgError (*GglIpcSubscribeCallback)(
+    GgObject data, uint32_t resp_handle, int32_t stream_id, GgArena *arena
 );
 
 /// Wrapper around ggl_subscribe for IPC handlers.
-GglError ggl_ipc_bind_subscription(
+GgError ggl_ipc_bind_subscription(
     uint32_t resp_handle,
     int32_t stream_id,
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
     GglIpcSubscribeCallback on_response,
-    GglError *error
+    GgError *error
 );
 
 /// Clean up subscriptions for an IPC client
-GglError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle);
+GgError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle);
 
 /// Cleans up subscription associated with an IPC client's stream
 void ggl_ipc_terminate_stream(uint32_t resp_handle, int32_t stream_id);

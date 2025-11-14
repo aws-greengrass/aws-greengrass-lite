@@ -4,7 +4,7 @@
 
 #include "ggconfigd.h"
 #include <argp.h>
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 #include <ggl/nucleus/init.h>
 #include <stdlib.h>
 
@@ -16,18 +16,18 @@ static struct argp_option opts[] = {
     { 0 }
 };
 
-static GglBuffer config_path = GGL_STR("/etc/greengrass/config.yaml");
-static GglBuffer config_dir = GGL_STR("/etc/greengrass/config.d");
+static GgBuffer config_path = GG_STR("/etc/greengrass/config.yaml");
+static GgBuffer config_dir = GG_STR("/etc/greengrass/config.d");
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     (void) arg;
     (void) state;
     switch (key) {
     case 'c':
-        config_path = ggl_buffer_from_null_term(arg);
+        config_path = gg_buffer_from_null_term(arg);
         break;
     case 'C':
-        config_dir = ggl_buffer_from_null_term(arg);
+        config_dir = gg_buffer_from_null_term(arg);
         break;
     case ARGP_KEY_END:
         break;

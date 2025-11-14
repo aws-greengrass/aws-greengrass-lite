@@ -7,15 +7,15 @@
 #include "validate_args.h"
 #include <assert.h>
 #include <fcntl.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
-#include <ggl/error.h>
-#include <ggl/file.h>
-#include <ggl/log.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/file.h>
+#include <gg/log.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <ggl/recipe.h>
-#include <ggl/vector.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -23,75 +23,73 @@
 #define MAX_UNIT_FILE_BUF_SIZE 2048
 #define MAX_COMPONENT_FILE_NAME 1024
 
-static GglError create_unit_file(
+static GgError create_unit_file(
     Recipe2UnitArgs *args,
-    GglObject **component_name,
+    GgObject **component_name,
     PhaseSelection phase,
-    GglBuffer *response_buffer
+    GgBuffer *response_buffer
 ) {
     static uint8_t file_name_array[MAX_COMPONENT_FILE_NAME];
-    GglBuffer file_name_buffer = (GglBuffer
+    GgBuffer file_name_buffer = (GgBuffer
     ) { .data = (uint8_t *) file_name_array, .len = MAX_COMPONENT_FILE_NAME };
 
-    GglByteVec file_name_vector
+    GgByteVec file_name_vector
         = { .buf = { .data = file_name_buffer.data, .len = 0 },
             .capacity = file_name_buffer.len };
 
-    GglBuffer root_dir_buffer = (GglBuffer
-    ) { .data = (uint8_t *) args->root_dir, .len = strlen(args->root_dir) };
+    GgBuffer root_dir_buffer = (GgBuffer) { .data = (uint8_t *) args->root_dir,
+                                            .len = strlen(args->root_dir) };
 
-    GglError ret = ggl_byte_vec_append(&file_name_vector, root_dir_buffer);
-    ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR("/"));
-    ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR("ggl."));
-    ggl_byte_vec_chain_append(
-        &ret, &file_name_vector, ggl_obj_into_buf(**component_name)
+    GgError ret = gg_byte_vec_append(&file_name_vector, root_dir_buffer);
+    gg_byte_vec_chain_append(&ret, &file_name_vector, GG_STR("/"));
+    gg_byte_vec_chain_append(&ret, &file_name_vector, GG_STR("ggl."));
+    gg_byte_vec_chain_append(
+        &ret, &file_name_vector, gg_obj_into_buf(**component_name)
     );
     if (phase == INSTALL) {
-        ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR(".install"));
+        gg_byte_vec_chain_append(&ret, &file_name_vector, GG_STR(".install"));
     } else if (phase == BOOTSTRAP) {
-        ggl_byte_vec_chain_append(
-            &ret, &file_name_vector, GGL_STR(".bootstrap")
-        );
+        gg_byte_vec_chain_append(&ret, &file_name_vector, GG_STR(".bootstrap"));
     } else {
         // Incase of startup/run nothing to append
         assert(phase == RUN_STARTUP);
     }
-    ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR(".service\0"));
-    if (ret != GGL_ERR_OK) {
+    gg_byte_vec_chain_append(&ret, &file_name_vector, GG_STR(".service\0"));
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     int fd = -1;
-    ret = ggl_file_open(
+    ret = gg_file_open(
         file_name_vector.buf, O_WRONLY | O_CREAT | O_TRUNC, 0644, &fd
     );
-    GGL_CLEANUP(cleanup_close, fd);
+    GG_CLEANUP(cleanup_close, fd);
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open/create a unit file");
-        return GGL_ERR_FAILURE;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to open/create a unit file");
+        return GG_ERR_FAILURE;
     }
 
-    ret = ggl_file_write(fd, *response_buffer);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to write to the unit file.");
-        return GGL_ERR_FAILURE;
+    ret = gg_file_write(fd, *response_buffer);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to write to the unit file.");
+        return GG_ERR_FAILURE;
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError convert_to_unit(
+GgError convert_to_unit(
     Recipe2UnitArgs *args,
-    GglArena *alloc,
-    GglObject *recipe_obj,
-    GglObject **component_name,
+    GgArena *alloc,
+    GgObject *recipe_obj,
+    GgObject **component_name,
     HasPhase *existing_phases
 ) {
-    GglError ret;
+    GgError ret;
     *component_name = NULL;
 
     ret = validate_args(args);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
@@ -102,8 +100,8 @@ GglError convert_to_unit(
         alloc,
         recipe_obj
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("No recipe found");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("No recipe found");
         return ret;
     }
 
@@ -111,103 +109,103 @@ GglError convert_to_unit(
     // we will only select startup for the script and service file
     static uint8_t unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
 
-    GglBuffer bootstrap_response_buffer = GGL_BUF(unit_file_buffer);
+    GgBuffer bootstrap_response_buffer = GG_BUF(unit_file_buffer);
     bootstrap_response_buffer.len = MAX_UNIT_FILE_BUF_SIZE;
 
-    GGL_LOGD("Attempting to find bootstrap phase from recipe");
+    GG_LOGD("Attempting to find bootstrap phase from recipe");
     ret = generate_systemd_unit(
-        ggl_obj_into_map(*recipe_obj),
+        gg_obj_into_map(*recipe_obj),
         &bootstrap_response_buffer,
         args,
         component_name,
         BOOTSTRAP
     );
     if (*component_name == NULL) {
-        GGL_LOGE("Component name was NULL");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Component name was NULL");
+        return GG_ERR_FAILURE;
     }
 
-    if (ret == GGL_ERR_NOENTRY) {
-        GGL_LOGD("No bootstrap phase present");
+    if (ret == GG_ERR_NOENTRY) {
+        GG_LOGD("No bootstrap phase present");
 
-    } else if (ret != GGL_ERR_OK) {
+    } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
         ret = create_unit_file(
             args, component_name, BOOTSTRAP, &bootstrap_response_buffer
         );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to create the bootstrap unit file.");
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to create the bootstrap unit file.");
             return ret;
         }
         existing_phases->has_bootstrap = true;
     }
 
-    GglBuffer install_response_buffer = GGL_BUF(unit_file_buffer);
+    GgBuffer install_response_buffer = GG_BUF(unit_file_buffer);
     install_response_buffer.len = MAX_UNIT_FILE_BUF_SIZE;
 
-    GglMap recipe = ggl_obj_into_map(*recipe_obj);
+    GgMap recipe = gg_obj_into_map(*recipe_obj);
 
-    GGL_LOGD("Attempting to find install phase from recipe");
+    GG_LOGD("Attempting to find install phase from recipe");
     ret = generate_systemd_unit(
         recipe, &install_response_buffer, args, component_name, INSTALL
     );
     if (*component_name == NULL) {
-        GGL_LOGE("Component name was NULL");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Component name was NULL");
+        return GG_ERR_FAILURE;
     }
 
-    if (ret == GGL_ERR_NOENTRY) {
-        GGL_LOGD("No Install phase present");
+    if (ret == GG_ERR_NOENTRY) {
+        GG_LOGD("No Install phase present");
 
-    } else if (ret != GGL_ERR_OK) {
+    } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
         ret = create_unit_file(
             args, component_name, INSTALL, &install_response_buffer
         );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to create the install unit file.");
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to create the install unit file.");
             return ret;
         }
         existing_phases->has_install = true;
     }
 
-    GglBuffer run_startup_response_buffer = GGL_BUF(unit_file_buffer);
+    GgBuffer run_startup_response_buffer = GG_BUF(unit_file_buffer);
     run_startup_response_buffer.len = MAX_UNIT_FILE_BUF_SIZE;
 
-    GGL_LOGD("Attempting to find run phase from recipe");
+    GG_LOGD("Attempting to find run phase from recipe");
     ret = generate_systemd_unit(
         recipe, &run_startup_response_buffer, args, component_name, RUN_STARTUP
     );
-    if (ret == GGL_ERR_NOENTRY) {
-        GGL_LOGD("Neither run nor startup phase present");
-    } else if (ret != GGL_ERR_OK) {
+    if (ret == GG_ERR_NOENTRY) {
+        GG_LOGD("Neither run nor startup phase present");
+    } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
         ret = create_unit_file(
             args, component_name, RUN_STARTUP, &run_startup_response_buffer
         );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to create the run or startup unit file.");
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to create the run or startup unit file.");
             return ret;
         }
-        GGL_LOGD("Created run or startup unit file.");
+        GG_LOGD("Created run or startup unit file.");
         existing_phases->has_run_startup = true;
     }
 
     if (existing_phases->has_bootstrap == false
         && existing_phases->has_install == false
         && existing_phases->has_run_startup == false) {
-        GGL_LOGE(
+        GG_LOGE(
             "Recipes without at least 1 valid lifecycle step aren't currently supported by GGLite"
         );
 
-        GGL_LOGW(
+        GG_LOGW(
             "Note that in GG Lite, keys are case sensitive. Check the recipe reference for the correct casing."
         );
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

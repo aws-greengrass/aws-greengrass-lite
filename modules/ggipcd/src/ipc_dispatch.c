@@ -6,11 +6,11 @@
 #include "ipc_error.h"
 #include "ipc_server.h"
 #include "ipc_service.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/object.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -23,16 +23,16 @@ static const GglIpcService *const SERVICE_TABLE[]
 static const size_t SERVICE_COUNT
     = sizeof(SERVICE_TABLE) / sizeof(SERVICE_TABLE[0]);
 
-GglError ggl_ipc_handle_operation(
-    GglBuffer operation,
-    GglMap args,
+GgError ggl_ipc_handle_operation(
+    GgBuffer operation,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error
 ) {
     for (size_t i = 0; i < SERVICE_COUNT; i++) {
         const GglIpcService *service = SERVICE_TABLE[i];
-        GGL_LOGT(
+        GG_LOGT(
             "Matching against service: %.*s.",
             (int) service->name.len,
             service->name.data
@@ -41,21 +41,21 @@ GglError ggl_ipc_handle_operation(
         for (size_t j = 0; j < service->operation_count; j++) {
             const GglIpcOperation *service_op = &service->operations[j];
 
-            GGL_LOGT(
+            GG_LOGT(
                 "Matching against operation: %.*s.",
                 (int) service_op->name.len,
                 service_op->name.data
             );
 
-            if (ggl_buffer_eq(operation, service_op->name)) {
+            if (gg_buffer_eq(operation, service_op->name)) {
                 GglIpcOperationInfo info = {
                     .service = service->name,
                     .operation = operation,
                 };
-                GglError ret
+                GgError ret
                     = ggl_ipc_get_component_name(handle, &info.component);
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE(
+                if (ret != GG_ERR_OK) {
+                    GG_LOGE(
                         "Failed component name lookup for IPC operation %.*s",
                         (int) operation.len,
                         operation.data
@@ -63,7 +63,7 @@ GglError ggl_ipc_handle_operation(
                     return ret;
                 }
 
-                GGL_LOGI(
+                GG_LOGI(
                     "Received IPC operation %.*s from component %.*s.",
                     (int) operation.len,
                     operation.data,
@@ -71,9 +71,9 @@ GglError ggl_ipc_handle_operation(
                     info.component.data
                 );
                 static uint8_t resp_mem
-                    [sizeof(GglObject[GGL_MAX_OBJECT_SUBOBJECTS])
+                    [sizeof(GgObject[GG_MAX_OBJECT_SUBOBJECTS])
                      + GGL_IPC_MAX_MSG_LEN];
-                GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
+                GgArena alloc = gg_arena_init(GG_BUF(resp_mem));
 
                 return service_op->handler(
                     &info, args, handle, stream_id, ipc_error, &alloc
@@ -82,10 +82,10 @@ GglError ggl_ipc_handle_operation(
         }
     }
 
-    GGL_LOGW(
+    GG_LOGW(
         "Unhandled operation requested: %.*s.",
         (int) operation.len,
         operation.data
     );
-    return GGL_ERR_NOENTRY;
+    return GG_ERR_NOENTRY;
 }

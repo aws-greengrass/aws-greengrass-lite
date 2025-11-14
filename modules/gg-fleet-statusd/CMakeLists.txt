@@ -4,7 +4,7 @@
 
 ggl_init_module(
   gg-fleet-statusd
-  LIBS ggl-sdk
+  LIBS gg-sdk
        ggl-common
        core-bus
        core-bus-gghealthd

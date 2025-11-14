@@ -5,20 +5,20 @@
 #ifndef GGHEALTHD_HEALTH_H
 #define GGHEALTHD_HEALTH_H
 
-#include "ggl/error.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 
-GglError gghealthd_init(void);
+GgError gghealthd_init(void);
 
 // get status from native orchestrator or local database
-GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status);
+GgError gghealthd_get_status(GgBuffer component_name, GgBuffer *status);
 
 // update status (with GG component lifecycle state) in
 // native orchestrator or local database
-GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status);
+GgError gghealthd_update_status(GgBuffer component_name, GgBuffer status);
 
-GglError gghealthd_get_health(GglBuffer *status);
+GgError gghealthd_get_health(GgBuffer *status);
 
-GglError gghealthd_restart_component(GglBuffer component_name);
+GgError gghealthd_restart_component(GgBuffer component_name);
 
 #endif

@@ -4,25 +4,25 @@
 
 #include "config.h"
 #include "../../ipc_service.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 
 static GglIpcOperation operations[] = {
     {
-        GGL_STR("aws.greengrass#GetConfiguration"),
+        GG_STR("aws.greengrass#GetConfiguration"),
         ggl_handle_get_configuration,
     },
     {
-        GGL_STR("aws.greengrass#UpdateConfiguration"),
+        GG_STR("aws.greengrass#UpdateConfiguration"),
         ggl_handle_update_configuration,
     },
     {
-        GGL_STR("aws.greengrass#SubscribeToConfigurationUpdate"),
+        GG_STR("aws.greengrass#SubscribeToConfigurationUpdate"),
         ggl_handle_subscribe_to_configuration_update,
     },
 };
 
 GglIpcService ggl_ipc_service_config = {
-    .name = GGL_STR("aws.greengrass.ipc.config"),
+    .name = GG_STR("aws.greengrass.ipc.config"),
     .operations = operations,
     .operation_count = sizeof(operations) / sizeof(*operations),
 };

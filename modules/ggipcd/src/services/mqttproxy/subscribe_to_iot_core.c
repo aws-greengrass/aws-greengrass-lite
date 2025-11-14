@@ -8,161 +8,157 @@
 #include "../../ipc_service.h"
 #include "../../ipc_subscriptions.h"
 #include "mqttproxy.h"
-#include <ggl/arena.h>
-#include <ggl/base64.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/base64.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/flags.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
-#include <ggl/error.h>
-#include <ggl/flags.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-static GglError subscribe_to_iot_core_callback(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglArena *alloc
+static GgError subscribe_to_iot_core_callback(
+    GgObject data, uint32_t resp_handle, int32_t stream_id, GgArena *alloc
 ) {
-    GglBuffer topic;
-    GglBuffer payload;
+    GgBuffer topic;
+    GgBuffer payload;
 
-    GglError ret
-        = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
-    if (ret != GGL_ERR_OK) {
+    GgError ret = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    GglBuffer base64_payload;
-    ret = ggl_base64_encode(payload, alloc, &base64_payload);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Insufficent memory to base64 encode payload; skipping.");
-        return GGL_ERR_OK;
+    GgBuffer base64_payload;
+    ret = gg_base64_encode(payload, alloc, &base64_payload);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Insufficent memory to base64 encode payload; skipping.");
+        return GG_ERR_OK;
     }
 
-    GglMap response = GGL_MAP(ggl_kv(
-        GGL_STR("message"),
-        ggl_obj_map(GGL_MAP(
-            ggl_kv(GGL_STR("topicName"), ggl_obj_buf(topic)),
-            ggl_kv(GGL_STR("payload"), ggl_obj_buf(base64_payload))
+    GgMap response = GG_MAP(gg_kv(
+        GG_STR("message"),
+        gg_obj_map(GG_MAP(
+            gg_kv(GG_STR("topicName"), gg_obj_buf(topic)),
+            gg_kv(GG_STR("payload"), gg_obj_buf(base64_payload))
         ))
     ));
 
     ret = ggl_ipc_response_send(
         resp_handle,
         stream_id,
-        GGL_STR("aws.greengrass#IoTCoreMessage"),
+        GG_STR("aws.greengrass#IoTCoreMessage"),
         response
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
             "Failed to send subscription response with error %s; skipping.",
-            ggl_strerror(ret)
+            gg_strerror(ret)
         );
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError ggl_handle_subscribe_to_iot_core(
+GgError ggl_handle_subscribe_to_iot_core(
     const GglIpcOperationInfo *info,
-    GglMap args,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglArena *alloc
+    GgArena *alloc
 ) {
     (void) alloc;
 
-    GglObject *topic_name_obj;
-    GglObject *qos_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *topic_name_obj;
+    GgObject *qos_obj;
+    GgError ret = gg_map_validate(
         args,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("topicName"),
-              GGL_REQUIRED,
-              GGL_TYPE_BUF,
-              &topic_name_obj },
-            { GGL_STR("qos"), GGL_OPTIONAL, GGL_TYPE_NULL, &qos_obj },
+        GG_MAP_SCHEMA(
+            { GG_STR("topicName"), GG_REQUIRED, GG_TYPE_BUF, &topic_name_obj },
+            { GG_STR("qos"), GG_OPTIONAL, GG_TYPE_NULL, &qos_obj },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
-        *ipc_error = (GglIpcError
-        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Received invalid parameters.") };
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message
+                                     = GG_STR("Received invalid parameters.") };
+        return GG_ERR_INVALID;
     }
-    GglBuffer topic_name = ggl_obj_into_buf(*topic_name_obj);
+    GgBuffer topic_name = gg_obj_into_buf(*topic_name_obj);
 
     int64_t qos = 0;
     if (qos_obj != NULL) {
-        switch (ggl_obj_type(*qos_obj)) {
-        case GGL_TYPE_BUF:
-            ret = ggl_str_to_int64(ggl_obj_into_buf(*qos_obj), &qos);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to parse 'qos' string value.");
+        switch (gg_obj_type(*qos_obj)) {
+        case GG_TYPE_BUF:
+            ret = gg_str_to_int64(gg_obj_into_buf(*qos_obj), &qos);
+            if (ret != GG_ERR_OK) {
+                GG_LOGE("Failed to parse 'qos' string value.");
                 *ipc_error = (GglIpcError
                 ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                    .message = GGL_STR("Failed to parse 'qos' string value.") };
+                    .message = GG_STR("Failed to parse 'qos' string value.") };
                 return ret;
             }
             break;
-        case GGL_TYPE_I64:
-            qos = ggl_obj_into_i64(*qos_obj);
+        case GG_TYPE_I64:
+            qos = gg_obj_into_i64(*qos_obj);
             break;
-        case GGL_TYPE_NULL:
+        case GG_TYPE_NULL:
             break;
         default:
-            GGL_LOGE("Key qos of invalid type.");
+            GG_LOGE("Key qos of invalid type.");
             *ipc_error = (GglIpcError
             ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                .message = GGL_STR("Key qos of invalid type.") };
-            return GGL_ERR_INVALID;
+                .message = GG_STR("Key qos of invalid type.") };
+            return GG_ERR_INVALID;
         }
         if ((qos < 0) || (qos > 2)) {
-            GGL_LOGE("'qos' not a valid value.");
+            GG_LOGE("'qos' not a valid value.");
             *ipc_error = (GglIpcError
             ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                .message = GGL_STR("'qos' not a valid value.") };
-            return GGL_ERR_INVALID;
+                .message = GG_STR("'qos' not a valid value.") };
+            return GG_ERR_INVALID;
         }
     }
 
     ret = ggl_ipc_auth(info, topic_name, ggl_ipc_mqtt_policy_matcher);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("IPC Operation not authorized.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
-            .message = GGL_STR("IPC Operation not authorized.") };
-        return GGL_ERR_INVALID;
+            .message = GG_STR("IPC Operation not authorized.") };
+        return GG_ERR_INVALID;
     }
 
-    GglMap call_args = GGL_MAP(
-        ggl_kv(GGL_STR("topic_filter"), *topic_name_obj),
-        ggl_kv(GGL_STR("qos"), ggl_obj_i64(qos)),
+    GgMap call_args = GG_MAP(
+        gg_kv(GG_STR("topic_filter"), *topic_name_obj),
+        gg_kv(GG_STR("qos"), gg_obj_i64(qos)),
     );
 
     ret = ggl_ipc_bind_subscription(
         handle,
         stream_id,
-        GGL_STR("aws_iot_mqtt"),
-        GGL_STR("subscribe"),
+        GG_STR("aws_iot_mqtt"),
+        GG_STR("subscribe"),
         call_args,
         subscribe_to_iot_core_callback,
         NULL
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to bind the subscription.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to bind the subscription.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Failed to bind the subscription.") };
+            .message = GG_STR("Failed to bind the subscription.") };
         return ret;
     }
 
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#SubscribeToIoTCoreResponse"),
-        (GglMap) { 0 }
+        GG_STR("aws.greengrass#SubscribeToIoTCoreResponse"),
+        (GgMap) { 0 }
     );
 }

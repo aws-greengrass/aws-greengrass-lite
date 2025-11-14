@@ -6,10 +6,10 @@
 #define GGDEPLOYMENTD_BOOTSTRAP_MANAGER_H
 
 #include "deployment_model.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
-#include <ggl/vector.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -30,26 +30,26 @@
           jobsVersion:
 */
 
-bool component_bootstrap_phase_completed(GglBuffer component_name);
+bool component_bootstrap_phase_completed(GgBuffer component_name);
 
 // type can be "bootstrap" or "completed"
 // bootstrap type indicates that the component's bootstrap steps have completed
 // running completed type indicates that the component completed deployment
-GglError save_component_info(
-    GglBuffer component_name, GglBuffer component_version, GglBuffer type
+GgError save_component_info(
+    GgBuffer component_name, GgBuffer component_version, GgBuffer type
 );
 
-GglError save_iot_jobs_id(GglBuffer jobs_id);
-GglError save_iot_jobs_version(int64_t jobs_version);
-GglError save_deployment_info(GglDeployment *deployment);
-GglError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GglBuffer *jobs_id, int64_t *jobs_version
+GgError save_iot_jobs_id(GgBuffer jobs_id);
+GgError save_iot_jobs_version(int64_t jobs_version);
+GgError save_deployment_info(GglDeployment *deployment);
+GgError retrieve_in_progress_deployment(
+    GglDeployment *deployment, GgBuffer *jobs_id, int64_t *jobs_version
 );
-GglError delete_saved_deployment_from_config(void);
-GglError process_bootstrap_phase(
-    GglMap components,
-    GglBuffer root_path,
-    GglBufVec *bootstrap_comp_name_buf_vec,
+GgError delete_saved_deployment_from_config(void);
+GgError process_bootstrap_phase(
+    GgMap components,
+    GgBuffer root_path,
+    GgBufVec *bootstrap_comp_name_buf_vec,
     GglDeployment *deployment
 );
 

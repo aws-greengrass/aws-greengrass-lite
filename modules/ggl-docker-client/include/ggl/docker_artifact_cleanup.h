@@ -6,10 +6,10 @@
 #ifndef GGL_DOCKER_ARTIFACT_CLEANUP_H
 #define GGL_DOCKER_ARTIFACT_CLEANUP_H
 
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
 
 void ggl_docker_artifact_cleanup(
-    int root_path_fd, GglBuffer component_name, GglBuffer component_version
+    int root_path_fd, GgBuffer component_name, GgBuffer component_version
 );
 
 #endif

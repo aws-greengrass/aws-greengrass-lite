@@ -6,12 +6,12 @@
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <string.h>
 #include <sys/types.h>
 #include <stdbool.h>
@@ -42,8 +42,8 @@ static_assert(
     "GGL_PUBSUB_MAX_TOPIC_LENGTH does not fit in an uint8_t."
 );
 
-static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle);
-static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
+static GgError rpc_publish(void *ctx, GgMap params, uint32_t handle);
+static GgError rpc_subscribe(void *ctx, GgMap params, uint32_t handle);
 
 // coreMQTT mtx APIs need defining since we link to it, but we only use topic
 // matching so they should never be called.
@@ -60,39 +60,39 @@ pthread_mutex_t *coremqtt_get_state_mtx(const MQTTContext_t *ctx) {
     return NULL;
 }
 
-GglError run_ggpubsubd(void) {
+GgError run_ggpubsubd(void) {
     GglRpcMethodDesc handlers[] = {
-        { GGL_STR("publish"), false, rpc_publish, NULL },
-        { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
+        { GG_STR("publish"), false, rpc_publish, NULL },
+        { GG_STR("subscribe"), true, rpc_subscribe, NULL },
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglError ret = ggl_listen(GGL_STR("gg_pubsub"), handlers, handlers_len);
+    GgError ret = ggl_listen(GG_STR("gg_pubsub"), handlers, handlers_len);
 
-    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
+    GG_LOGE("Exiting with error %u.", (unsigned) ret);
     return ret;
 }
 
-static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
+static GgError rpc_publish(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
-    GGL_LOGD("Handling request from %u.", handle);
+    GG_LOGD("Handling request from %u.", handle);
 
-    GglObject *val;
-    bool found = ggl_map_get(params, GGL_STR("topic"), &val);
+    GgObject *val;
+    bool found = gg_map_get(params, GG_STR("topic"), &val);
     if (!found) {
-        GGL_LOGE("Params missing topic.");
-        return GGL_ERR_INVALID;
+        GG_LOGE("Params missing topic.");
+        return GG_ERR_INVALID;
     }
-    if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
-        GGL_LOGE("topic is not a string.");
-        return GGL_ERR_INVALID;
+    if (gg_obj_type(*val) != GG_TYPE_BUF) {
+        GG_LOGE("topic is not a string.");
+        return GG_ERR_INVALID;
     }
 
-    GglBuffer topic = ggl_obj_into_buf(*val);
+    GgBuffer topic = gg_obj_into_buf(*val);
 
     if (topic.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
-        GGL_LOGE("Topic too large.");
-        return GGL_ERR_RANGE;
+        GG_LOGE("Topic too large.");
+        return GG_ERR_RANGE;
     }
 
     for (size_t i = 0; i < GGL_PUBSUB_MAX_SUBSCRIPTIONS; i++) {
@@ -106,17 +106,17 @@ static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
                 &matches
             );
             if (matches) {
-                ggl_sub_respond(sub_handle[i], ggl_obj_map(params));
+                ggl_sub_respond(sub_handle[i], gg_obj_map(params));
             }
         }
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL);
-    return GGL_ERR_OK;
+    ggl_respond(handle, GG_OBJ_NULL);
+    return GG_ERR_OK;
 }
 
-static GglError register_subscription(
-    GglBuffer topic_filter, uint32_t handle, uint32_t **handle_ptr
+static GgError register_subscription(
+    GgBuffer topic_filter, uint32_t handle, uint32_t **handle_ptr
 ) {
     for (size_t i = 0; i < GGL_PUBSUB_MAX_SUBSCRIPTIONS; i++) {
         if (sub_handle[i] == 0) {
@@ -124,11 +124,11 @@ static GglError register_subscription(
             memcpy(sub_topic_filter[i], topic_filter.data, topic_filter.len);
             sub_topic_length[i] = (uint8_t) (topic_filter.len - 1);
             *handle_ptr = &sub_handle[i];
-            return GGL_ERR_OK;
+            return GG_ERR_OK;
         }
     }
-    GGL_LOGE("Configured maximum subscriptions exceeded.");
-    return GGL_ERR_NOMEM;
+    GG_LOGE("Configured maximum subscriptions exceeded.");
+    return GG_ERR_NOMEM;
 }
 
 static void release_subscription(void *ctx, uint32_t handle) {
@@ -139,35 +139,35 @@ static void release_subscription(void *ctx, uint32_t handle) {
     sub_handle[index] = 0;
 }
 
-static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
+static GgError rpc_subscribe(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
-    GGL_LOGD("Handling request from %u.", handle);
+    GG_LOGD("Handling request from %u.", handle);
 
-    GglBuffer topic_filter = { 0 };
+    GgBuffer topic_filter = { 0 };
 
-    GglObject *val;
-    if (ggl_map_get(params, GGL_STR("topic_filter"), &val)
-        && (ggl_obj_type(*val) == GGL_TYPE_BUF)) {
-        topic_filter = ggl_obj_into_buf(*val);
+    GgObject *val;
+    if (gg_map_get(params, GG_STR("topic_filter"), &val)
+        && (gg_obj_type(*val) == GG_TYPE_BUF)) {
+        topic_filter = gg_obj_into_buf(*val);
         if (topic_filter.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
-            GGL_LOGE("Topic filter too large.");
-            return GGL_ERR_RANGE;
+            GG_LOGE("Topic filter too large.");
+            return GG_ERR_RANGE;
         }
         if (topic_filter.len == 0) {
-            GGL_LOGE("Topic filter can't be zero length.");
-            return GGL_ERR_RANGE;
+            GG_LOGE("Topic filter can't be zero length.");
+            return GG_ERR_RANGE;
         }
     } else {
-        GGL_LOGE("Received invalid arguments.");
-        return GGL_ERR_INVALID;
+        GG_LOGE("Received invalid arguments.");
+        return GG_ERR_INVALID;
     }
 
     uint32_t *handle_ptr;
-    GglError ret = register_subscription(topic_filter, handle, &handle_ptr);
-    if (ret != GGL_ERR_OK) {
+    GgError ret = register_subscription(topic_filter, handle, &handle_ptr);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     ggl_sub_accept(handle, release_subscription, handle_ptr);
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

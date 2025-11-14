@@ -10,12 +10,12 @@
 #include "unistd.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/file.h>
+#include <gg/log.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/error.h>
-#include <ggl/file.h>
-#include <ggl/log.h>
 #include <ggl/proxy/environment.h>
 #include <limits.h>
 #include <pthread.h>
@@ -24,41 +24,41 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-GglError run_ggdeploymentd(const char *bin_path) {
-    GGL_LOGI("Started ggdeploymentd process.");
+GgError run_ggdeploymentd(const char *bin_path) {
+    GG_LOGI("Started ggdeploymentd process.");
 
-    GglError ret = ggl_proxy_set_environment();
-    if (ret != GGL_ERR_OK) {
+    GgError ret = ggl_proxy_set_environment();
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     umask(0002);
 
     static uint8_t root_path_mem[PATH_MAX] = { 0 };
-    GglArena alloc = ggl_arena_init(
-        ggl_buffer_substr(GGL_BUF(root_path_mem), 0, sizeof(root_path_mem) - 1)
+    GgArena alloc = gg_arena_init(
+        gg_buffer_substr(GG_BUF(root_path_mem), 0, sizeof(root_path_mem) - 1)
     );
-    GglBuffer root_path;
+    GgBuffer root_path;
     ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &root_path
+        GG_BUF_LIST(GG_STR("system"), GG_STR("rootPath")), &alloc, &root_path
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGW("Failed to get root path from config.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGW("Failed to get root path from config.");
         return ret;
     }
 
     int root_path_fd;
-    ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open rootPath.");
+    ret = gg_dir_open(root_path, O_PATH, false, &root_path_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to open rootPath.");
         return ret;
     }
 
     int sys_ret = fchdir(root_path_fd);
     if (sys_ret != 0) {
-        GGL_LOGE("Failed to enter rootPath: %d.", errno);
-        (void) ggl_close(root_path_fd);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Failed to enter rootPath: %d.", errno);
+        (void) gg_close(root_path_fd);
+        return GG_ERR_FAILURE;
     }
 
     GglDeploymentHandlerThreadArgs args = { .root_path_fd = root_path_fd,
@@ -75,5 +75,5 @@ GglError run_ggdeploymentd(const char *bin_path) {
 
     ggdeploymentd_start_server();
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

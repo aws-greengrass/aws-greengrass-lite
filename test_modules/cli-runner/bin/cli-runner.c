@@ -3,11 +3,11 @@
 // SPDX - License - Identifier : Apache - 2.0
 
 #include "cli-runner.h"
-#include <ggl/error.h>
+#include <gg/error.h>
 
 int main(void) {
-    GglError ret = run_cli_runner();
-    if (ret != GGL_ERR_OK) {
+    GgError ret = run_cli_runner();
+    if (ret != GG_ERR_OK) {
         return 1;
     }
 }

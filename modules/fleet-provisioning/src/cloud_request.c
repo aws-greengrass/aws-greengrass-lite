@@ -1,14 +1,14 @@
 #include "cloud_request.h"
-#include "ggl/json_encode.h"
-#include "ggl/vector.h"
-#include <ggl/arena.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/io.h>
+#include <gg/json_encode.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <ggl/aws_iot_call.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/io.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -30,179 +30,173 @@
 // Assuming reasonable as MAX templatebody + 1 MAX paramKey + 1 MAX paramValue
 #define MAX_REGISTER_THING_PAYLOAD_SIZE 16384
 
-static GglError send_csr_request(
-    GglBuffer csr_as_ggl_buffer,
-    GglBuffer *token_out,
-    GglBuffer iotcored,
+static GgError send_csr_request(
+    GgBuffer csr_as_ggl_buffer,
+    GgBuffer *token_out,
+    GgBuffer iotcored,
     int certificate_fd
 ) {
     uint8_t arena_mem[MAX_CSR_RESPONSE_SIZE] = { 0 };
-    GglArena arena = ggl_arena_init(GGL_BUF(arena_mem));
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
 
-    GglObject csr_payload_obj = ggl_obj_map(GGL_MAP(ggl_kv(
-        GGL_STR("certificateSigningRequest"), ggl_obj_buf(csr_as_ggl_buffer)
+    GgObject csr_payload_obj = gg_obj_map(GG_MAP(gg_kv(
+        GG_STR("certificateSigningRequest"), gg_obj_buf(csr_as_ggl_buffer)
     )));
 
-    GglObject result;
-    GglError ret = ggl_aws_iot_call(
+    GgObject result;
+    GgError ret = ggl_aws_iot_call(
         iotcored,
-        GGL_STR("$aws/certificates/create-from-csr/json"),
+        GG_STR("$aws/certificates/create-from-csr/json"),
         csr_payload_obj,
         true,
         &arena,
         &result
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    GglObject *token_val;
-    if (!ggl_map_get(
-            ggl_obj_into_map(result),
-            GGL_STR("certificateOwnershipToken"),
+    GgObject *token_val;
+    if (!gg_map_get(
+            gg_obj_into_map(result),
+            GG_STR("certificateOwnershipToken"),
             &token_val
         )) {
         uint8_t json_error_response[MAX_REQUEST_RESPONSE_SIZE] = { 0 };
-        GglBuffer json_error_response_buf = GGL_BUF(json_error_response);
-        (void
-        ) ggl_json_encode(result, ggl_buf_writer(&json_error_response_buf));
-        GGL_LOGE(
+        GgBuffer json_error_response_buf = GG_BUF(json_error_response);
+        (void) gg_json_encode(result, gg_buf_writer(&json_error_response_buf));
+        GG_LOGE(
             "Failed to register certificate. Response:  %.*s",
             (int) json_error_response_buf.len,
             json_error_response_buf.data
         );
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
-    if (ggl_obj_type(*token_val) != GGL_TYPE_BUF) {
-        GGL_LOGE(
+    if (gg_obj_type(*token_val) != GG_TYPE_BUF) {
+        GG_LOGE(
             "Failed to register certificate. Reason: Invalid certificateOwnershipToken."
         );
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
-    GglBuffer token = ggl_obj_into_buf(*token_val);
-    ret = ggl_buf_copy(token, token_out);
+    GgBuffer token = gg_obj_into_buf(*token_val);
+    ret = gg_buf_copy(token, token_out);
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to copy token over");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to copy token over");
         return ret;
     }
 
     // Extract and write certificatePem to file descriptor
-    GglObject *cert_pem_val;
-    if (!ggl_map_get(
-            ggl_obj_into_map(result), GGL_STR("certificatePem"), &cert_pem_val
+    GgObject *cert_pem_val;
+    if (!gg_map_get(
+            gg_obj_into_map(result), GG_STR("certificatePem"), &cert_pem_val
         )) {
-        GGL_LOGE("Failed to get certificatePem from response.");
-        return GGL_ERR_INVALID;
+        GG_LOGE("Failed to get certificatePem from response.");
+        return GG_ERR_INVALID;
     }
 
-    if (ggl_obj_type(*cert_pem_val) != GGL_TYPE_BUF) {
-        GGL_LOGE("Invalid certificatePem type in response.");
-        return GGL_ERR_INVALID;
+    if (gg_obj_type(*cert_pem_val) != GG_TYPE_BUF) {
+        GG_LOGE("Invalid certificatePem type in response.");
+        return GG_ERR_INVALID;
     }
 
-    GglBuffer cert_pem = ggl_obj_into_buf(*cert_pem_val);
+    GgBuffer cert_pem = gg_obj_into_buf(*cert_pem_val);
     ssize_t written = write(certificate_fd, cert_pem.data, cert_pem.len);
     if (written != (ssize_t) cert_pem.len) {
-        GGL_LOGE("Failed to write certificate to file.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Failed to write certificate to file.");
+        return GG_ERR_FAILURE;
     }
 
-    GGL_LOGD("Certificate ownership token received (length: %zu)", token.len);
-    return GGL_ERR_OK;
+    GG_LOGD("Certificate ownership token received (length: %zu)", token.len);
+    return GG_ERR_OK;
 }
 
-static GglError register_thing_name_request(
-    GglBuffer template_name,
-    GglMap template_params,
-    GglBuffer token,
-    GglBuffer iotcored,
-    GglBuffer *thing_name_out
+static GgError register_thing_name_request(
+    GgBuffer template_name,
+    GgMap template_params,
+    GgBuffer token,
+    GgBuffer iotcored,
+    GgBuffer *thing_name_out
 ) {
     uint8_t arena_mem[MAX_REGISTER_THING_PAYLOAD_SIZE];
-    GglArena arena = ggl_arena_init(GGL_BUF(arena_mem));
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
 
-    GglObject thing_payload_obj = ggl_obj_map(GGL_MAP(
-        ggl_kv(GGL_STR("certificateOwnershipToken"), ggl_obj_buf(token)),
-        ggl_kv(GGL_STR("parameters"), ggl_obj_map(template_params))
+    GgObject thing_payload_obj = gg_obj_map(GG_MAP(
+        gg_kv(GG_STR("certificateOwnershipToken"), gg_obj_buf(token)),
+        gg_kv(GG_STR("parameters"), gg_obj_map(template_params))
     ));
 
     uint8_t topic_mem[MAX_TOPIC_LEN];
-    GglByteVec topic_vec = GGL_BYTE_VEC(topic_mem);
-    ggl_byte_vec_chain_append(
-        &(GglError) { GGL_ERR_OK },
+    GgByteVec topic_vec = GG_BYTE_VEC(topic_mem);
+    gg_byte_vec_chain_append(
+        &(GgError) { GG_ERR_OK },
         &topic_vec,
-        GGL_STR("$aws/provisioning-templates/")
+        GG_STR("$aws/provisioning-templates/")
     );
-    ggl_byte_vec_chain_append(
-        &(GglError) { GGL_ERR_OK }, &topic_vec, template_name
+    gg_byte_vec_chain_append(
+        &(GgError) { GG_ERR_OK }, &topic_vec, template_name
     );
-    ggl_byte_vec_chain_append(
-        &(GglError) { GGL_ERR_OK }, &topic_vec, GGL_STR("/provision/json")
+    gg_byte_vec_chain_append(
+        &(GgError) { GG_ERR_OK }, &topic_vec, GG_STR("/provision/json")
     );
 
-    GglObject result = { 0 };
-    GglError ret = ggl_aws_iot_call(
+    GgObject result = { 0 };
+    GgError ret = ggl_aws_iot_call(
         iotcored, topic_vec.buf, thing_payload_obj, true, &arena, &result
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    GglObject *thing_name_val = { 0 };
-    if (!ggl_map_get(
-            ggl_obj_into_map(result), GGL_STR("thingName"), &thing_name_val
+    GgObject *thing_name_val = { 0 };
+    if (!gg_map_get(
+            gg_obj_into_map(result), GG_STR("thingName"), &thing_name_val
         )) {
         uint8_t json_error_response[MAX_REQUEST_RESPONSE_SIZE] = { 0 };
-        GglBuffer json_error_response_buf = GGL_BUF(json_error_response);
-        (void
-        ) ggl_json_encode(result, ggl_buf_writer(&json_error_response_buf));
-        GGL_LOGE(
+        GgBuffer json_error_response_buf = GG_BUF(json_error_response);
+        (void) gg_json_encode(result, gg_buf_writer(&json_error_response_buf));
+        GG_LOGE(
             "Failed to get thing name from response. Response: (%.*s)",
             (int) json_error_response_buf.len,
             json_error_response_buf.data
         );
 
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
-    if (ggl_obj_type(*thing_name_val) != GGL_TYPE_BUF) {
-        GGL_LOGE("Invalid thing name type in response.");
-        return GGL_ERR_INVALID;
+    if (gg_obj_type(*thing_name_val) != GG_TYPE_BUF) {
+        GG_LOGE("Invalid thing name type in response.");
+        return GG_ERR_INVALID;
     }
 
-    GglBuffer thing_name = ggl_obj_into_buf(*thing_name_val);
+    GgBuffer thing_name = gg_obj_into_buf(*thing_name_val);
 
-    ret = ggl_buf_copy(thing_name, thing_name_out);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "Failed to copy thingName into the out buffer. Error: %d", ret
-        );
+    ret = gg_buf_copy(thing_name, thing_name_out);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to copy thingName into the out buffer. Error: %d", ret);
         return ret;
     }
 
-    GGL_LOGI(
-        "Thing name received: %.*s", (int) thing_name.len, thing_name.data
-    );
-    return GGL_ERR_OK;
+    GG_LOGI("Thing name received: %.*s", (int) thing_name.len, thing_name.data);
+    return GG_ERR_OK;
 }
 
-GglError ggl_get_certificate_from_aws(
-    GglBuffer csr_as_ggl_buffer,
-    GglBuffer template_name,
-    GglMap template_params,
-    GglBuffer *thing_name_out,
+GgError ggl_get_certificate_from_aws(
+    GgBuffer csr_as_ggl_buffer,
+    GgBuffer template_name,
+    GgMap template_params,
+    GgBuffer *thing_name_out,
     int certificate_fd
 ) {
     static uint8_t token_mem[MAX_TOKEN_SIZE];
-    GglBuffer token = GGL_BUF(token_mem);
-    GglBuffer iotcored = GGL_STR("iotcoredfleet");
+    GgBuffer token = GG_BUF(token_mem);
+    GgBuffer iotcored = GG_STR("iotcoredfleet");
 
-    GglError ret
+    GgError ret
         = send_csr_request(csr_as_ggl_buffer, &token, iotcored, certificate_fd);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 

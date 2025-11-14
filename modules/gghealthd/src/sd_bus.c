@@ -5,14 +5,14 @@
 #include "sd_bus.h"
 #include <assert.h>
 #include <errno.h>
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <ggl/nucleus/constants.h>
-#include <ggl/object.h>
-#include <ggl/vector.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -25,10 +25,10 @@ static struct timespec last_connect_attempt;
 #define CONNECT_FAILURE_TIMEOUT 30
 
 // assumes locked
-static GglError get_connect_error(void) {
+static GgError get_connect_error(void) {
     if ((first_connect_attempt.tv_sec == 0)
         && (first_connect_attempt.tv_nsec == 0)) {
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
     struct timespec diff = {
         .tv_sec = last_connect_attempt.tv_sec - first_connect_attempt.tv_sec,
@@ -38,16 +38,16 @@ static GglError get_connect_error(void) {
         diff.tv_sec--;
     }
     if (diff.tv_sec >= CONNECT_FAILURE_TIMEOUT) {
-        return GGL_ERR_FATAL;
+        return GG_ERR_FATAL;
     }
-    return GGL_ERR_NOCONN;
+    return GG_ERR_NOCONN;
 }
 
-static GglError report_connect_error(void) {
+static GgError report_connect_error(void) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
 
-    GGL_MTX_SCOPE_GUARD(&connect_time_mutex);
+    GG_MTX_SCOPE_GUARD(&connect_time_mutex);
     // first failure
     if ((first_connect_attempt.tv_sec == 0)
         && (first_connect_attempt.tv_nsec == 0)) {
@@ -58,46 +58,46 @@ static GglError report_connect_error(void) {
 }
 
 static void report_connect_success(void) {
-    GGL_MTX_SCOPE_GUARD(&connect_time_mutex);
+    GG_MTX_SCOPE_GUARD(&connect_time_mutex);
     first_connect_attempt = (struct timespec) { 0 };
     last_connect_attempt = (struct timespec) { 0 };
 }
 
-GglError translate_dbus_call_error(int error) {
+GgError translate_dbus_call_error(int error) {
     if (error >= 0) {
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
     switch (error) {
     case -ENOTCONN:
     case -ECONNRESET:
-        return GGL_ERR_NOCONN;
+        return GG_ERR_NOCONN;
     case -ENOMEM:
-        return GGL_ERR_NOMEM;
+        return GG_ERR_NOMEM;
     case -ENOENT:
-        return GGL_ERR_NOENTRY;
+        return GG_ERR_NOENTRY;
     case -EPERM:
     case -EINVAL:
-        return GGL_ERR_FATAL;
+        return GG_ERR_FATAL;
     default:
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
 }
 
 // bus must be freed via sd_bus_unrefp
-GglError open_bus(sd_bus **bus) {
+GgError open_bus(sd_bus **bus) {
     assert((bus != NULL) && (*bus == NULL));
     int ret = sd_bus_default_system(bus);
     if (ret < 0) {
-        GGL_LOGE("Unable to open default system bus (errno=%d)", -ret);
+        GG_LOGE("Unable to open default system bus (errno=%d)", -ret);
         *bus = NULL;
         return report_connect_error();
     }
 
     report_connect_success();
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError get_unit_path(
+GgError get_unit_path(
     sd_bus *bus,
     const char *qualified_name,
     sd_bus_message **reply,
@@ -117,10 +117,10 @@ GglError get_unit_path(
         "s",
         qualified_name
     );
-    GGL_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
         *reply = NULL;
-        GGL_LOGE(
+        GG_LOGE(
             "Unable to find Component (errno=%d) (name=%s) (message=%s)",
             -ret,
             error.name,
@@ -134,39 +134,39 @@ GglError get_unit_path(
         sd_bus_message_unrefp(reply);
         *reply = NULL;
         *unit_path = NULL;
-        return GGL_ERR_FATAL;
+        return GG_ERR_FATAL;
     }
-    GGL_LOGD("Unit Path: %s", *unit_path);
+    GG_LOGD("Unit Path: %s", *unit_path);
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError get_service_name(GglBuffer component_name, GglBuffer *qualified_name) {
+GgError get_service_name(GgBuffer component_name, GgBuffer *qualified_name) {
     assert(
         (component_name.data != NULL) && (qualified_name != NULL)
         && (qualified_name->data != NULL)
     );
     assert(qualified_name->len > SERVICE_NAME_MAX_LEN);
     if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("component name too long");
-        return GGL_ERR_RANGE;
+        GG_LOGE("component name too long");
+        return GG_ERR_RANGE;
     }
 
-    GglError ret = GGL_ERR_OK;
-    GglByteVec vec = ggl_byte_vec_init(*qualified_name);
-    ggl_byte_vec_chain_append(&ret, &vec, GGL_STR(SERVICE_PREFIX));
-    ggl_byte_vec_chain_append(&ret, &vec, component_name);
-    ggl_byte_vec_chain_append(&ret, &vec, GGL_STR(SERVICE_SUFFIX));
-    ggl_byte_vec_chain_push(&ret, &vec, '\0');
-    if (ret == GGL_ERR_OK) {
+    GgError ret = GG_ERR_OK;
+    GgByteVec vec = gg_byte_vec_init(*qualified_name);
+    gg_byte_vec_chain_append(&ret, &vec, GG_STR(SERVICE_PREFIX));
+    gg_byte_vec_chain_append(&ret, &vec, component_name);
+    gg_byte_vec_chain_append(&ret, &vec, GG_STR(SERVICE_SUFFIX));
+    gg_byte_vec_chain_push(&ret, &vec, '\0');
+    if (ret == GG_ERR_OK) {
         qualified_name->len = vec.buf.len - 1;
-        GGL_LOGD("Service name: %s", qualified_name->data);
+        GG_LOGD("Service name: %s", qualified_name->data);
     }
     return ret;
 }
 
-static GglError get_component_result(
-    sd_bus *bus, const char *unit_path, GglBuffer *state
+static GgError get_component_result(
+    sd_bus *bus, const char *unit_path, GgBuffer *state
 ) {
     assert((bus != NULL) && (unit_path != NULL) && (state != NULL));
     uint64_t timestamp = 0;
@@ -182,9 +182,9 @@ static GglError get_component_result(
         't',
         &timestamp
     );
-    GGL_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
-        GGL_LOGE(
+        GG_LOGE(
             "Unable to retrieve Component last run timestamp (errno=%d) (name=%s) (message=%s)",
             -ret,
             error.name,
@@ -192,12 +192,12 @@ static GglError get_component_result(
         );
         return translate_dbus_call_error(ret);
     }
-    GGL_LOGD("Timestamp: %" PRIu64, timestamp);
+    GG_LOGD("Timestamp: %" PRIu64, timestamp);
 
     // if a component has not run, it is installed
     if (timestamp == 0) {
-        *state = GGL_STR("INSTALLED");
-        return GGL_ERR_OK;
+        *state = GG_STR("INSTALLED");
+        return GG_ERR_OK;
     }
 
     uint32_t n_retries = 0;
@@ -211,18 +211,16 @@ static GglError get_component_result(
         'u',
         &n_retries
     );
-    GGL_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
-        GGL_LOGE(
-            "Unable to retrieve D-Bus NRestarts property (errno=%d)", -ret
-        );
+        GG_LOGE("Unable to retrieve D-Bus NRestarts property (errno=%d)", -ret);
         return translate_dbus_call_error(ret);
     }
-    GGL_LOGD("NRetries: %" PRIu32, n_retries);
+    GG_LOGD("NRetries: %" PRIu32, n_retries);
     if (n_retries >= 3) {
-        GGL_LOGE("Component is broken (Exceeded retry limit)");
-        *state = GGL_STR("BROKEN");
-        return GGL_ERR_OK;
+        GG_LOGE("Component is broken (Exceeded retry limit)");
+        *state = GG_STR("BROKEN");
+        return GG_ERR_OK;
     }
 
     char *result = NULL;
@@ -235,27 +233,27 @@ static GglError get_component_result(
         &error,
         &result
     );
-    GGL_CLEANUP(cleanup_free, result);
-    GGL_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(cleanup_free, result);
+    GG_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
-        GGL_LOGE(
+        GG_LOGE(
             "Unable to retrieve D-Bus Unit Result property (errno=%d)", -ret
         );
         return translate_dbus_call_error(ret);
     }
-    GGL_LOGD("Result: %s", result);
+    GG_LOGD("Result: %s", result);
 
-    GglBuffer result_buffer = ggl_buffer_from_null_term(result);
-    if (ggl_buffer_eq(result_buffer, GGL_STR("success"))) {
-        *state = GGL_STR("FINISHED");
+    GgBuffer result_buffer = gg_buffer_from_null_term(result);
+    if (gg_buffer_eq(result_buffer, GG_STR("success"))) {
+        *state = GG_STR("FINISHED");
         // hitting the start limit means too many repeated failures
     } else {
-        *state = GGL_STR("ERRORED");
+        *state = GG_STR("ERRORED");
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError get_active_state(
+static GgError get_active_state(
     sd_bus *bus, const char *unit_path, char **active_state
 ) {
     assert((bus != NULL) && (unit_path != NULL) && (active_state != NULL));
@@ -269,49 +267,49 @@ static GglError get_active_state(
         &error,
         active_state
     );
-    GGL_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
-        GGL_LOGE("Failed to read active state");
+        GG_LOGE("Failed to read active state");
         return translate_dbus_call_error(ret);
     }
-    GGL_LOGD("ActiveState: %s", *active_state);
-    return GGL_ERR_OK;
+    GG_LOGD("ActiveState: %s", *active_state);
+    return GG_ERR_OK;
 }
 
-GglError get_lifecycle_state(
-    sd_bus *bus, const char *unit_path, GglBuffer *state
+GgError get_lifecycle_state(
+    sd_bus *bus, const char *unit_path, GgBuffer *state
 ) {
     assert((bus != NULL) && (unit_path != NULL) && (state != NULL));
 
     char *active_state = NULL;
-    GglError err = get_active_state(bus, unit_path, &active_state);
-    GGL_CLEANUP(cleanup_free, active_state);
-    if (err != GGL_ERR_OK) {
+    GgError err = get_active_state(bus, unit_path, &active_state);
+    GG_CLEANUP(cleanup_free, active_state);
+    if (err != GG_ERR_OK) {
         return err;
     }
-    const GglMap STATUS_MAP = GGL_MAP(
-        ggl_kv(GGL_STR("activating"), ggl_obj_buf(GGL_STR("STARTING"))),
-        ggl_kv(GGL_STR("active"), ggl_obj_buf(GGL_STR("RUNNING"))),
+    const GgMap STATUS_MAP = GG_MAP(
+        gg_kv(GG_STR("activating"), gg_obj_buf(GG_STR("STARTING"))),
+        gg_kv(GG_STR("active"), gg_obj_buf(GG_STR("RUNNING"))),
         // `reloading` doesn't have any mapping to greengrass. It's an
         // active component whose systemd (not greengrass) configuration is
         // reloading
-        ggl_kv(GGL_STR("reloading"), ggl_obj_buf(GGL_STR("RUNNING"))),
-        ggl_kv(GGL_STR("deactivating"), ggl_obj_buf(GGL_STR("STOPPING"))),
+        gg_kv(GG_STR("reloading"), gg_obj_buf(GG_STR("RUNNING"))),
+        gg_kv(GG_STR("deactivating"), gg_obj_buf(GG_STR("STOPPING"))),
         // inactive and failed are ambiguous
-        ggl_kv(GGL_STR("inactive"), GGL_OBJ_NULL),
-        ggl_kv(GGL_STR("failed"), GGL_OBJ_NULL),
+        gg_kv(GG_STR("inactive"), GG_OBJ_NULL),
+        gg_kv(GG_STR("failed"), GG_OBJ_NULL),
     );
 
-    GglBuffer key = ggl_buffer_from_null_term(active_state);
-    GglObject *value = NULL;
-    if (!ggl_map_get(STATUS_MAP, key, &value)) {
+    GgBuffer key = gg_buffer_from_null_term(active_state);
+    GgObject *value = NULL;
+    if (!gg_map_get(STATUS_MAP, key, &value)) {
         // unreachable?
-        GGL_LOGE("unknown D-Bus ActiveState");
-        return GGL_ERR_FATAL;
+        GG_LOGE("unknown D-Bus ActiveState");
+        return GG_ERR_FATAL;
     }
-    if (ggl_obj_type(*value) == GGL_TYPE_BUF) {
-        *state = ggl_obj_into_buf(*value);
-        return GGL_ERR_OK;
+    if (gg_obj_type(*value) == GG_TYPE_BUF) {
+        *state = gg_obj_into_buf(*value);
+        return GG_ERR_OK;
     }
 
     // disambiguate `failed` and `inactive`
@@ -322,7 +320,7 @@ GglError get_lifecycle_state(
 void reset_restart_counters(sd_bus *bus, const char *qualified_name) {
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *reply = NULL;
-    GGL_LOGT("Issuing systemctl reset-failed for %s", qualified_name);
+    GG_LOGT("Issuing systemctl reset-failed for %s", qualified_name);
     int ret = sd_bus_call_method(
         bus,
         "org.freedesktop.systemd1",
@@ -335,7 +333,7 @@ void reset_restart_counters(sd_bus *bus, const char *qualified_name) {
         qualified_name
     );
     if (ret < 0) {
-        GGL_LOGW(
+        GG_LOGW(
             "Failed to reset failure counter for %s (errno=%d) (name=%s) (message=%s)",
             qualified_name,
             -ret,
@@ -343,11 +341,11 @@ void reset_restart_counters(sd_bus *bus, const char *qualified_name) {
             error.message
         );
     }
-    GGL_CLEANUP(sd_bus_error_free, error);
-    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+    GG_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(sd_bus_message_unrefp, reply);
 }
 
-GglError restart_component(sd_bus *bus, const char *qualified_name) {
+GgError restart_component(sd_bus *bus, const char *qualified_name) {
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *reply = NULL;
     int ret = sd_bus_call_method(
@@ -362,11 +360,11 @@ GglError restart_component(sd_bus *bus, const char *qualified_name) {
         (char *) qualified_name,
         "replace"
     );
-    GGL_CLEANUP(sd_bus_error_free, error);
-    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+    GG_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(sd_bus_message_unrefp, reply);
 
     if (ret < 0) {
-        GGL_LOGE(
+        GG_LOGE(
             "Failed to restart component %s (errno=%d) (name=%s) (message=%s)",
             qualified_name,
             -ret,
@@ -375,5 +373,5 @@ GglError restart_component(sd_bus *bus, const char *qualified_name) {
         );
         return translate_dbus_call_error(ret);
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

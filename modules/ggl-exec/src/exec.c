@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/exec.h"
-#include "ggl/json_encode.h"
 #include "priv_io.h"
 #include <errno.h>
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
-#include <ggl/error.h>
-#include <ggl/file.h>
-#include <ggl/io.h>
-#include <ggl/log.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/file.h>
+#include <gg/io.h>
+#include <gg/json_encode.h>
+#include <gg/log.h>
+#include <gg/object.h>
+#include <ggl/exec.h>
 #include <signal.h>
 #include <spawn.h>
 #include <string.h>
@@ -24,38 +24,38 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-static GglError wait_for_process(pid_t pid) {
+static GgError wait_for_process(pid_t pid) {
     int child_status;
     if (waitpid(pid, &child_status, 0) == -1) {
-        GGL_LOGE("Error, waitpid got hit");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Error, waitpid got hit");
+        return GG_ERR_FAILURE;
     }
     if (!WIFEXITED(child_status)) {
-        GGL_LOGD("Script did not exit normally");
-        return GGL_ERR_FAILURE;
+        GG_LOGD("Script did not exit normally");
+        return GG_ERR_FAILURE;
     }
     if (WEXITSTATUS(child_status) != 0) {
-        GGL_LOGE(
+        GG_LOGE(
             "Script exited with child status %d", WEXITSTATUS(child_status)
         );
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
 
-    GGL_LOGD("Script exited with child status as success");
-    return GGL_ERR_OK;
+    GG_LOGD("Script exited with child status as success");
+    return GG_ERR_OK;
 }
 
-GglError ggl_exec_command(const char *const args[static 1]) {
+GgError ggl_exec_command(const char *const args[static 1]) {
     int pid = -1;
-    GglError err = ggl_exec_command_async(args, &pid);
-    if (err != GGL_ERR_OK) {
+    GgError err = ggl_exec_command_async(args, &pid);
+    if (err != GG_ERR_OK) {
         return err;
     }
 
     return wait_for_process(pid);
 }
 
-GglError ggl_exec_command_async(
+GgError ggl_exec_command_async(
     const char *const args[static 1], pid_t child_pid[static 1]
 ) {
     pid_t pid = -1;
@@ -63,25 +63,25 @@ GglError ggl_exec_command_async(
         &pid, args[0], NULL, NULL, (char *const *) args, environ
     );
     if (ret != 0) {
-        GGL_LOGE("Error, unable to spawn (%d)", ret);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Error, unable to spawn (%d)", ret);
+        return GG_ERR_FAILURE;
     }
     *child_pid = pid;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError ggl_exec_kill_process(pid_t process_id) {
+GgError ggl_exec_kill_process(pid_t process_id) {
     // Send the SIGTERM signal to the process
 
     // NOLINTBEGIN(concurrency-mt-unsafe, readability-else-after-return)
     if (kill(process_id, SIGTERM) == -1) {
-        GGL_LOGE(
+        GG_LOGE(
             "Failed to kill the process id %d : %s errno:%d.",
             process_id,
             strerror(errno),
             errno
         );
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
 
     int status;
@@ -92,10 +92,10 @@ GglError ggl_exec_kill_process(pid_t process_id) {
         wait_pid = waitpid(process_id, &status, 0);
         if (wait_pid == -1) {
             if (errno == ECHILD) {
-                GGL_LOGE("Process %d has already terminated.\n", process_id);
+                GG_LOGE("Process %d has already terminated.\n", process_id);
                 break;
             } else {
-                GGL_LOGE(
+                GG_LOGE(
                     "Error waiting for process %d: %s (errno: %d)\n",
                     process_id,
                     strerror(errno),
@@ -106,13 +106,13 @@ GglError ggl_exec_kill_process(pid_t process_id) {
         }
 
         if (WIFEXITED(status)) {
-            GGL_LOGE(
+            GG_LOGE(
                 "Process %d exited with status %d.\n",
                 process_id,
                 WEXITSTATUS(status)
             );
         } else if (WIFSIGNALED(status)) {
-            GGL_LOGD(
+            GG_LOGD(
                 "Process %d was terminated by signal %d.\n",
                 process_id,
                 WTERMSIG(status)
@@ -120,10 +120,10 @@ GglError ggl_exec_kill_process(pid_t process_id) {
         }
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
-    GGL_LOGD("Process %d has terminated.\n", process_id);
+    GG_LOGD("Process %d has terminated.\n", process_id);
 
     // NOLINTEND(concurrency-mt-unsafe, readability-else-after-return)
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 static void cleanup_posix_destroy_file_actions(
@@ -135,7 +135,7 @@ static void cleanup_posix_destroy_file_actions(
 }
 
 // configures a pipe to redirect stdout,stderr
-static GglError create_output_pipe_file_actions(
+static GgError create_output_pipe_file_actions(
     posix_spawn_file_actions_t actions[static 1],
     int pipe_read_fd,
     int pipe_write_fd
@@ -143,30 +143,30 @@ static GglError create_output_pipe_file_actions(
     // The child does not need the readable end.
     int ret = posix_spawn_file_actions_addclose(actions, pipe_read_fd);
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
     // Redirect both stderr and stdout to the writeable end
     ret = posix_spawn_file_actions_adddup2(
         actions, pipe_write_fd, STDOUT_FILENO
     );
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
     ret = posix_spawn_file_actions_adddup2(
         actions, pipe_write_fd, STDERR_FILENO
     );
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
     ret = posix_spawn_file_actions_addclose(actions, pipe_write_fd);
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 // configures a pipe to stdin
-static GglError create_input_pipe_file_actions(
+static GgError create_input_pipe_file_actions(
     posix_spawn_file_actions_t actions[static 1],
     int pipe_read_fd,
     int pipe_write_fd
@@ -174,37 +174,37 @@ static GglError create_input_pipe_file_actions(
     // The child does not need the writeable end.
     int ret = posix_spawn_file_actions_addclose(actions, pipe_write_fd);
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
     // Redirect stdin to the readable pipe
     ret = posix_spawn_file_actions_adddup2(actions, pipe_read_fd, STDIN_FILENO);
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
     ret = posix_spawn_file_actions_addclose(actions, pipe_read_fd);
     if (ret != 0) {
-        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+        return (ret == ENOMEM) ? GG_ERR_NOMEM : GG_ERR_FAILURE;
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 // Read from pipe until EOF is found.
 // Writer is called until its first error is returned.
 // Pipe is flushed to allow child to exit cleanly.
-static GglError pipe_flush(int pipe_read_fd, GglWriter writer) {
-    GglError writer_error = GGL_ERR_OK;
+static GgError pipe_flush(int pipe_read_fd, GgWriter writer) {
+    GgError writer_error = GG_ERR_OK;
     while (true) {
         uint8_t partial_buf[256];
-        GglBuffer partial = GGL_BUF(partial_buf);
-        GglError read_err = ggl_file_read(pipe_read_fd, &partial);
-        if (read_err == GGL_ERR_RETRY) {
+        GgBuffer partial = GG_BUF(partial_buf);
+        GgError read_err = gg_file_read(pipe_read_fd, &partial);
+        if (read_err == GG_ERR_RETRY) {
             continue;
         }
-        if (read_err != GGL_ERR_OK) {
+        if (read_err != GG_ERR_OK) {
             return read_err;
         }
-        if (writer_error == GGL_ERR_OK) {
-            writer_error = ggl_writer_call(writer, partial);
+        if (writer_error == GG_ERR_OK) {
+            writer_error = gg_writer_call(writer, partial);
         }
         // EOF (pipe closed)
         if (partial.len < sizeof(partial_buf)) {
@@ -213,30 +213,30 @@ static GglError pipe_flush(int pipe_read_fd, GglWriter writer) {
     }
 }
 
-GglError ggl_exec_command_with_output(
-    const char *const args[static 1], GglWriter writer
+GgError ggl_exec_command_with_output(
+    const char *const args[static 1], GgWriter writer
 ) {
     int out_pipe[2] = { -1, -1 };
     int ret = pipe(out_pipe);
     if (ret != 0) {
-        GGL_LOGE("Failed to create pipe (errno=%d).", errno);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Failed to create pipe (errno=%d).", errno);
+        return GG_ERR_FAILURE;
     }
-    GGL_CLEANUP(cleanup_close, out_pipe[0]);
-    GGL_CLEANUP_ID(pipe_write_cleanup, cleanup_close, out_pipe[1]);
+    GG_CLEANUP(cleanup_close, out_pipe[0]);
+    GG_CLEANUP_ID(pipe_write_cleanup, cleanup_close, out_pipe[1]);
 
     posix_spawn_file_actions_t actions = { 0 };
     if (posix_spawn_file_actions_init(&actions) != 0) {
-        return GGL_ERR_NOMEM;
+        return GG_ERR_NOMEM;
     }
-    GGL_CLEANUP_ID(
+    GG_CLEANUP_ID(
         actions_cleanup, cleanup_posix_destroy_file_actions, &actions
     );
-    GglError err
+    GgError err
         = create_output_pipe_file_actions(&actions, out_pipe[0], out_pipe[1]);
-    if (err != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create posix spawn file actions.");
-        return GGL_ERR_FAILURE;
+    if (err != GG_ERR_OK) {
+        GG_LOGE("Failed to create posix spawn file actions.");
+        return GG_ERR_FAILURE;
     }
 
     pid_t pid = -1;
@@ -244,47 +244,47 @@ GglError ggl_exec_command_with_output(
         &pid, args[0], &actions, NULL, (char *const *) args, environ
     );
     if (ret != 0) {
-        GGL_LOGE("Error, unable to spawn (%d)", ret);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Error, unable to spawn (%d)", ret);
+        return GG_ERR_FAILURE;
     }
 
     (void) posix_spawn_file_actions_destroy(&actions);
     actions_cleanup = NULL;
-    (void) ggl_close(pipe_write_cleanup);
+    (void) gg_close(pipe_write_cleanup);
     pipe_write_cleanup = -1;
 
-    GglError read_err = pipe_flush(out_pipe[0], writer);
-    GglError process_err = wait_for_process(pid);
+    GgError read_err = pipe_flush(out_pipe[0], writer);
+    GgError process_err = wait_for_process(pid);
 
-    if (process_err != GGL_ERR_OK) {
+    if (process_err != GG_ERR_OK) {
         return process_err;
     }
     return read_err;
 }
 
-GglError ggl_exec_command_with_input(
-    const char *const args[static 1], GglObject payload
+GgError ggl_exec_command_with_input(
+    const char *const args[static 1], GgObject payload
 ) {
     int in_pipe[2] = { -1, -1 };
     int ret = pipe(in_pipe);
     if (ret < 0) {
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
-    GGL_CLEANUP_ID(pipe_read_cleanup, cleanup_close, in_pipe[0]);
-    GGL_CLEANUP_ID(pipe_write_cleanup, cleanup_close, in_pipe[1]);
+    GG_CLEANUP_ID(pipe_read_cleanup, cleanup_close, in_pipe[0]);
+    GG_CLEANUP_ID(pipe_write_cleanup, cleanup_close, in_pipe[1]);
 
     posix_spawn_file_actions_t actions = { 0 };
     if (posix_spawn_file_actions_init(&actions) != 0) {
-        return GGL_ERR_NOMEM;
+        return GG_ERR_NOMEM;
     }
-    GGL_CLEANUP_ID(
+    GG_CLEANUP_ID(
         actions_cleanup, cleanup_posix_destroy_file_actions, &actions
     );
-    GglError err
+    GgError err
         = create_input_pipe_file_actions(&actions, in_pipe[0], in_pipe[1]);
-    if (err != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create posix spawn file actions.");
-        return GGL_ERR_FAILURE;
+    if (err != GG_ERR_OK) {
+        GG_LOGE("Failed to create posix spawn file actions.");
+        return GG_ERR_FAILURE;
     }
 
     pid_t pid = -1;
@@ -292,28 +292,28 @@ GglError ggl_exec_command_with_input(
         &pid, args[0], &actions, NULL, (char *const *) args, environ
     );
     if (ret != 0) {
-        GGL_LOGE("Error, unable to spawn (%d)", ret);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Error, unable to spawn (%d)", ret);
+        return GG_ERR_FAILURE;
     }
 
     (void) posix_spawn_file_actions_destroy(&actions);
     actions_cleanup = NULL;
-    (void) ggl_close(pipe_read_cleanup);
+    (void) gg_close(pipe_read_cleanup);
     pipe_read_cleanup = -1;
 
-    GglError pipe_error = GGL_ERR_OK;
-    if (ggl_obj_type(payload) == GGL_TYPE_BUF) {
-        pipe_error = ggl_file_write(in_pipe[1], ggl_obj_into_buf(payload));
+    GgError pipe_error = GG_ERR_OK;
+    if (gg_obj_type(payload) == GG_TYPE_BUF) {
+        pipe_error = gg_file_write(in_pipe[1], gg_obj_into_buf(payload));
     } else {
         FileWriterContext ctx = { .fd = in_pipe[1] };
-        pipe_error = ggl_json_encode(payload, priv_file_writer(&ctx));
+        pipe_error = gg_json_encode(payload, priv_file_writer(&ctx));
     }
-    (void) ggl_close(pipe_write_cleanup);
+    (void) gg_close(pipe_write_cleanup);
     pipe_write_cleanup = -1;
 
-    GglError process_err = wait_for_process(pid);
+    GgError process_err = wait_for_process(pid);
 
-    if (process_err != GGL_ERR_OK) {
+    if (process_err != GG_ERR_OK) {
         return err;
     }
     return pipe_error;

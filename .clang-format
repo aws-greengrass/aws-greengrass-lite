@@ -29,9 +29,9 @@ PenaltyReturnTypeOnItsOwnLine: 240
 WhitespaceSensitiveMacros:
   - EMBED_FILE
 ForEachMacros:
-  - GGL_LIST_FOREACH
-  - GGL_MAP_FOREACH
-  - GGL_BUF_LIST_FOREACH
+  - GG_LIST_FOREACH
+  - GG_MAP_FOREACH
+  - GG_BUF_LIST_FOREACH
 Macros:
   - NODISCARD=[[nodiscard]]
   - GGL_EXPORT=[[gnu::visibility(protected)]]

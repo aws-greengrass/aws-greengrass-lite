@@ -3,43 +3,43 @@
 // SPDX - License - Identifier : Apache - 2.0
 
 #include "cli-runner.h"
-#include "ggl/io.h"
+#include "gg/io.h"
 #include <assert.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/exec.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 typedef struct RunnerEntry {
     const char *arg_list[5];
-    GglBuffer expected_output;
+    GgBuffer expected_output;
     bool successful;
 } RunnerEntry;
 
 typedef struct InputEntry {
     const char *arg_list[5];
-    GglObject input;
+    GgObject input;
     bool successful;
 } InputEntry;
 
-GglError run_cli_runner(void) {
+GgError run_cli_runner(void) {
     const RunnerEntry ENTRIES[] = {
         { .arg_list = { "ls", "-z", NULL },
           .successful = false,
-          .expected_output = GGL_STR(
+          .expected_output = GG_STR(
               "ls: invalid option -- 'z'\nTry 'ls --help' for more information.\n"
           ) },
         { .arg_list = { "echo", "hello", NULL },
           .successful = true,
-          .expected_output = GGL_STR("hello\n") },
+          .expected_output = GG_STR("hello\n") },
         { .arg_list = { "ls-l", NULL },
           .successful = false,
-          .expected_output = GGL_STR("") },
+          .expected_output = GG_STR("") },
         { .arg_list = { "ls", "-l", NULL },
           .successful = true,
           .expected_output = { 0 } }
@@ -48,23 +48,23 @@ GglError run_cli_runner(void) {
 
     for (size_t i = 0; i < sizeof(ENTRIES) / sizeof(*ENTRIES); ++i) {
         const RunnerEntry *entry = &ENTRIES[i];
-        GglError err = ggl_exec_command(entry->arg_list);
-        bool successful = err == GGL_ERR_OK;
-        GGL_LOGI("Success: %s", successful ? "true" : "false");
+        GgError err = ggl_exec_command(entry->arg_list);
+        bool successful = err == GG_ERR_OK;
+        GG_LOGI("Success: %s", successful ? "true" : "false");
         assert(entry->successful == successful);
     }
 
     for (size_t i = 0; i < sizeof(ENTRIES) / sizeof(*ENTRIES); ++i) {
         const RunnerEntry *entry = &ENTRIES[i];
-        GglBuffer output = GGL_BUF(output_buf);
+        GgBuffer output = GG_BUF(output_buf);
 
-        GglError err = ggl_exec_command_with_output(
-            entry->arg_list, ggl_buf_writer(&output)
+        GgError err = ggl_exec_command_with_output(
+            entry->arg_list, gg_buf_writer(&output)
         );
-        bool successful = (err == GGL_ERR_OK) || (err == GGL_ERR_NOMEM);
+        bool successful = (err == GG_ERR_OK) || (err == GG_ERR_NOMEM);
         output.len = (size_t) (output.data - output_buf);
         output.data = output_buf;
-        GGL_LOGI(
+        GG_LOGI(
             "Success: %s\n%.*s",
             successful ? "true" : "false",
             (int) output.len,
@@ -73,29 +73,29 @@ GglError run_cli_runner(void) {
         assert(entry->successful == successful);
         assert(output.len <= sizeof(output_buf));
         if (entry->expected_output.data != NULL) {
-            assert(ggl_buffer_eq(entry->expected_output, output));
+            assert(gg_buffer_eq(entry->expected_output, output));
         }
     }
 
     InputEntry inputs[] = {
         { .arg_list = { "cat", NULL },
-          .input = ggl_obj_buf(GGL_STR("cat says hello\n")),
+          .input = gg_obj_buf(GG_STR("cat says hello\n")),
           .successful = true },
         { .arg_list = { "cat", NULL },
-          .input = ggl_obj_map(GGL_MAP(
-              ggl_kv(GGL_STR("Something"), ggl_obj_buf(GGL_STR("or other"))),
-              ggl_kv(GGL_STR("Nothing"), GGL_OBJ_NULL),
-              ggl_kv(GGL_STR("Anything"), ggl_obj_i64(64))
+          .input = gg_obj_map(GG_MAP(
+              gg_kv(GG_STR("Something"), gg_obj_buf(GG_STR("or other"))),
+              gg_kv(GG_STR("Nothing"), GG_OBJ_NULL),
+              gg_kv(GG_STR("Anything"), gg_obj_i64(64))
           )),
           .successful = true },
     };
 
     for (size_t i = 0; i < sizeof(inputs) / sizeof(*inputs); ++i) {
-        GglError err
+        GgError err
             = ggl_exec_command_with_input(inputs[i].arg_list, inputs[i].input);
-        bool successful = (err == GGL_ERR_OK);
+        bool successful = (err == GG_ERR_OK);
         assert(inputs[i].successful == successful);
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

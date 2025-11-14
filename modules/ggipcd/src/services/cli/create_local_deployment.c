@@ -7,92 +7,91 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "cli.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-GglError ggl_handle_create_local_deployment(
+GgError ggl_handle_create_local_deployment(
     const GglIpcOperationInfo *info,
-    GglMap args,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglArena *alloc
+    GgArena *alloc
 ) {
-    GGL_MAP_FOREACH (pair, args) {
-        if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("recipeDirectoryPath"))) {
-            ggl_kv_set_key(pair, GGL_STR("recipe_directory_path"));
-        } else if (ggl_buffer_eq(
-                       ggl_kv_key(*pair), GGL_STR("artifactsDirectoryPath")
+    GG_MAP_FOREACH (pair, args) {
+        if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("recipeDirectoryPath"))) {
+            gg_kv_set_key(pair, GG_STR("recipe_directory_path"));
+        } else if (gg_buffer_eq(
+                       gg_kv_key(*pair), GG_STR("artifactsDirectoryPath")
                    )) {
-            ggl_kv_set_key(pair, GGL_STR("artifacts_directory_path"));
-        } else if (ggl_buffer_eq(
-                       ggl_kv_key(*pair), GGL_STR("rootComponentVersionsToAdd")
+            gg_kv_set_key(pair, GG_STR("artifacts_directory_path"));
+        } else if (gg_buffer_eq(
+                       gg_kv_key(*pair), GG_STR("rootComponentVersionsToAdd")
                    )) {
-            ggl_kv_set_key(pair, GGL_STR("root_component_versions_to_add"));
-        } else if (ggl_buffer_eq(
-                       ggl_kv_key(*pair),
-                       GGL_STR("rootComponentVersionsToRemove")
+            gg_kv_set_key(pair, GG_STR("root_component_versions_to_add"));
+        } else if (gg_buffer_eq(
+                       gg_kv_key(*pair), GG_STR("rootComponentVersionsToRemove")
                    )) {
-            ggl_kv_set_key(pair, GGL_STR("root_component_versions_to_remove"));
-        } else if (ggl_buffer_eq(
-                       ggl_kv_key(*pair), GGL_STR("componentToConfiguration")
+            gg_kv_set_key(pair, GG_STR("root_component_versions_to_remove"));
+        } else if (gg_buffer_eq(
+                       gg_kv_key(*pair), GG_STR("componentToConfiguration")
                    )) {
-            ggl_kv_set_key(pair, GGL_STR("component_to_configuration"));
+            gg_kv_set_key(pair, GG_STR("component_to_configuration"));
         } else {
-            GGL_LOGE(
+            GG_LOGE(
                 "Unhandled argument: %.*s",
-                (int) ggl_kv_key(*pair).len,
-                ggl_kv_key(*pair).data
+                (int) gg_kv_key(*pair).len,
+                gg_kv_key(*pair).data
             );
         }
     }
 
-    GglError ret
-        = ggl_ipc_auth(info, GGL_STR(""), ggl_ipc_default_policy_matcher);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("IPC Operation not authorized.");
+    GgError ret
+        = ggl_ipc_auth(info, GG_STR(""), ggl_ipc_default_policy_matcher);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("IPC Operation not authorized.") };
-        return GGL_ERR_INVALID;
+            .message = GG_STR("IPC Operation not authorized.") };
+        return GG_ERR_INVALID;
     }
 
-    GglObject result;
+    GgObject result;
     ret = ggl_call(
-        GGL_STR("gg_deployment"),
-        GGL_STR("create_local_deployment"),
+        GG_STR("gg_deployment"),
+        GG_STR("create_local_deployment"),
         args,
         NULL,
         alloc,
         &result
     );
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create local deployment.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to create local deployment.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Failed to create local deployment.") };
+            .message = GG_STR("Failed to create local deployment.") };
         return ret;
     }
 
-    if (ggl_obj_type(result) != GGL_TYPE_BUF) {
-        GGL_LOGE("Received deployment ID not a string.");
+    if (gg_obj_type(result) != GG_TYPE_BUF) {
+        GG_LOGE("Received deployment ID not a string.");
         *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                                     .message = GGL_STR("Internal error.") };
-        return GGL_ERR_FAILURE;
+                                     .message = GG_STR("Internal error.") };
+        return GG_ERR_FAILURE;
     }
 
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#CreateLocalDeploymentResponse"),
-        GGL_MAP(ggl_kv(GGL_STR("deploymentId"), result))
+        GG_STR("aws.greengrass#CreateLocalDeploymentResponse"),
+        GG_MAP(gg_kv(GG_STR("deploymentId"), result))
     );
 }

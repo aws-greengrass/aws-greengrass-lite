@@ -7,10 +7,10 @@
 
 //! Core Bus client interface
 
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdint.h>
 
 /// Maximum number of core-bus connections.
@@ -20,36 +20,36 @@
 #endif
 
 /// Send a Core Bus notification (call, but don't wait for response).
-GglError ggl_notify(GglBuffer interface, GglBuffer method, GglMap params);
+GgError ggl_notify(GgBuffer interface, GgBuffer method, GgMap params);
 
 /// Make a Core Bus call.
 /// `result` will use memory from `alloc` if needed.
-GglError ggl_call(
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
-    GglError *error,
-    GglArena *alloc,
-    GglObject *result
+GgError ggl_call(
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
+    GgError *error,
+    GgArena *alloc,
+    GgObject *result
 );
 
 /// Callback for new data on a subscription.
-typedef GglError (*GglSubscribeCallback)(
-    void *ctx, uint32_t handle, GglObject data
+typedef GgError (*GglSubscribeCallback)(
+    void *ctx, uint32_t handle, GgObject data
 );
 
 /// Callback for whenever a subscription is closed.
 typedef void (*GglSubscribeCloseCallback)(void *ctx, uint32_t handle);
 
 /// Make an Core Bus subscription to a stream of objects.
-GglError ggl_subscribe(
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
+GgError ggl_subscribe(
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
-    GglError *error,
+    GgError *error,
     uint32_t *handle
 );
 

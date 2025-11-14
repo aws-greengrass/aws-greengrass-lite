@@ -8,43 +8,43 @@
 #include "../../ipc_subscriptions.h"
 #include "config.h"
 #include "config_path_object.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/flags.h>
-#include <ggl/list.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/flags.h>
+#include <gg/list.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <stddef.h>
 #include <stdint.h>
 
-static GglError subscribe_to_configuration_update_callback(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglArena *alloc
+static GgError subscribe_to_configuration_update_callback(
+    GgObject data, uint32_t resp_handle, int32_t stream_id, GgArena *alloc
 ) {
     (void) alloc;
 
-    if (ggl_obj_type(data) != GGL_TYPE_LIST) {
-        GGL_LOGE("Received invalid subscription response, expected a List.");
-        return GGL_ERR_FAILURE;
+    if (gg_obj_type(data) != GG_TYPE_LIST) {
+        GG_LOGE("Received invalid subscription response, expected a List.");
+        return GG_ERR_FAILURE;
     }
 
-    GglBuffer component_name;
-    GglList key_path;
+    GgBuffer component_name;
+    GgList key_path;
 
-    GglError err = ggl_parse_config_path(
-        ggl_obj_into_list(data), &component_name, &key_path
+    GgError err = ggl_parse_config_path(
+        gg_obj_into_list(data), &component_name, &key_path
     );
-    if (err != GGL_ERR_OK) {
+    if (err != GG_ERR_OK) {
         return err;
     }
 
-    GglMap ipc_response = GGL_MAP(
-        ggl_kv(
-            GGL_STR("configurationUpdateEvent"),
-            ggl_obj_map(GGL_MAP(
-                ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component_name)),
-                ggl_kv(GGL_STR("keyPath"), ggl_obj_list(key_path)),
+    GgMap ipc_response = GG_MAP(
+        gg_kv(
+            GG_STR("configurationUpdateEvent"),
+            gg_obj_map(GG_MAP(
+                gg_kv(GG_STR("componentName"), gg_obj_buf(component_name)),
+                gg_kv(GG_STR("keyPath"), gg_obj_list(key_path)),
             ))
         ),
     );
@@ -52,121 +52,121 @@ static GglError subscribe_to_configuration_update_callback(
     err = ggl_ipc_response_send(
         resp_handle,
         stream_id,
-        GGL_STR("aws.greengrass#ConfigurationUpdateEvents"),
+        GG_STR("aws.greengrass#ConfigurationUpdateEvents"),
         ipc_response
     );
-    if (err != GGL_ERR_OK) {
-        GGL_LOGE(
+    if (err != GG_ERR_OK) {
+        GG_LOGE(
             "Failed to send subscription response with error %s; skipping.",
-            ggl_strerror(err)
+            gg_strerror(err)
         );
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError ggl_handle_subscribe_to_configuration_update(
+GgError ggl_handle_subscribe_to_configuration_update(
     const GglIpcOperationInfo *info,
-    GglMap args,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglArena *alloc
+    GgArena *alloc
 ) {
     (void) alloc;
 
-    GglObject *key_path_obj;
-    GglObject *component_name_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *key_path_obj;
+    GgObject *component_name_obj;
+    GgError ret = gg_map_validate(
         args,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("componentName"),
-              GGL_OPTIONAL,
-              GGL_TYPE_BUF,
+        GG_MAP_SCHEMA(
+            { GG_STR("componentName"),
+              GG_OPTIONAL,
+              GG_TYPE_BUF,
               &component_name_obj },
-            { GGL_STR("keyPath"), GGL_OPTIONAL, GGL_TYPE_LIST, &key_path_obj },
+            { GG_STR("keyPath"), GG_OPTIONAL, GG_TYPE_LIST, &key_path_obj },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Received invalid parameters.");
         *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
                                      .message
-                                     = GGL_STR("Failed to validate the map.") };
-        return GGL_ERR_INVALID;
+                                     = GG_STR("Failed to validate the map.") };
+        return GG_ERR_INVALID;
     }
 
     // An empty key path list implies we want to subscribe to all keys under
     // this component's configuration. Similarly, (although this doesn't appear
     // to be documented) no key path provided also implies we want to subscribe
     // to all keys under this component's configuration
-    GglList key_path = { 0 };
+    GgList key_path = { 0 };
     if (key_path_obj != NULL) {
-        key_path = ggl_obj_into_list(*key_path_obj);
-        ret = ggl_list_type_check(key_path, GGL_TYPE_BUF);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
+        key_path = gg_obj_into_list(*key_path_obj);
+        ret = gg_list_type_check(key_path, GG_TYPE_BUF);
+        if (ret != GG_ERR_OK) {
+            GG_LOGE(
                 "Received invalid parameters. keyPath must be a list of strings."
             );
             *ipc_error = (GglIpcError
             ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                .message = GGL_STR(
+                .message = GG_STR(
                     "Received invalid parameters: keyPath must be list of strings."
                 ) };
-            return GGL_ERR_INVALID;
+            return GG_ERR_INVALID;
         }
     }
 
-    GglBuffer component_name = info->component;
+    GgBuffer component_name = info->component;
     if (component_name_obj != NULL) {
-        component_name = ggl_obj_into_buf(*component_name_obj);
+        component_name = gg_obj_into_buf(*component_name_obj);
     }
 
-    GglBufList full_key_path;
+    GgBufList full_key_path;
     ret = ggl_make_config_path_object(component_name, key_path, &full_key_path);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Config path depth larger than supported.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Config path depth larger than supported.");
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Config path depth larger than supported.") };
+            .message = GG_STR("Config path depth larger than supported.") };
         return ret;
     }
 
     // Increase buffer size to prevent _FORTIFY_SOURCE stringop-overflow
     // _FORTIFY_SOURCE detected write at offset 186, need minimum 187 bytes
-    // GGL_MAX_OBJECT_DEPTH (15) + 2 = 17 elements * 11 bytes = 187 bytes
-    GglObject config_path_obj[GGL_MAX_OBJECT_DEPTH + 2] = { 0 };
+    // GG_MAX_OBJECT_DEPTH (15) + 2 = 17 elements * 11 bytes = 187 bytes
+    GgObject config_path_obj[GG_MAX_OBJECT_DEPTH + 2] = { 0 };
     for (size_t i = 0; i < full_key_path.len; i++) {
-        config_path_obj[i] = ggl_obj_buf(full_key_path.bufs[i]);
+        config_path_obj[i] = gg_obj_buf(full_key_path.bufs[i]);
     }
 
-    GglMap call_args = GGL_MAP(
-        ggl_kv(
-            GGL_STR("key_path"),
-            ggl_obj_list((GglList) { .items = config_path_obj,
-                                     .len = full_key_path.len })
+    GgMap call_args = GG_MAP(
+        gg_kv(
+            GG_STR("key_path"),
+            gg_obj_list((GgList) { .items = config_path_obj,
+                                   .len = full_key_path.len })
         ),
     );
 
-    GglError remote_err;
+    GgError remote_err;
     ret = ggl_ipc_bind_subscription(
         handle,
         stream_id,
-        GGL_STR("gg_config"),
-        GGL_STR("subscribe"),
+        GG_STR("gg_config"),
+        GG_STR("subscribe"),
         call_args,
         subscribe_to_configuration_update_callback,
         &remote_err
     );
-    if (ret != GGL_ERR_OK) {
-        if ((ret == GGL_ERR_REMOTE) && (remote_err == GGL_ERR_NOENTRY)) {
+    if (ret != GG_ERR_OK) {
+        if ((ret == GG_ERR_REMOTE) && (remote_err == GG_ERR_NOENTRY)) {
             *ipc_error
                 = (GglIpcError) { .error_code = GGL_IPC_ERR_RESOURCE_NOT_FOUND,
-                                  .message = GGL_STR("Key not found") };
+                                  .message = GG_STR("Key not found") };
         } else {
             *ipc_error = (GglIpcError
             ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
                 .message
-                = GGL_STR("Failed to subscribe to configuration update.") };
+                = GG_STR("Failed to subscribe to configuration update.") };
         }
         return ret;
     }
@@ -174,7 +174,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#SubscribeToConfigurationUpdateResponse"),
-        (GglMap) { 0 }
+        GG_STR("aws.greengrass#SubscribeToConfigurationUpdateResponse"),
+        (GgMap) { 0 }
     );
 }

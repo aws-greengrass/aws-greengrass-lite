@@ -6,9 +6,9 @@
 #include "ggl/http.h"
 #include "sigv4.h"
 #include <assert.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/vector.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/vector.h>
 #include <openssl/evp.h>
 #include <openssl/types.h>
 #include <sys/time.h>
@@ -62,60 +62,60 @@ static int32_t hash_final(
     return ret;
 }
 
-static GglError translate_sigv4_error(SigV4Status_t status) {
-    GglError ret;
+static GgError translate_sigv4_error(SigV4Status_t status) {
+    GgError ret;
 
     switch (status) {
     case SigV4Success:
-        ret = GGL_ERR_OK;
+        ret = GG_ERR_OK;
         break;
 
     case SigV4InvalidParameter:
-        ret = GGL_ERR_INVALID;
+        ret = GG_ERR_INVALID;
         break;
 
     case SigV4InsufficientMemory:
-        ret = GGL_ERR_NOMEM;
+        ret = GG_ERR_NOMEM;
         break;
 
     case SigV4ISOFormattingError:
-        ret = GGL_ERR_FAILURE;
+        ret = GG_ERR_FAILURE;
         break;
 
     case SigV4MaxHeaderPairCountExceeded:
     // Fall through.
     case SigV4MaxQueryPairCountExceeded:
-        ret = GGL_ERR_RANGE;
+        ret = GG_ERR_RANGE;
         break;
 
     case SigV4HashError:
-        ret = GGL_ERR_FAILURE;
+        ret = GG_ERR_FAILURE;
         break;
 
     case SigV4InvalidHttpHeaders:
-        ret = GGL_ERR_INVALID;
+        ret = GG_ERR_INVALID;
         break;
 
     default:
-        ret = GGL_ERR_FAILURE;
+        ret = GG_ERR_FAILURE;
         break;
     }
 
     return ret;
 }
 
-static GglError aws_sigv4_generate_header(
-    GglBuffer path,
+static GgError aws_sigv4_generate_header(
+    GgBuffer path,
     SigV4Details sigv4_details,
-    GglBuffer amz_date,
-    GglBuffer http_headers,
-    GglBuffer *auth_header,
-    GglBuffer payload,
-    GglBuffer http_method,
-    GglBuffer query
+    GgBuffer amz_date,
+    GgBuffer http_headers,
+    GgBuffer *auth_header,
+    GgBuffer payload,
+    GgBuffer http_method,
+    GgBuffer query
 ) {
     if (amz_date.len < 16) {
-        return GGL_ERR_INVALID;
+        return GG_ERR_INVALID;
     }
 
     EVP_MD_CTX *md_context = EVP_MD_CTX_new();
@@ -201,28 +201,28 @@ size_t aws_sigv4_get_iso8601_time(char *buffer, size_t len) {
     return strftime(buffer, 17, "%Y%m%dT%H%M%SZ", &tm_info);
 }
 
-GglError aws_sigv4_add_header_for_signing(
-    GglByteVec *vector, GglBuffer header_key, GglBuffer header_value
+GgError aws_sigv4_add_header_for_signing(
+    GgByteVec *vector, GgBuffer header_key, GgBuffer header_value
 ) {
-    GglError ret = ggl_byte_vec_append(vector, header_key);
-    ggl_byte_vec_chain_push(&ret, vector, ':');
-    ggl_byte_vec_chain_append(&ret, vector, header_value);
+    GgError ret = gg_byte_vec_append(vector, header_key);
+    gg_byte_vec_chain_push(&ret, vector, ':');
+    gg_byte_vec_chain_append(&ret, vector, header_value);
 
     // Non-canonical delimiter used by the AWS Sigv4 library to separate
     // different key:value pairs.
-    ggl_byte_vec_chain_append(&ret, vector, GGL_STR("\r\n"));
+    gg_byte_vec_chain_append(&ret, vector, GG_STR("\r\n"));
 
     return ret;
 }
 
-GglError aws_sigv4_s3_get_create_header(
-    GglBuffer filepath,
+GgError aws_sigv4_s3_get_create_header(
+    GgBuffer filepath,
     SigV4Details sigv4_details,
     S3RequiredHeaders required_headers,
-    GglByteVec *headers_to_sign,
-    GglBuffer *auth_header
+    GgByteVec *headers_to_sign,
+    GgBuffer *auth_header
 ) {
-    GglError err;
+    GgError err;
 
     assert(required_headers.host.len > 0);
     assert(required_headers.amz_content_sha256.len > 0);
@@ -234,40 +234,40 @@ GglError aws_sigv4_s3_get_create_header(
 
     err = aws_sigv4_add_header_for_signing(
         headers_to_sign,
-        (GglBuffer) { .data = (uint8_t *) "host", .len = sizeof("host") - 1 },
+        (GgBuffer) { .data = (uint8_t *) "host", .len = sizeof("host") - 1 },
         required_headers.host
     );
 
-    if (err == GGL_ERR_OK) {
+    if (err == GG_ERR_OK) {
         err = aws_sigv4_add_header_for_signing(
             headers_to_sign,
-            (GglBuffer) { .data = (uint8_t *) "x-amz-security-token",
-                          .len = sizeof("x-amz-security-token") - 1 },
+            (GgBuffer) { .data = (uint8_t *) "x-amz-security-token",
+                         .len = sizeof("x-amz-security-token") - 1 },
             required_headers.amz_security_token
         );
     }
 
-    if (err == GGL_ERR_OK) {
+    if (err == GG_ERR_OK) {
         err = aws_sigv4_add_header_for_signing(
             headers_to_sign,
-            (GglBuffer) { .data = (uint8_t *) "x-amz-date",
-                          .len = sizeof("x-amz-date") - 1 },
+            (GgBuffer) { .data = (uint8_t *) "x-amz-date",
+                         .len = sizeof("x-amz-date") - 1 },
             required_headers.amz_date
         );
     }
 
-    if (err == GGL_ERR_OK) {
+    if (err == GG_ERR_OK) {
         err = aws_sigv4_add_header_for_signing(
             headers_to_sign,
-            (GglBuffer) { .data = (uint8_t *) "x-amz-content-sha256",
-                          .len = sizeof("x-amz-content-sha256") - 1 },
+            (GgBuffer) { .data = (uint8_t *) "x-amz-content-sha256",
+                         .len = sizeof("x-amz-content-sha256") - 1 },
             required_headers.amz_content_sha256
         );
     }
 
-    if (err == GGL_ERR_OK) {
-        GglBuffer all_headers_to_sign = { .data = headers_to_sign->buf.data,
-                                          .len = headers_to_sign->buf.len };
+    if (err == GG_ERR_OK) {
+        GgBuffer all_headers_to_sign = { .data = headers_to_sign->buf.data,
+                                         .len = headers_to_sign->buf.len };
         // The payload should be empty for S3.
         err = aws_sigv4_generate_header(
             filepath,
@@ -275,23 +275,23 @@ GglError aws_sigv4_s3_get_create_header(
             required_headers.amz_date,
             all_headers_to_sign,
             auth_header,
-            (GglBuffer) { .data = NULL, .len = 0 },
-            GGL_STR("GET"),
-            (GglBuffer) { .data = NULL, .len = 0 }
+            (GgBuffer) { .data = NULL, .len = 0 },
+            GG_STR("GET"),
+            (GgBuffer) { .data = NULL, .len = 0 }
         );
     }
 
     return err;
 }
 
-GglError aws_sigv4_ecr_post_create_header(
-    GglBuffer filepath,
+GgError aws_sigv4_ecr_post_create_header(
+    GgBuffer filepath,
     SigV4Details sigv4_details,
     ECRRequiredHeaders required_headers,
-    GglByteVec *headers_to_sign,
-    GglBuffer *auth_header
+    GgByteVec *headers_to_sign,
+    GgBuffer *auth_header
 ) {
-    GglError err = GGL_ERR_OK;
+    GgError err = GG_ERR_OK;
 
     assert(required_headers.content_type.len > 0);
     assert(required_headers.host.len > 0);
@@ -300,28 +300,28 @@ GglError aws_sigv4_ecr_post_create_header(
     assert(auth_header != NULL);
     assert(auth_header->len > 64U);
 
-    if (err == GGL_ERR_OK) {
+    if (err == GG_ERR_OK) {
         err = aws_sigv4_add_header_for_signing(
             headers_to_sign,
-            GGL_STR("content-type"),
+            GG_STR("content-type"),
             required_headers.content_type
         );
     }
 
-    if (err == GGL_ERR_OK) {
+    if (err == GG_ERR_OK) {
         err = aws_sigv4_add_header_for_signing(
-            headers_to_sign, GGL_STR("host"), required_headers.host
+            headers_to_sign, GG_STR("host"), required_headers.host
         );
     }
 
-    if (err == GGL_ERR_OK) {
+    if (err == GG_ERR_OK) {
         err = aws_sigv4_add_header_for_signing(
-            headers_to_sign, GGL_STR("x-amz-date"), required_headers.amz_date
+            headers_to_sign, GG_STR("x-amz-date"), required_headers.amz_date
         );
     }
 
-    if (err == GGL_ERR_OK) {
-        GglBuffer all_headers_to_sign = headers_to_sign->buf;
+    if (err == GG_ERR_OK) {
+        GgBuffer all_headers_to_sign = headers_to_sign->buf;
         err = aws_sigv4_generate_header(
             filepath,
             sigv4_details,
@@ -329,8 +329,8 @@ GglError aws_sigv4_ecr_post_create_header(
             all_headers_to_sign,
             auth_header,
             required_headers.payload,
-            GGL_STR("POST"),
-            (GglBuffer) { .data = NULL, .len = 0 }
+            GG_STR("POST"),
+            (GgBuffer) { .data = NULL, .len = 0 }
         );
     }
 

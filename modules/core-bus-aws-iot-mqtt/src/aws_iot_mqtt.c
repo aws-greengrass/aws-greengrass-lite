@@ -3,44 +3,42 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/aws_iot_mqtt.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/flags.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/error.h>
-#include <ggl/flags.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define GGL_MQTT_MAX_SUBSCRIBE_FILTERS 10
 
-GglError ggl_aws_iot_mqtt_publish(
-    GglBuffer socket_name,
-    GglBuffer topic,
-    GglBuffer payload,
+GgError ggl_aws_iot_mqtt_publish(
+    GgBuffer socket_name,
+    GgBuffer topic,
+    GgBuffer payload,
     uint8_t qos,
     bool wait_for_resp
 ) {
-    GglMap args = GGL_MAP(
-        ggl_kv(GGL_STR("topic"), ggl_obj_buf(topic)),
-        ggl_kv(GGL_STR("payload"), ggl_obj_buf(payload)),
-        ggl_kv(GGL_STR("qos"), ggl_obj_i64(qos))
+    GgMap args = GG_MAP(
+        gg_kv(GG_STR("topic"), gg_obj_buf(topic)),
+        gg_kv(GG_STR("payload"), gg_obj_buf(payload)),
+        gg_kv(GG_STR("qos"), gg_obj_i64(qos))
     );
 
     if (wait_for_resp) {
-        return ggl_call(
-            socket_name, GGL_STR("publish"), args, NULL, NULL, NULL
-        );
+        return ggl_call(socket_name, GG_STR("publish"), args, NULL, NULL, NULL);
     }
 
-    return ggl_notify(socket_name, GGL_STR("publish"), args);
+    return ggl_notify(socket_name, GG_STR("publish"), args);
 }
 
-GglError ggl_aws_iot_mqtt_subscribe(
-    GglBuffer socket_name,
-    GglBufList topic_filters,
+GgError ggl_aws_iot_mqtt_subscribe(
+    GgBuffer socket_name,
+    GgBufList topic_filters,
     uint8_t qos,
     bool virtual,
     GglSubscribeCallback on_response,
@@ -49,28 +47,27 @@ GglError ggl_aws_iot_mqtt_subscribe(
     uint32_t *handle
 ) {
     if (topic_filters.len > GGL_MQTT_MAX_SUBSCRIBE_FILTERS) {
-        GGL_LOGE("Topic filter count exceeds maximum handled.");
-        return GGL_ERR_UNSUPPORTED;
+        GG_LOGE("Topic filter count exceeds maximum handled.");
+        return GG_ERR_UNSUPPORTED;
     }
 
-    GglObject filters[GGL_MQTT_MAX_SUBSCRIBE_FILTERS] = { 0 };
+    GgObject filters[GGL_MQTT_MAX_SUBSCRIBE_FILTERS] = { 0 };
     for (size_t i = 0; i < topic_filters.len; i++) {
-        filters[i] = ggl_obj_buf(topic_filters.bufs[i]);
+        filters[i] = gg_obj_buf(topic_filters.bufs[i]);
     }
 
-    GglMap args = GGL_MAP(
-        ggl_kv(
-            GGL_STR("topic_filter"),
-            ggl_obj_list((GglList) { .items = filters,
-                                     .len = topic_filters.len })
+    GgMap args = GG_MAP(
+        gg_kv(
+            GG_STR("topic_filter"),
+            gg_obj_list((GgList) { .items = filters, .len = topic_filters.len })
         ),
-        ggl_kv(GGL_STR("qos"), ggl_obj_i64(qos)),
-        ggl_kv(GGL_STR("virtual"), ggl_obj_bool(virtual))
+        gg_kv(GG_STR("qos"), gg_obj_i64(qos)),
+        gg_kv(GG_STR("virtual"), gg_obj_bool(virtual))
     );
 
     return ggl_subscribe(
         socket_name,
-        GGL_STR("subscribe"),
+        GG_STR("subscribe"),
         args,
         on_response,
         on_close,
@@ -80,38 +77,38 @@ GglError ggl_aws_iot_mqtt_subscribe(
     );
 }
 
-GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
-    GglObject data, GglBuffer *topic, GglBuffer *payload
+GgError ggl_aws_iot_mqtt_subscribe_parse_resp(
+    GgObject data, GgBuffer *topic, GgBuffer *payload
 ) {
-    if (ggl_obj_type(data) != GGL_TYPE_MAP) {
-        GGL_LOGE("Subscription response is not a map.");
-        return GGL_ERR_FAILURE;
+    if (gg_obj_type(data) != GG_TYPE_MAP) {
+        GG_LOGE("Subscription response is not a map.");
+        return GG_ERR_FAILURE;
     }
-    GglMap response = ggl_obj_into_map(data);
+    GgMap response = gg_obj_into_map(data);
 
-    GglObject *topic_obj;
-    GglObject *payload_obj;
-    GglError ret = ggl_map_validate(
+    GgObject *topic_obj;
+    GgObject *payload_obj;
+    GgError ret = gg_map_validate(
         response,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), GGL_REQUIRED, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("payload"), GGL_REQUIRED, GGL_TYPE_BUF, &payload_obj },
+        GG_MAP_SCHEMA(
+            { GG_STR("topic"), GG_REQUIRED, GG_TYPE_BUF, &topic_obj },
+            { GG_STR("payload"), GG_REQUIRED, GG_TYPE_BUF, &payload_obj },
         )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid subscription response.");
-        return GGL_ERR_FAILURE;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Received invalid subscription response.");
+        return GG_ERR_FAILURE;
     }
 
     if (topic != NULL) {
-        *topic = ggl_obj_into_buf(*topic_obj);
+        *topic = gg_obj_into_buf(*topic_obj);
     }
 
     if (payload != NULL) {
-        *payload = ggl_obj_into_buf(*payload_obj);
+        *payload = gg_obj_into_buf(*payload_obj);
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 /// Call this API to subscribe to MQTT connection status. To parse the data
@@ -121,18 +118,18 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
 ///
 /// Note that when a subscription is accepted, the current MQTT status is sent
 /// to the subscribers.
-GglError ggl_aws_iot_mqtt_connection_status(
-    GglBuffer socket_name,
+GgError ggl_aws_iot_mqtt_connection_status(
+    GgBuffer socket_name,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
     uint32_t *handle
 ) {
     // The GGL subscribe API expects a map. Sending a dummy map.
-    GglMap args = GGL_MAP();
+    GgMap args = GG_MAP();
     return ggl_subscribe(
         socket_name,
-        GGL_STR("connection_status"),
+        GG_STR("connection_status"),
         args,
         on_response,
         on_close,
@@ -142,17 +139,16 @@ GglError ggl_aws_iot_mqtt_connection_status(
     );
 }
 
-GglError ggl_aws_iot_mqtt_connection_status_parse(
-    GglObject data, bool *connection_status
+GgError ggl_aws_iot_mqtt_connection_status_parse(
+    GgObject data, bool *connection_status
 ) {
-    if (ggl_obj_type(data) != GGL_TYPE_BOOLEAN) {
-        GGL_LOGE(
-            "MQTT connection status subscription response is not a boolean."
+    if (gg_obj_type(data) != GG_TYPE_BOOLEAN) {
+        GG_LOGE("MQTT connection status subscription response is not a boolean."
         );
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
 
-    *connection_status = ggl_obj_into_bool(data);
+    *connection_status = gg_obj_into_bool(data);
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

@@ -7,23 +7,23 @@
 
 //! Serialization/Deserialization for GGL objects.
 
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/io.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/io.h>
+#include <gg/object.h>
 
 // TODO: serialize should take writer, deserialize should take reader
 
 /// Serialize an object into a buffer.
-GglError ggl_serialize(GglObject obj, GglBuffer *buf);
+GgError ggl_serialize(GgObject obj, GgBuffer *buf);
 
 /// Deserialize an object from a buffer.
 /// The resultant object holds references into the buffer.
-GglError ggl_deserialize(GglArena *alloc, GglBuffer buf, GglObject *obj);
+GgError ggl_deserialize(GgArena *alloc, GgBuffer buf, GgObject *obj);
 
 /// Reader from which a serialized object can be read.
 /// Errors if buffer is not large enough for entire object.
-GglReader ggl_serialize_reader(GglObject *obj);
+GgReader ggl_serialize_reader(GgObject *obj);
 
 #endif

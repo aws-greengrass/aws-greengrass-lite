@@ -6,30 +6,30 @@
 #define CORE_BUS_CLIENT_COMMON_H
 
 #include "types.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/eventstream/decode.h>
+#include <gg/io.h>
+#include <gg/object.h>
 #include <ggl/core_bus/constants.h>
-#include <ggl/error.h>
-#include <ggl/eventstream/decode.h>
-#include <ggl/io.h>
-#include <ggl/object.h>
 #include <sys/types.h>
 #include <stdint.h>
 
 extern uint8_t ggl_core_bus_client_payload_array[GGL_COREBUS_MAX_MSG_LEN];
 extern pthread_mutex_t ggl_core_bus_client_payload_array_mtx;
 
-GglError ggl_client_send_message(
-    GglBuffer interface,
+GgError ggl_client_send_message(
+    GgBuffer interface,
     GglCoreBusRequestType type,
-    GglBuffer method,
-    GglMap params,
+    GgBuffer method,
+    GgMap params,
     int *conn_fd
 );
 
-GglError ggl_client_get_response(
-    GglReader reader,
-    GglBuffer recv_buffer,
-    GglError *error,
+GgError ggl_client_get_response(
+    GgReader reader,
+    GgBuffer recv_buffer,
+    GgError *error,
     EventStreamMessage *response
 );
 

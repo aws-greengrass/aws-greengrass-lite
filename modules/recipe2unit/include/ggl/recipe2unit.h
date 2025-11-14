@@ -5,10 +5,10 @@
 #ifndef RECIPE_2_UNIT_H
 #define RECIPE_2_UNIT_H
 
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <limits.h>
 #include <stdbool.h>
 
@@ -19,8 +19,8 @@ typedef struct {
 } HasPhase;
 
 typedef struct {
-    GglBuffer component_name;
-    GglBuffer component_version;
+    GgBuffer component_name;
+    GgBuffer component_version;
     char recipe_runner_path[PATH_MAX];
     const char *user;
     const char *group;
@@ -36,12 +36,12 @@ typedef struct {
 /// @param[out] component_name The name of the component as provided by the
 /// recipe
 /// @param[out] existing_phases Status of which phases are present
-/// @return GGL_ERR_OK on success. Failure otherwise.
-GglError convert_to_unit(
+/// @return GG_ERR_OK on success. Failure otherwise.
+GgError convert_to_unit(
     Recipe2UnitArgs *args,
-    GglArena *alloc,
-    GglObject *recipe_obj,
-    GglObject **component_name,
+    GgArena *alloc,
+    GgObject *recipe_obj,
+    GgObject **component_name,
     HasPhase *existing_phases
 );
 

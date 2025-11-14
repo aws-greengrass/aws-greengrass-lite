@@ -5,13 +5,13 @@
 // tesd -- Token Exchange Service for AWS credential desperse management
 
 #include "tesd.h"
-#include <ggl/error.h>
+#include <gg/error.h>
 #include <ggl/nucleus/init.h>
 
 int main(void) {
     ggl_nucleus_init();
-    GglError ret = run_tesd();
-    if (ret != GGL_ERR_OK) {
+    GgError ret = run_tesd();
+    if (ret != GG_ERR_OK) {
         return 1;
     }
 }

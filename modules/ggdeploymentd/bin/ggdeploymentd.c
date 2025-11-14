@@ -4,10 +4,10 @@
 
 #include "ggdeploymentd.h"
 #include <argp.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/vector.h>
 #include <ggl/nucleus/init.h>
-#include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
@@ -41,12 +41,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    GglByteVec bin_path_vec = GGL_BYTE_VEC(bin_path);
-    GglError ret = ggl_byte_vec_append(
-        &bin_path_vec, ggl_buffer_from_null_term(argv[0])
-    );
-    ggl_byte_vec_chain_push(&ret, &bin_path_vec, '\0');
-    if (ret != GGL_ERR_OK) {
+    GgByteVec bin_path_vec = GG_BYTE_VEC(bin_path);
+    GgError ret
+        = gg_byte_vec_append(&bin_path_vec, gg_buffer_from_null_term(argv[0]));
+    gg_byte_vec_chain_push(&ret, &bin_path_vec, '\0');
+    if (ret != GG_ERR_OK) {
         return 1;
     }
     bool slash_found = false;
@@ -67,7 +66,7 @@ int main(int argc, char **argv) {
     ggl_nucleus_init();
 
     ret = run_ggdeploymentd(bin_path);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return 1;
     }
 }

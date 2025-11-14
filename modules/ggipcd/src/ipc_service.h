@@ -6,34 +6,34 @@
 #define GGL_IPC_SERVICE_H
 
 #include "ipc_error.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdint.h>
 
 typedef struct {
-    GglBuffer component;
-    GglBuffer service;
-    GglBuffer operation;
+    GgBuffer component;
+    GgBuffer service;
+    GgBuffer operation;
 } GglIpcOperationInfo;
 
-typedef GglError GglIpcOperationHandler(
+typedef GgError GglIpcOperationHandler(
     const GglIpcOperationInfo *info,
-    GglMap args,
+    GgMap args,
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglArena *alloc
+    GgArena *alloc
 );
 
 typedef struct {
-    GglBuffer name;
+    GgBuffer name;
     GglIpcOperationHandler *handler;
 } GglIpcOperation;
 
 typedef struct {
-    GglBuffer name;
+    GgBuffer name;
     GglIpcOperation *operations;
     uint8_t operation_count;
 } GglIpcService;

@@ -6,10 +6,10 @@
 #define GGDEPLOYMENTD_QUEUE_H
 
 #include "deployment_model.h"
-#include <ggl/arena.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
-#include <ggl/vector.h>
+#include <gg/arena.h>
+#include <gg/error.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 
 /// Attempts to add a deployment into the queue.
 ///
@@ -18,18 +18,18 @@
 /// the queue with the same ID, then replace it if the deployment is in a
 /// replaceable state. Otherwise, do not add the deployment to the queue and
 /// return an error.
-GglError ggl_deployment_enqueue(
-    GglMap deployment_doc, GglByteVec *id, GglDeploymentType type
+GgError ggl_deployment_enqueue(
+    GgMap deployment_doc, GgByteVec *id, GglDeploymentType type
 );
 
 /// Get the deployment queue for the next deployment.
 ///
 /// Blocks until a deployment is available if the queue is empty.
-GglError ggl_deployment_dequeue(GglDeployment **deployment);
+GgError ggl_deployment_dequeue(GglDeployment **deployment);
 
 /// Release a dequeued deployment
 void ggl_deployment_release(GglDeployment *deployment);
 
-GglError deep_copy_deployment(GglDeployment *deployment, GglArena *alloc);
+GgError deep_copy_deployment(GglDeployment *deployment, GgArena *alloc);
 
 #endif

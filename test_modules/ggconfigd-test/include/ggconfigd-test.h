@@ -1,3 +1,3 @@
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_ggconfigd_test(void);
+GgError run_ggconfigd_test(void);

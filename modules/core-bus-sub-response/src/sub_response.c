@@ -5,12 +5,12 @@
 #include "ggl/core_bus/sub_response.h"
 #include <assert.h>
 #include <errno.h>
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/object.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/object.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -23,46 +23,46 @@ typedef struct GglSubResponseCallbackCtx {
     bool ready;
     GglSubResponseCallback callback;
     void *callback_ctx;
-    GglError response_error;
+    GgError response_error;
 } GglSubResponseCallbackCtx;
 
 static void cleanup_pthread_cond(pthread_cond_t **cond) {
     pthread_cond_destroy(*cond);
 }
 
-static GglError sub_response_on_response(
-    void *ctx, uint32_t handle, GglObject data
+static GgError sub_response_on_response(
+    void *ctx, uint32_t handle, GgObject data
 ) {
-    GGL_LOGD("Receiving response for %" PRIu32, handle);
+    GG_LOGD("Receiving response for %" PRIu32, handle);
     GglSubResponseCallbackCtx *context = ctx;
 
-    GglError err = context->callback(ctx, data);
+    GgError err = context->callback(ctx, data);
 
-    if (err == GGL_ERR_RETRY) {
+    if (err == GG_ERR_RETRY) {
         // Skip this response
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
 
     context->response_error = err;
     // Err to close subscription
-    return GGL_ERR_EXPECTED;
+    return GG_ERR_EXPECTED;
 }
 
 static void sub_response_on_close(void *ctx, uint32_t handle) {
     GglSubResponseCallbackCtx *context = ctx;
-    GGL_LOGD("Notifying response for %" PRIu32, handle);
-    GGL_MTX_SCOPE_GUARD(context->mtx);
+    GG_LOGD("Notifying response for %" PRIu32, handle);
+    GG_MTX_SCOPE_GUARD(context->mtx);
     context->ready = true;
     pthread_cond_signal(context->cond);
 }
 
-GglError ggl_sub_response(
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
+GgError ggl_sub_response(
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
     GglSubResponseCallback callback,
     void *ctx,
-    GglError *remote_error,
+    GgError *remote_error,
     int64_t timeout_seconds
 ) {
     assert(callback != NULL);
@@ -73,10 +73,10 @@ GglError ggl_sub_response(
     pthread_cond_t cond;
     pthread_cond_init(&cond, &attr);
     pthread_condattr_destroy(&attr);
-    GGL_CLEANUP(cleanup_pthread_cond, &cond);
+    GG_CLEANUP(cleanup_pthread_cond, &cond);
     pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
-    GglSubResponseCallbackCtx resp_ctx = { .response_error = GGL_ERR_FAILURE,
+    GglSubResponseCallbackCtx resp_ctx = { .response_error = GG_ERR_FAILURE,
                                            .ready = false,
                                            .callback = callback,
                                            .callback_ctx = ctx,
@@ -88,7 +88,7 @@ GglError ggl_sub_response(
     clock_gettime(CLOCK_MONOTONIC, &timeout_abs);
     timeout_abs.tv_sec += timeout_seconds;
 
-    GglError subscribe_error = ggl_subscribe(
+    GgError subscribe_error = ggl_subscribe(
         interface,
         method,
         params,
@@ -98,20 +98,20 @@ GglError ggl_sub_response(
         remote_error,
         &handle
     );
-    if (subscribe_error != GGL_ERR_OK) {
+    if (subscribe_error != GG_ERR_OK) {
         return subscribe_error;
     }
 
     bool timed_out = false;
 
     {
-        GGL_MTX_SCOPE_GUARD(&mtx);
+        GG_MTX_SCOPE_GUARD(&mtx);
 
         while (!resp_ctx.ready) {
             int cond_ret = pthread_cond_timedwait(&cond, &mtx, &timeout_abs);
             if ((cond_ret != 0) && (cond_ret != EINTR)) {
                 assert(cond_ret == ETIMEDOUT);
-                GGL_LOGW("Timed out waiting for a response.");
+                GG_LOGW("Timed out waiting for a response.");
                 timed_out = true;
                 break;
             }
@@ -123,6 +123,6 @@ GglError ggl_sub_response(
         ggl_client_sub_close(handle);
     }
 
-    GGL_LOGD("Finished waiting for a response.");
+    GG_LOGD("Finished waiting for a response.");
     return resp_ctx.response_error;
 }

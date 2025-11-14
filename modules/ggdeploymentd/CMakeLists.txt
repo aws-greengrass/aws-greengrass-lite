@@ -4,7 +4,7 @@
 
 ggl_init_module(
   ggdeploymentd
-  LIBS ggl-sdk
+  LIBS gg-sdk
        ggl-constants
        ggl-common
        core-bus

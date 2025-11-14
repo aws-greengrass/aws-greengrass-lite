@@ -5,17 +5,15 @@
 #ifndef GGDEPLOYMENTD_IOT_JOBS_LISTENER_H
 #define GGDEPLOYMENTD_IOT_JOBS_LISTENER_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <stdint.h>
 
 void *job_listener_thread(void *ctx);
 
-GglError update_current_jobs_deployment(
-    GglBuffer deployment_id, GglBuffer status
-);
-GglError set_jobs_deployment_for_bootstrap(
-    GglBuffer job_id, GglBuffer deployment_id, int64_t version
+GgError update_current_jobs_deployment(GgBuffer deployment_id, GgBuffer status);
+GgError set_jobs_deployment_for_bootstrap(
+    GgBuffer job_id, GgBuffer deployment_id, int64_t version
 );
 
 #endif

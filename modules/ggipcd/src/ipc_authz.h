@@ -6,17 +6,17 @@
 #define GGL_IPC_AUTHZ_H
 
 #include "ipc_service.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
 #include <stdbool.h>
 
 typedef bool GglIpcPolicyResourceMatcher(
-    GglBuffer request_resource, GglBuffer policy_resource
+    GgBuffer request_resource, GgBuffer policy_resource
 );
 
-GglError ggl_ipc_auth(
+GgError ggl_ipc_auth(
     const GglIpcOperationInfo *info,
-    GglBuffer resource,
+    GgBuffer resource,
     GglIpcPolicyResourceMatcher *matcher
 );
 

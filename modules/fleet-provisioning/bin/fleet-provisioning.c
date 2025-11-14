@@ -4,11 +4,11 @@
 
 #include "fleet-provisioning.h"
 #include <argp.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/vector.h>
 #include <ggl/binpath.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
 #include <ggl/nucleus/init.h>
-#include <ggl/vector.h>
 
 static char doc[] = "fleet-provisioning -- AWS IoT Fleet Provisioning client";
 
@@ -99,17 +99,17 @@ int main(int argc, char **argv) {
     ggl_nucleus_init();
 
     // Parse binary path and set iotcored_path
-    GglByteVec iotcored_path = GGL_BYTE_VEC(iotcored_path_buf);
+    GgByteVec iotcored_path = GG_BYTE_VEC(iotcored_path_buf);
 
-    GglError ret = ggl_binpath_append_name(
-        ggl_buffer_from_null_term(argv[0]), GGL_STR("iotcored"), &iotcored_path
+    GgError ret = ggl_binpath_append_name(
+        gg_buffer_from_null_term(argv[0]), GG_STR("iotcored"), &iotcored_path
     );
-    if (ret == GGL_ERR_OK) {
+    if (ret == GG_ERR_OK) {
         args.iotcored_path = (char *) iotcored_path.buf.data;
     }
 
     ret = run_fleet_prov(&args);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return 1;
     }
 }

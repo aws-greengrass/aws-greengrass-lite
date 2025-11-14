@@ -5,8 +5,8 @@
 #ifndef TES_SERVERD_H
 #define TES_SERVERD_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
-GglError run_tes_serverd(void);
+GgError run_tes_serverd(void);
 
 #endif

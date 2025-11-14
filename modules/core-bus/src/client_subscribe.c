@@ -8,17 +8,17 @@
 #include "object_serde.h"
 #include "types.h"
 #include <assert.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
-#include <ggl/error.h>
-#include <ggl/eventstream/decode.h>
-#include <ggl/eventstream/types.h>
-#include <ggl/file.h>
-#include <ggl/log.h>
-#include <ggl/object.h>
-#include <ggl/socket.h>
-#include <ggl/socket_epoll.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/eventstream/decode.h>
+#include <gg/eventstream/types.h>
+#include <gg/file.h>
+#include <gg/log.h>
+#include <gg/object.h>
+#include <gg/socket.h>
+#include <gg/socket_epoll.h>
 #include <ggl/socket_handle.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -48,8 +48,8 @@ typedef struct {
 
 static SubCallbacks sub_callbacks[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
 
-static GglError reset_sub_state(uint32_t handle, size_t index);
-static GglError call_close_callback(uint32_t handle, size_t index);
+static GgError reset_sub_state(uint32_t handle, size_t index);
+static GgError call_close_callback(uint32_t handle, size_t index);
 
 static int sub_fds[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
 static uint16_t sub_generations[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
@@ -73,25 +73,25 @@ static int epoll_fd = -1;
 /// Initializes subscription epoll and starts epoll thread.
 /// Runs at startup (before main).
 __attribute__((constructor)) static void start_subscription_thread(void) {
-    GglError ret = ggl_socket_epoll_create(&epoll_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create epoll for subscription responses.");
+    GgError ret = gg_socket_epoll_create(&epoll_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to create epoll for subscription responses.");
         _Exit(1);
     }
 
     pthread_t sub_thread = { 0 };
     int sys_ret = pthread_create(&sub_thread, NULL, subscription_thread, NULL);
     if (sys_ret != 0) {
-        GGL_LOGE("Failed to create subscription response thread: %d.", sys_ret);
+        GG_LOGE("Failed to create subscription response thread: %d.", sys_ret);
         _Exit(1);
     }
     pthread_detach(sub_thread);
 }
 
-static GglError reset_sub_state(uint32_t handle, size_t index) {
+static GgError reset_sub_state(uint32_t handle, size_t index) {
     (void) handle;
     sub_callbacks[index] = (SubCallbacks) { 0 };
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 static void set_sub_callbacks(void *ctx, size_t index) {
@@ -104,52 +104,52 @@ static void get_sub_callbacks(void *ctx, size_t index) {
     *callbacks = sub_callbacks[index];
 }
 
-static GglError call_close_callback(uint32_t handle, size_t index) {
+static GgError call_close_callback(uint32_t handle, size_t index) {
     (void) index;
-    GGL_LOGT("Calling subscription close callback.");
+    GG_LOGT("Calling subscription close callback.");
 
-    GGL_LOGT("Retrieving subscription callbacks.");
+    GG_LOGT("Retrieving subscription callbacks.");
     SubCallbacks callbacks = { 0 };
-    GglError ret = ggl_socket_handle_protected(
+    GgError ret = ggl_socket_handle_protected(
         get_sub_callbacks, &callbacks, &pool, handle
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     if (callbacks.on_close != NULL) {
-        GGL_LOGT("Calling subscription close callback.");
+        GG_LOGT("Calling subscription close callback.");
 
         callbacks.on_close(callbacks.ctx, handle);
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError make_subscribe_request(
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
-    GglError *error,
+static GgError make_subscribe_request(
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
+    GgError *error,
     int *conn_fd
 ) {
     int conn = -1;
-    GglError ret = ggl_client_send_message(
+    GgError ret = ggl_client_send_message(
         interface, GGL_CORE_BUS_SUBSCRIBE, method, params, &conn
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
-    GGL_CLEANUP_ID(conn_cleanup, cleanup_close, conn);
+    GG_CLEANUP_ID(conn_cleanup, cleanup_close, conn);
 
-    GGL_MTX_SCOPE_GUARD(&ggl_core_bus_client_payload_array_mtx);
+    GG_MTX_SCOPE_GUARD(&ggl_core_bus_client_payload_array_mtx);
 
-    GglBuffer recv_buffer = GGL_BUF(ggl_core_bus_client_payload_array);
+    GgBuffer recv_buffer = GG_BUF(ggl_core_bus_client_payload_array);
     EventStreamMessage msg = { 0 };
     ret = ggl_client_get_response(
-        ggl_socket_reader(&conn), recv_buffer, error, &msg
+        gg_socket_reader(&conn), recv_buffer, error, &msg
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
@@ -158,8 +158,8 @@ static GglError make_subscribe_request(
     EventStreamHeaderIter iter = msg.headers;
     EventStreamHeader header;
 
-    while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
-        if (ggl_buffer_eq(header.name, GGL_STR("accepted"))) {
+    while (eventstream_header_next(&iter, &header) == GG_ERR_OK) {
+        if (gg_buffer_eq(header.name, GG_STR("accepted"))) {
             if ((header.value.type == EVENTSTREAM_INT32)
                 && (header.value.int32 == 1)) {
                 accepted = true;
@@ -168,55 +168,55 @@ static GglError make_subscribe_request(
     }
 
     if (!accepted) {
-        GGL_LOGE("Non-error subscription response missing accepted header.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Non-error subscription response missing accepted header.");
+        return GG_ERR_FAILURE;
     }
 
     // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
     conn_cleanup = -1;
     *conn_fd = conn;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-GglError ggl_subscribe(
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
+GgError ggl_subscribe(
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
-    GglError *error,
+    GgError *error,
     uint32_t *handle
 ) {
     if (epoll_fd < 0) {
-        GGL_LOGE("Subscription epoll not initialized.");
-        return GGL_ERR_FATAL;
+        GG_LOGE("Subscription epoll not initialized.");
+        return GG_ERR_FATAL;
     }
 
     int conn = -1;
-    GGL_LOGT(
+    GG_LOGT(
         "Subscribing to %.*s:%.*s.",
         (int) interface.len,
         interface.data,
         (int) method.len,
         method.data
     );
-    GglError ret
+    GgError ret
         = make_subscribe_request(interface, method, params, error, &conn);
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    GGL_LOGT("Registering subscription fd with socket pool.");
+    GG_LOGT("Registering subscription fd with socket pool.");
     uint32_t sub_handle = 0;
     ret = ggl_socket_pool_register(&pool, conn, &sub_handle);
-    if (ret != GGL_ERR_OK) {
-        (void) ggl_close(conn);
-        GGL_LOGW("Max subscriptions exceeded.");
+    if (ret != GG_ERR_OK) {
+        (void) gg_close(conn);
+        GG_LOGW("Max subscriptions exceeded.");
         return ret;
     }
 
-    GGL_LOGT("Setting subscription callbacks.");
+    GG_LOGT("Setting subscription callbacks.");
     (void) ggl_socket_handle_protected(
         set_sub_callbacks,
         &(SubCallbacks) {
@@ -228,8 +228,8 @@ GglError ggl_subscribe(
         sub_handle
     );
 
-    ret = ggl_socket_epoll_add(epoll_fd, conn, sub_handle);
-    if (ret != GGL_ERR_OK) {
+    ret = gg_socket_epoll_add(epoll_fd, conn, sub_handle);
+    if (ret != GG_ERR_OK) {
         (void) ggl_socket_handle_protected(
             set_sub_callbacks, &(SubCallbacks) { 0 }, &pool, sub_handle
         );
@@ -241,8 +241,8 @@ GglError ggl_subscribe(
         *handle = sub_handle;
     }
 
-    GGL_LOGT("Subscription success.");
-    return GGL_ERR_OK;
+    GG_LOGT("Subscription success.");
+    return GG_ERR_OK;
 }
 
 void ggl_client_sub_close(uint32_t handle) {
@@ -251,57 +251,57 @@ void ggl_client_sub_close(uint32_t handle) {
 
 typedef struct {
     uint32_t handle;
-    GglObject data;
-    GglError ret;
+    GgObject data;
+    GgError ret;
 } OnResponseCallbackArgs;
 
 static void call_on_response_callback(void *ctx, size_t index) {
     OnResponseCallbackArgs *args = ctx;
-    args->ret = GGL_ERR_OK;
+    args->ret = GG_ERR_OK;
     if (sub_callbacks[index].on_response != NULL) {
-        GGL_LOGT("Calling subscription response callback.");
+        GG_LOGT("Calling subscription response callback.");
 
         args->ret = sub_callbacks[index].on_response(
             sub_callbacks[index].ctx, args->handle, args->data
         );
-        if (args->ret != GGL_ERR_OK) {
+        if (args->ret != GG_ERR_OK) {
             (void) ggl_socket_handle_close(&pool, args->handle);
 
-            GGL_LOGT("Subscription response callback returned error.");
+            GG_LOGT("Subscription response callback returned error.");
         }
     }
 }
 
-static GglError get_subscription_response(uint32_t handle) {
-    GGL_LOGD("Handling incoming subscription response.");
+static GgError get_subscription_response(uint32_t handle) {
+    GG_LOGD("Handling incoming subscription response.");
 
     // Need separate data array as sub resp callback may call core bus APIs
     static uint8_t sub_resp_payload_array[GGL_COREBUS_MAX_MSG_LEN];
     static pthread_mutex_t sub_resp_payload_array_mtx
         = PTHREAD_MUTEX_INITIALIZER;
 
-    GGL_MTX_SCOPE_GUARD(&sub_resp_payload_array_mtx);
+    GG_MTX_SCOPE_GUARD(&sub_resp_payload_array_mtx);
 
-    GglBuffer recv_buffer = GGL_BUF(sub_resp_payload_array);
+    GgBuffer recv_buffer = GG_BUF(sub_resp_payload_array);
     EventStreamMessage msg = { 0 };
     GglSocketHandleReaderCtx reader_ctx;
-    GglError ret = ggl_client_get_response(
+    GgError ret = ggl_client_get_response(
         ggl_socket_handle_reader(&reader_ctx, &pool, handle),
         recv_buffer,
         NULL,
         &msg
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    static uint8_t obj_decode_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
-    GglArena alloc = ggl_arena_init(GGL_BUF(obj_decode_mem));
+    static uint8_t obj_decode_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GgObject)];
+    GgArena alloc = gg_arena_init(GG_BUF(obj_decode_mem));
 
-    GglObject result;
+    GgObject result;
     ret = ggl_deserialize(&alloc, msg.payload, &result);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to decode subscription response payload.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to decode subscription response payload.");
         return ret;
     }
 
@@ -310,36 +310,36 @@ static GglError get_subscription_response(uint32_t handle) {
     ret = ggl_socket_handle_protected(
         call_on_response_callback, &args, &pool, handle
     );
-    if ((ret != GGL_ERR_OK) || (args.ret != GGL_ERR_OK)) {
+    if ((ret != GG_ERR_OK) || (args.ret != GG_ERR_OK)) {
         return ret;
     }
 
-    GGL_LOGT("Successfully handled incoming subscription response.");
+    GG_LOGT("Successfully handled incoming subscription response.");
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError sub_fd_ready(void *ctx, uint64_t data) {
+static GgError sub_fd_ready(void *ctx, uint64_t data) {
     (void) ctx;
     if (data > UINT32_MAX) {
-        return GGL_ERR_FATAL;
+        return GG_ERR_FATAL;
     }
 
     uint32_t handle = (uint32_t) data;
 
-    GglError ret = get_subscription_response(handle);
-    if (ret != GGL_ERR_OK) {
+    GgError ret = get_subscription_response(handle);
+    if (ret != GG_ERR_OK) {
         (void) ggl_socket_handle_close(&pool, handle);
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 static void *subscription_thread(void *args) {
     assert(epoll_fd >= 0);
 
-    GGL_LOGD("Started core bus subscription thread.");
-    (void) ggl_socket_epoll_run(epoll_fd, sub_fd_ready, args);
-    GGL_LOGE("Core bus subscription thread exited.");
+    GG_LOGD("Started core bus subscription thread.");
+    (void) gg_socket_epoll_run(epoll_fd, sub_fd_ready, args);
+    GG_LOGE("Core bus subscription thread exited.");
     return NULL;
 }

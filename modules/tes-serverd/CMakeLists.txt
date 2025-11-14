@@ -4,7 +4,7 @@
 
 ggl_init_module(
   tes-serverd
-  LIBS ggl-sdk
+  LIBS gg-sdk
        ggl-common
        ggl-http
        core-bus

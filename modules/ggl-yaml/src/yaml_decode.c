@@ -5,26 +5,23 @@
 #include "ggl/yaml_decode.h"
 #include "pthread.h"
 #include <assert.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/cleanup.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/cleanup.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
 #include <string.h>
 #include <sys/types.h>
 #include <yaml.h>
 #include <stdint.h>
 
-static GglError yaml_to_obj(
-    yaml_document_t *document,
-    yaml_node_t *node,
-    GglArena *arena,
-    GglObject *obj
+static GgError yaml_to_obj(
+    yaml_document_t *document, yaml_node_t *node, GgArena *arena, GgObject *obj
 );
 
-static GglError yaml_node_to_buf(yaml_node_t *node, GglBuffer *buf) {
+static GgError yaml_node_to_buf(yaml_node_t *node, GgBuffer *buf) {
     assert(node != NULL);
     assert(node->type == YAML_SCALAR_NODE);
 
@@ -32,33 +29,30 @@ static GglError yaml_node_to_buf(yaml_node_t *node, GglBuffer *buf) {
     size_t len = strlen((char *) value);
 
     if (buf != NULL) {
-        *buf = (GglBuffer) { .data = value, .len = len };
+        *buf = (GgBuffer) { .data = value, .len = len };
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError yaml_scalar_to_obj(yaml_node_t *node, GglObject *obj) {
+static GgError yaml_scalar_to_obj(yaml_node_t *node, GgObject *obj) {
     assert(node != NULL);
     assert(node->type == YAML_SCALAR_NODE);
 
-    GglBuffer result;
-    GglError ret = yaml_node_to_buf(node, &result);
-    if (ret != GGL_ERR_OK) {
+    GgBuffer result;
+    GgError ret = yaml_node_to_buf(node, &result);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     if (obj != NULL) {
-        *obj = ggl_obj_buf(result);
+        *obj = gg_obj_buf(result);
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static GglError yaml_mapping_to_obj(
-    yaml_document_t *document,
-    yaml_node_t *node,
-    GglArena *arena,
-    GglObject *obj
+static GgError yaml_mapping_to_obj(
+    yaml_document_t *document, yaml_node_t *node, GgArena *arena, GgObject *obj
 ) {
     assert(document != NULL);
     assert(node != NULL);
@@ -66,8 +60,8 @@ static GglError yaml_mapping_to_obj(
     assert(arena != NULL);
 
     if (node->data.mapping.pairs.top < node->data.mapping.pairs.start) {
-        GGL_LOGE("Unexpected result from libyaml.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Unexpected result from libyaml.");
+        return GG_ERR_FAILURE;
     }
 
     size_t len = (size_t) (node->data.mapping.pairs.top
@@ -75,17 +69,17 @@ static GglError yaml_mapping_to_obj(
 
     if (len == 0) {
         if (obj != NULL) {
-            *obj = ggl_obj_map((GglMap) { 0 });
+            *obj = gg_obj_map((GgMap) { 0 });
         }
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
 
-    GglKV *pairs = NULL;
+    GgKV *pairs = NULL;
     if (obj != NULL) {
-        pairs = GGL_ARENA_ALLOCN(arena, GglKV, len);
+        pairs = GG_ARENA_ALLOCN(arena, GgKV, len);
         if (pairs == NULL) {
-            GGL_LOGE("Insufficent memory to decode yaml.");
-            return GGL_ERR_NOMEM;
+            GG_LOGE("Insufficent memory to decode yaml.");
+            return GG_ERR_NOMEM;
         }
     }
 
@@ -94,53 +88,50 @@ static GglError yaml_mapping_to_obj(
         yaml_node_t *key_node
             = yaml_document_get_node(document, node_pairs[i].key);
         if (key_node == NULL) {
-            GGL_LOGE("Yaml mapping key NULL.");
-            return GGL_ERR_FAILURE;
+            GG_LOGE("Yaml mapping key NULL.");
+            return GG_ERR_FAILURE;
         }
         yaml_node_t *value_node
             = yaml_document_get_node(document, node_pairs[i].value);
         if (value_node == NULL) {
-            GGL_LOGE("Yaml mapping value NULL.");
-            return GGL_ERR_FAILURE;
+            GG_LOGE("Yaml mapping value NULL.");
+            return GG_ERR_FAILURE;
         }
 
         if (key_node->type != YAML_SCALAR_NODE) {
-            GGL_LOGE("Yaml mapping key not a scalar.");
-            return GGL_ERR_FAILURE;
+            GG_LOGE("Yaml mapping key not a scalar.");
+            return GG_ERR_FAILURE;
         }
 
-        GglError ret;
+        GgError ret;
         if (pairs == NULL) {
             ret = yaml_node_to_buf(key_node, NULL);
         } else {
-            GglBuffer key = { 0 };
+            GgBuffer key = { 0 };
             ret = yaml_node_to_buf(key_node, &key);
-            ggl_kv_set_key(&pairs[i], key);
+            gg_kv_set_key(&pairs[i], key);
         }
-        if (ret != GGL_ERR_OK) {
+        if (ret != GG_ERR_OK) {
             return ret;
         }
 
-        GglObject *val = (pairs == NULL) ? NULL : ggl_kv_val(&pairs[i]);
+        GgObject *val = (pairs == NULL) ? NULL : gg_kv_val(&pairs[i]);
 
         ret = yaml_to_obj(document, value_node, arena, val);
-        if (ret != GGL_ERR_OK) {
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
 
     if (obj != NULL) {
-        *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = len });
+        *obj = gg_obj_map((GgMap) { .pairs = pairs, .len = len });
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static GglError yaml_sequence_to_obj(
-    yaml_document_t *document,
-    yaml_node_t *node,
-    GglArena *arena,
-    GglObject *obj
+static GgError yaml_sequence_to_obj(
+    yaml_document_t *document, yaml_node_t *node, GgArena *arena, GgObject *obj
 ) {
     assert(document != NULL);
     assert(node != NULL);
@@ -148,8 +139,8 @@ static GglError yaml_sequence_to_obj(
     assert(arena != NULL);
 
     if (node->data.sequence.items.top < node->data.sequence.items.start) {
-        GGL_LOGE("Unexpected result from libyaml.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Unexpected result from libyaml.");
+        return GG_ERR_FAILURE;
     }
 
     size_t len = (size_t) (node->data.sequence.items.top
@@ -157,17 +148,17 @@ static GglError yaml_sequence_to_obj(
 
     if (len == 0) {
         if (obj != NULL) {
-            *obj = ggl_obj_list((GglList) { 0 });
+            *obj = gg_obj_list((GgList) { 0 });
         }
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
 
-    GglObject *items = NULL;
+    GgObject *items = NULL;
     if (obj != NULL) {
-        items = GGL_ARENA_ALLOCN(arena, GglObject, len);
+        items = GG_ARENA_ALLOCN(arena, GgObject, len);
         if (items == NULL) {
-            GGL_LOGE("Insufficent memory to decode yaml.");
-            return GGL_ERR_NOMEM;
+            GG_LOGE("Insufficent memory to decode yaml.");
+            return GG_ERR_NOMEM;
         }
     }
 
@@ -176,30 +167,27 @@ static GglError yaml_sequence_to_obj(
         yaml_node_t *item_node
             = yaml_document_get_node(document, item_nodes[i]);
         if (item_node == NULL) {
-            GGL_LOGE("Yaml sequence node NULL.");
-            return GGL_ERR_FAILURE;
+            GG_LOGE("Yaml sequence node NULL.");
+            return GG_ERR_FAILURE;
         }
 
-        GglObject *item = (items == NULL) ? NULL : &items[i];
+        GgObject *item = (items == NULL) ? NULL : &items[i];
 
-        GglError ret = yaml_to_obj(document, item_node, arena, item);
-        if (ret != GGL_ERR_OK) {
+        GgError ret = yaml_to_obj(document, item_node, arena, item);
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
 
     if (obj != NULL) {
-        *obj = ggl_obj_list((GglList) { .items = items, .len = len });
+        *obj = gg_obj_list((GgList) { .items = items, .len = len });
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static GglError yaml_to_obj(
-    yaml_document_t *document,
-    yaml_node_t *node,
-    GglArena *arena,
-    GglObject *obj
+static GgError yaml_to_obj(
+    yaml_document_t *document, yaml_node_t *node, GgArena *arena, GgObject *obj
 ) {
     assert(document != NULL);
     assert(node != NULL);
@@ -207,8 +195,8 @@ static GglError yaml_to_obj(
 
     switch (node->type) {
     case YAML_NO_NODE: {
-        GGL_LOGE("Unexpected missing node from libyaml.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Unexpected missing node from libyaml.");
+        return GG_ERR_FAILURE;
     }
     case YAML_SCALAR_NODE:
         return yaml_scalar_to_obj(node, obj);
@@ -218,61 +206,61 @@ static GglError yaml_to_obj(
         return yaml_sequence_to_obj(document, node, arena, obj);
     }
 
-    GGL_LOGE("Unexpected node type from libyaml.");
-    return GGL_ERR_FAILURE;
+    GG_LOGE("Unexpected node type from libyaml.");
+    return GG_ERR_FAILURE;
 }
 
-GglError ggl_yaml_decode_destructive(
-    GglBuffer buf, GglArena *arena, GglObject *obj
+GgError ggl_yaml_decode_destructive(
+    GgBuffer buf, GgArena *arena, GgObject *obj
 ) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
-    GGL_MTX_SCOPE_GUARD(&mtx);
+    GG_MTX_SCOPE_GUARD(&mtx);
 
-    GGL_LOGT(
+    GG_LOGT(
         "%s received yaml content: %.*s", __func__, (int) buf.len, buf.data
     );
 
     static yaml_parser_t parser;
     if (!yaml_parser_initialize(&parser)) {
-        GGL_LOGE("Parser initialization failed.");
-        return GGL_ERR_FATAL;
+        GG_LOGE("Parser initialization failed.");
+        return GG_ERR_FATAL;
     }
     yaml_parser_set_input_string(&parser, buf.data, buf.len);
     static yaml_document_t document;
     if (!yaml_parser_load(&parser, &document)) {
-        GGL_LOGE(
+        GG_LOGE(
             "Yaml parser load failed. Parser error: %s, at line %zu, column %zu",
             parser.problem,
             parser.problem_mark.line + 1,
             parser.problem_mark.column + 1
         );
         yaml_parser_delete(&parser);
-        return GGL_ERR_PARSE;
+        return GG_ERR_PARSE;
     }
     yaml_node_t *root_node = yaml_document_get_root_node(&document);
     if (root_node == NULL) {
-        GGL_LOGE("Yaml document is empty.");
-        return GGL_ERR_NOENTRY;
+        GG_LOGE("Yaml document is empty.");
+        return GG_ERR_NOENTRY;
     }
 
     // Handle NULL arena arg
-    GglArena empty_arena = { 0 };
-    GglArena *result_arena = (arena == NULL) ? &empty_arena : arena;
+    GgArena empty_arena = { 0 };
+    GgArena *result_arena = (arena == NULL) ? &empty_arena : arena;
 
     // Copy to avoid committing allocation on error path
-    GglArena arena_copy = *result_arena;
+    GgArena arena_copy = *result_arena;
 
-    GglError ret = yaml_to_obj(&document, root_node, &arena_copy, obj);
+    GgError ret = yaml_to_obj(&document, root_node, &arena_copy, obj);
 
     if (obj != NULL) {
-        if (ret == GGL_ERR_OK) {
+        if (ret == GG_ERR_OK) {
             // Copy buffers (dynamically allocated by libyaml) into buf to mimic
             // in-place buffer decoding
-            GglArena buf_arena = ggl_arena_init(buf);
-            ret = ggl_arena_claim_obj_bufs(obj, &buf_arena);
+            GgArena buf_arena = gg_arena_init(buf);
+            ret = gg_arena_claim_obj_bufs(obj, &buf_arena);
         }
 
-        if (ret == GGL_ERR_OK) {
+        if (ret == GG_ERR_OK) {
             // Commit allocations
             *result_arena = arena_copy;
         }

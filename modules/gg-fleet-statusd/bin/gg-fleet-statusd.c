@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gg_fleet_statusd.h"
-#include <ggl/error.h>
+#include <gg/error.h>
 #include <ggl/nucleus/init.h>
 
 int main(int argc, char **argv) {
@@ -12,8 +12,8 @@ int main(int argc, char **argv) {
 
     ggl_nucleus_init();
 
-    GglError ret = run_gg_fleet_statusd();
-    if (ret != GGL_ERR_OK) {
+    GgError ret = run_gg_fleet_statusd();
+    if (ret != GG_ERR_OK) {
         return 1;
     }
 }

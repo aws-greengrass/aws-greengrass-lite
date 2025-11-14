@@ -6,23 +6,23 @@
 #ifndef GGL_EXEC_H
 #define GGL_EXEC_H
 
-#include "ggl/io.h"
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/error.h>
+#include <gg/io.h>
+#include <gg/object.h>
 #include <sys/types.h>
 
-GglError ggl_exec_command(const char *const args[static 1]);
-GglError ggl_exec_command_async(
+GgError ggl_exec_command(const char *const args[static 1]);
+GgError ggl_exec_command_async(
     const char *const args[static 1], pid_t child_pid[static 1]
 );
-GglError ggl_exec_kill_process(pid_t process_id);
+GgError ggl_exec_kill_process(pid_t process_id);
 
-GglError ggl_exec_command_with_output(
-    const char *const args[static 1], GglWriter writer
+GgError ggl_exec_command_with_output(
+    const char *const args[static 1], GgWriter writer
 );
 
-GglError ggl_exec_command_with_input(
-    const char *const args[static 1], GglObject payload
+GgError ggl_exec_command_with_input(
+    const char *const args[static 1], GgObject payload
 );
 
 #endif

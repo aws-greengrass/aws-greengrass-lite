@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "helpers.h"
-#include <ggl/object.h>
+#include <gg/object.h>
 #include <string.h>
 
 #define PATH_STRING_MAX_SIZE 1024
@@ -14,20 +14,20 @@
 /// terminated string has a fixed maximum length and will end in /... if it is
 /// too small.
 /// @return a statically allocated path_string suitable for debug printing
-char *print_key_path(GglList *key_path) {
+char *print_key_path(GgList *key_path) {
     static char path_string[PATH_STRING_MAX_SIZE] = { 0 };
     size_t string_length = 0;
     memset(path_string, 0, sizeof(path_string));
     for (size_t x = 0; x < key_path->len; x++) {
-        size_t additional_length = 1 + ggl_obj_into_buf(key_path->items[x]).len;
+        size_t additional_length = 1 + gg_obj_into_buf(key_path->items[x]).len;
         if (5 + string_length + additional_length < sizeof(path_string)) {
             if (x > 0) {
                 strncat(path_string, "/ ", 1);
             }
             strncat(
                 path_string,
-                (char *) ggl_obj_into_buf(key_path->items[x]).data,
-                ggl_obj_into_buf(key_path->items[x]).len
+                (char *) gg_obj_into_buf(key_path->items[x]).data,
+                gg_obj_into_buf(key_path->items[x]).len
             );
         } else {
             strncat(path_string, (char *) "/... ", 4);

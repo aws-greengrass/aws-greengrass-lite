@@ -5,16 +5,16 @@
 #include "ggl/semver.h"
 #include "semver-test.h"
 #include "stdbool.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
 
-GglError run_semver_test(void) {
-    bool ret = is_in_range(GGL_STR("1.1.0"), GGL_STR(">=2.1.0"));
+GgError run_semver_test(void) {
+    bool ret = is_in_range(GG_STR("1.1.0"), GG_STR(">=2.1.0"));
     if (ret) {
-        GGL_LOGI("Satisfies requirement/s");
+        GG_LOGI("Satisfies requirement/s");
     } else {
-        GGL_LOGI("Does not satisfy requirement/s");
+        GG_LOGI("Does not satisfy requirement/s");
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

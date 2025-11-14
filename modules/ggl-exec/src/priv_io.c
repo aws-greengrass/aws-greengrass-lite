@@ -1,21 +1,21 @@
 #include "priv_io.h"
-#include "ggl/io.h"
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/file.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/file.h>
+#include <gg/io.h>
 #include <stddef.h>
 
-static GglError priv_file_write(void *ctx, GglBuffer buf) {
+static GgError priv_file_write(void *ctx, GgBuffer buf) {
     if (buf.len == 0) {
-        return GGL_ERR_OK;
+        return GG_ERR_OK;
     }
     if (ctx == NULL) {
-        return GGL_ERR_NOMEM;
+        return GG_ERR_NOMEM;
     }
     FileWriterContext *context = ctx;
-    return ggl_file_write(context->fd, buf);
+    return gg_file_write(context->fd, buf);
 }
 
-GglWriter priv_file_writer(FileWriterContext *ctx) {
-    return (GglWriter) { .write = priv_file_write, .ctx = ctx };
+GgWriter priv_file_writer(FileWriterContext *ctx) {
+    return (GgWriter) { .write = priv_file_write, .ctx = ctx };
 }

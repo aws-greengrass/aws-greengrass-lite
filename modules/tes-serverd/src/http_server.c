@@ -1,5 +1,4 @@
 #include "http_server.h"
-#include "ggl/vector.h"
 #include "inttypes.h"
 #include "netinet/in.h"
 #include "stdbool.h"
@@ -9,15 +8,16 @@
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/util.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/json_encode.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/error.h>
-#include <ggl/json_encode.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <systemd/sd-daemon.h>
@@ -25,26 +25,26 @@
 
 struct evhttp_request;
 
-static GglObject fetch_creds(GglArena *alloc) {
-    GglBuffer tesd = GGL_STR("aws_iot_tes");
-    GglObject result = { 0 };
-    GglMap params = { 0 };
+static GgObject fetch_creds(GgArena *alloc) {
+    GgBuffer tesd = GG_STR("aws_iot_tes");
+    GgObject result = { 0 };
+    GgMap params = { 0 };
 
-    GglError error = ggl_call(
+    GgError error = ggl_call(
         tesd,
-        GGL_STR("request_credentials_formatted"),
+        GG_STR("request_credentials_formatted"),
         params,
         NULL,
         alloc,
         &result
     );
 
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("tes request failed....");
+    if (error != GG_ERR_OK) {
+        GG_LOGE("tes request failed....");
     } else {
-        if (ggl_obj_type(result) == GGL_TYPE_BUF) {
-            GglBuffer result_buf = ggl_obj_into_buf(result);
-            GGL_LOGI(
+        if (gg_obj_type(result) == GG_TYPE_BUF) {
+            GgBuffer result_buf = gg_obj_into_buf(result);
+            GG_LOGI(
                 "read value: %.*s",
                 (int) result_buf.len,
                 (char *) result_buf.data
@@ -57,13 +57,13 @@ static GglObject fetch_creds(GglArena *alloc) {
 
 static void request_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
-    GGL_LOGI("Attempting to vend creds for a request.");
+    GG_LOGI("Attempting to vend creds for a request.");
     struct evkeyvalq *headers = evhttp_request_get_input_headers(req);
 
     // Check for the required header
     const char *auth_header = evhttp_find_header(headers, "Authorization");
     if (!auth_header) {
-        GGL_LOGE("Missing Authorization header.");
+        GG_LOGE("Missing Authorization header.");
         // Respond with 400 Bad Request
         struct evbuffer *response = evbuffer_new();
         if (response) {
@@ -79,7 +79,7 @@ static void request_handler(struct evhttp_request *req, void *arg) {
 
     size_t auth_header_len = strlen(auth_header);
     if (auth_header_len != 16U) {
-        GGL_LOGE("svcuid character count must be exactly 16.");
+        GG_LOGE("svcuid character count must be exactly 16.");
         // Respond with 400 Bad Request
         struct evbuffer *response = evbuffer_new();
         if (response) {
@@ -90,24 +90,23 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    GglBuffer auth_header_buf
+    GgBuffer auth_header_buf
         = { .data = (uint8_t *) auth_header, .len = auth_header_len };
 
-    GglMap svcuid_map
-        = GGL_MAP(ggl_kv(GGL_STR("svcuid"), ggl_obj_buf(auth_header_buf)));
+    GgMap svcuid_map
+        = GG_MAP(gg_kv(GG_STR("svcuid"), gg_obj_buf(auth_header_buf)));
 
-    GglObject result_obj;
-    GglError res = ggl_call(
-        GGL_STR("ipc_component"),
-        GGL_STR("verify_svcuid"),
+    GgObject result_obj;
+    GgError res = ggl_call(
+        GG_STR("ipc_component"),
+        GG_STR("verify_svcuid"),
         svcuid_map,
         NULL,
         NULL,
         &result_obj
     );
-    if (res != GGL_ERR_OK) {
-        GGL_LOGE("Failed to make an IPC call to ipc_component to check svcuid."
-        );
+    if (res != GG_ERR_OK) {
+        GG_LOGE("Failed to make an IPC call to ipc_component to check svcuid.");
         // Respond with 500 Server unavailable
         struct evbuffer *response = evbuffer_new();
         if (response) {
@@ -120,14 +119,14 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (ggl_obj_type(result_obj) != GGL_TYPE_BOOLEAN) {
-        GGL_LOGE("Call to verify_svcuid responded with non-bool value.");
+    if (gg_obj_type(result_obj) != GG_TYPE_BOOLEAN) {
+        GG_LOGE("Call to verify_svcuid responded with non-bool value.");
         return;
     }
 
-    bool result = ggl_obj_into_bool(result_obj);
+    bool result = gg_obj_into_bool(result_obj);
     if (!result) {
-        GGL_LOGE("svcuid cannot be found");
+        GG_LOGE("svcuid cannot be found");
         // Respond with 404 not found.
         struct evbuffer *response = evbuffer_new();
         if (response) {
@@ -141,28 +140,28 @@ static void request_handler(struct evhttp_request *req, void *arg) {
     }
 
     static uint8_t alloc_mem[8192];
-    GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
-    GglObject tes_formatted_obj = fetch_creds(&alloc);
+    GgArena alloc = gg_arena_init(GG_BUF(alloc_mem));
+    GgObject tes_formatted_obj = fetch_creds(&alloc);
 
     static uint8_t response_cred_mem[8192];
-    GglByteVec response_cred_buffer = GGL_BYTE_VEC(response_cred_mem);
+    GgByteVec response_cred_buffer = GG_BYTE_VEC(response_cred_mem);
 
-    GglError ret_err_json = ggl_json_encode(
-        tes_formatted_obj, ggl_byte_vec_writer(&response_cred_buffer)
+    GgError ret_err_json = gg_json_encode(
+        tes_formatted_obj, gg_byte_vec_writer(&response_cred_buffer)
     );
-    if (ret_err_json != GGL_ERR_OK) {
-        GGL_LOGE("Failed to convert the json.");
+    if (ret_err_json != GG_ERR_OK) {
+        GG_LOGE("Failed to convert the json.");
         return;
     }
 
     struct evbuffer *buf = evbuffer_new();
 
     if (!buf) {
-        GGL_LOGI("Failed to create response buffer.");
+        GG_LOGI("Failed to create response buffer.");
         return;
     }
 
-    GGL_LOGD("Successfully vended credentials for a request.");
+    GG_LOGD("Successfully vended credentials for a request.");
 
     // Add the response data to the evbuffer
     evbuffer_add(
@@ -176,12 +175,12 @@ static void request_handler(struct evhttp_request *req, void *arg) {
 static void default_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
 
-    GglBuffer response_cred_buffer
-        = GGL_STR("Only /2016-11-01/credentialprovider/ uri is supported.");
+    GgBuffer response_cred_buffer
+        = GG_STR("Only /2016-11-01/credentialprovider/ uri is supported.");
     struct evbuffer *buf = evbuffer_new();
 
     if (!buf) {
-        GGL_LOGE("Failed to create response buffer.");
+        GG_LOGE("Failed to create response buffer.");
         return;
     }
 
@@ -192,7 +191,7 @@ static void default_handler(struct evhttp_request *req, void *arg) {
     evbuffer_free(buf);
 }
 
-GglError http_server(void) {
+GgError http_server(void) {
     struct event_base *base = NULL;
     struct evhttp *http;
     struct evhttp_bound_socket *handle;
@@ -202,15 +201,15 @@ GglError http_server(void) {
     // Create an event_base, which is the core of libevent
     base = event_base_new();
     if (!base) {
-        GGL_LOGE("Could not initialize libevent.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Could not initialize libevent.");
+        return GG_ERR_FAILURE;
     }
 
     // Create a new HTTP server
     http = evhttp_new(base);
     if (!http) {
-        GGL_LOGE("Could not create evhttp. Exiting...");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Could not create evhttp. Exiting...");
+        return GG_ERR_FAILURE;
     }
 
     // Set a callback for requests to "/2016-11-01/credentialprovider/"
@@ -222,8 +221,8 @@ GglError http_server(void) {
     // Bind to available  port
     handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", 0);
     if (!handle) {
-        GGL_LOGE("Could not bind to any port. Exiting...");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Could not bind to any port. Exiting...");
+        return GG_ERR_FAILURE;
     }
 
     struct sockaddr_storage ss = { 0 };
@@ -236,26 +235,26 @@ GglError http_server(void) {
         } else if (ss.ss_family == AF_INET6) {
             port = ntohs(((struct sockaddr_in6 *) &ss)->sin6_port);
         }
-        GGL_LOGI("Listening on port http://localhost:%d\n", port);
+        GG_LOGI("Listening on port http://localhost:%d\n", port);
     } else {
-        GGL_LOGE("Could not fetch the to any port url. Exiting...");
+        GG_LOGE("Could not fetch the to any port url. Exiting...");
     }
 
     uint8_t port_mem[8];
-    GglBuffer port_as_buffer = GGL_BUF(port_mem);
+    GgBuffer port_as_buffer = GG_BUF(port_mem);
     int ret_convert = snprintf(
         (char *) port_as_buffer.data, port_as_buffer.len, "%" PRId16, port
     );
     if (ret_convert < 0) {
-        GGL_LOGE("Error parsing the port value as string.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Error parsing the port value as string.");
+        return GG_ERR_FAILURE;
     }
     if ((size_t) ret_convert > port_as_buffer.len) {
-        GGL_LOGE("Insufficient buffer space to store port data.");
-        return GGL_ERR_NOMEM;
+        GG_LOGE("Insufficient buffer space to store port data.");
+        return GG_ERR_NOMEM;
     }
     port_as_buffer.len = (size_t) ret_convert;
-    GGL_LOGD(
+    GG_LOGD(
         "Values when read in memory port:%.*s, len: %d, ret:%d\n",
         (int) port_as_buffer.len,
         port_as_buffer.data,
@@ -263,53 +262,53 @@ GglError http_server(void) {
         ret_convert
     );
 
-    GglError ret = ggl_gg_config_write(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.TokenExchangeService"),
-            GGL_STR("version")
+    GgError ret = ggl_gg_config_write(
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.TokenExchangeService"),
+            GG_STR("version")
         ),
-        ggl_obj_buf(GGL_STR(GGL_VERSION)),
+        gg_obj_buf(GG_STR(GGL_VERSION)),
         NULL
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error writing the TES version to the config.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Error writing the TES version to the config.");
         return ret;
     }
 
     ret = ggl_gg_config_write(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.TokenExchangeService"),
-            GGL_STR("configArn")
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.TokenExchangeService"),
+            GG_STR("configArn")
         ),
-        ggl_obj_list(GGL_LIST()),
+        gg_obj_list(GG_LIST()),
         NULL
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to write configuration arn list for TES to the config."
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to write configuration arn list for TES to the config."
         );
         return ret;
     }
 
     ret = ggl_gg_config_write(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.TokenExchangeService"),
-            GGL_STR("configuration"),
-            GGL_STR("port")
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.TokenExchangeService"),
+            GG_STR("configuration"),
+            GG_STR("port")
         ),
-        ggl_obj_buf(port_as_buffer),
+        gg_obj_buf(port_as_buffer),
         NULL
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     int ret_val = sd_notify(0, "READY=1");
     if (ret_val < 0) {
-        GGL_LOGE("Unable to update component state (errno=%d)", -ret);
-        return GGL_ERR_FATAL;
+        GG_LOGE("Unable to update component state (errno=%d)", -ret);
+        return GG_ERR_FATAL;
     }
 
     // Start the event loop
@@ -319,5 +318,5 @@ GglError http_server(void) {
     evhttp_free(http);
     event_base_free(base);
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

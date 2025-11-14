@@ -7,22 +7,22 @@
 
 //! Helper for calling AWS IoT Core APIs
 
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdbool.h>
 
 /// Make a call to an AWS IoT MQTT API.
 /// Sends request on topic and waits for response on topic/(accepted|rejected).
 /// Responses will be filtered according to clientToken.
-GglError ggl_aws_iot_call(
-    GglBuffer socket_name,
-    GglBuffer topic,
-    GglObject payload,
+GgError ggl_aws_iot_call(
+    GgBuffer socket_name,
+    GgBuffer topic,
+    GgObject payload,
     bool virtual,
-    GglArena *alloc,
-    GglObject *result
+    GgArena *alloc,
+    GgObject *result
 );
 
 #endif

@@ -5,15 +5,15 @@
 #ifndef MAKE_CONFIG_PATH_OBJECT_H
 #define MAKE_CONFIG_PATH_OBJECT_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 
 /// Combine the component name and key path and returns a new configuration path
 /// result uses static memory owned by this function which is valid until the
 /// next call. Not re-entrant.
-GglError ggl_make_config_path_object(
-    GglBuffer component_name, GglList key_path, GglBufList *result
+GgError ggl_make_config_path_object(
+    GgBuffer component_name, GgList key_path, GgBufList *result
 );
 
 /// Parse the component name and key path from a configuration path
@@ -21,8 +21,8 @@ GglError ggl_make_config_path_object(
 /// the component name.
 /// key_path uses static memory owned by this function which is valid until the
 /// next call. Not re-entrant.
-GglError ggl_parse_config_path(
-    GglList config_path, GglBuffer *component_name, GglList *key_path
+GgError ggl_parse_config_path(
+    GgList config_path, GgBuffer *component_name, GgList *key_path
 );
 
 #endif

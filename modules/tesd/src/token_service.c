@@ -4,15 +4,15 @@
 
 #include "token_service.h"
 #include "ggl/http.h"
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/json_decode.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/error.h>
-#include <ggl/json_decode.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
-#include <ggl/object.h>
-#include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
@@ -31,12 +31,12 @@ typedef struct {
     char url[2048];
 } CredRequestT;
 
-static uint8_t http_response_decode_mem[MAX_HTTP_RESPONSE_KVS * sizeof(GglKV)];
+static uint8_t http_response_decode_mem[MAX_HTTP_RESPONSE_KVS * sizeof(GgKV)];
 
 static CredRequestT global_cred_details = { 0 };
 static uint8_t global_response_buffer[MAX_HTTP_RESPONSE_LENGTH] = { 0 };
 
-static GglError request_token_from_aws(GglBuffer *response) {
+static GgError request_token_from_aws(GgBuffer *response) {
     memset(global_response_buffer, '\0', MAX_HTTP_RESPONSE_LENGTH);
 
     CertificateDetails certificate
@@ -44,171 +44,169 @@ static GglError request_token_from_aws(GglBuffer *response) {
             .gghttplib_root_ca_path = global_cred_details.root_ca_path,
             .gghttplib_p_key_path = global_cred_details.key_path };
 
-    GglBuffer buffer = GGL_BUF(global_response_buffer);
+    GgBuffer buffer = GG_BUF(global_response_buffer);
 
-    GglError ret = fetch_token(
+    GgError ret = fetch_token(
         global_cred_details.url,
-        ggl_buffer_from_null_term(global_cred_details.thing_name),
+        gg_buffer_from_null_term(global_cred_details.thing_name),
         certificate,
         &buffer
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get TES credentials.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to get TES credentials.");
         return ret;
     }
 
-    GGL_LOGI("The TES credentials have been received");
+    GG_LOGI("The TES credentials have been received");
     *response = buffer;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
-    GglObject *creds_obj;
-    bool ret = ggl_map_get(json_creds, GGL_STR("credentials"), &creds_obj);
+static GgError create_map_for_server(GgMap json_creds, GgMap *out_json) {
+    GgObject *creds_obj;
+    bool ret = gg_map_get(json_creds, GG_STR("credentials"), &creds_obj);
     if (!ret) {
-        GGL_LOGE("TES response missing credentials.");
-        return GGL_ERR_INVALID;
+        GG_LOGE("TES response missing credentials.");
+        return GG_ERR_INVALID;
     }
 
-    if (ggl_obj_type(*creds_obj) != GGL_TYPE_MAP) {
-        GGL_LOGE("TES response credentials not a JSON object.");
-        return GGL_ERR_INVALID;
+    if (gg_obj_type(*creds_obj) != GG_TYPE_MAP) {
+        GG_LOGE("TES response credentials not a JSON object.");
+        return GG_ERR_INVALID;
     }
-    GglMap creds = ggl_obj_into_map(*creds_obj);
+    GgMap creds = gg_obj_into_map(*creds_obj);
 
-    GGL_MAP_FOREACH (pair, creds) {
-        if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("accessKeyId"))) {
-            ggl_kv_set_key(pair, GGL_STR("AccessKeyId"));
-        } else if (ggl_buffer_eq(
-                       ggl_kv_key(*pair), GGL_STR("secretAccessKey")
-                   )) {
-            ggl_kv_set_key(pair, GGL_STR("SecretAccessKey"));
-        } else if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("sessionToken"))) {
-            ggl_kv_set_key(pair, GGL_STR("Token"));
-        } else if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("expiration"))) {
-            ggl_kv_set_key(pair, GGL_STR("Expiration"));
+    GG_MAP_FOREACH (pair, creds) {
+        if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("accessKeyId"))) {
+            gg_kv_set_key(pair, GG_STR("AccessKeyId"));
+        } else if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("secretAccessKey"))) {
+            gg_kv_set_key(pair, GG_STR("SecretAccessKey"));
+        } else if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("sessionToken"))) {
+            gg_kv_set_key(pair, GG_STR("Token"));
+        } else if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("expiration"))) {
+            gg_kv_set_key(pair, GG_STR("Expiration"));
         }
     }
 
     *out_json = creds;
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
+static GgError rpc_request_creds(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
-    GGL_LOGD("Handling token publish request.");
+    GG_LOGD("Handling token publish request.");
 
     (void) params;
-    GglBuffer response = { 0 };
-    GglError ret = request_token_from_aws(&response);
-    if (ret != GGL_ERR_OK) {
+    GgBuffer response = { 0 };
+    GgError ret = request_token_from_aws(&response);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     // Create a json object from the URL response
-    GglObject json_cred_obj;
-    GglArena alloc = ggl_arena_init(GGL_BUF(http_response_decode_mem));
-    ret = ggl_json_decode_destructive(response, &alloc, &json_cred_obj);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("TES response not valid JSON.");
+    GgObject json_cred_obj;
+    GgArena alloc = gg_arena_init(GG_BUF(http_response_decode_mem));
+    ret = gg_json_decode_destructive(response, &alloc, &json_cred_obj);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("TES response not valid JSON.");
         return ret;
     }
 
-    GGL_LOGT("Received TES response: %.*s", (int) response.len, response.data);
+    GG_LOGT("Received TES response: %.*s", (int) response.len, response.data);
 
-    if (ggl_obj_type(json_cred_obj) != GGL_TYPE_MAP) {
-        GGL_LOGE("JSON response is not an object.");
-        return GGL_ERR_FAILURE;
+    if (gg_obj_type(json_cred_obj) != GG_TYPE_MAP) {
+        GG_LOGE("JSON response is not an object.");
+        return GG_ERR_FAILURE;
     }
 
-    GglObject *creds;
-    bool ret_contains = ggl_map_get(
-        ggl_obj_into_map(json_cred_obj), GGL_STR("credentials"), &creds
+    GgObject *creds;
+    bool ret_contains = gg_map_get(
+        gg_obj_into_map(json_cred_obj), GG_STR("credentials"), &creds
     );
 
     if (!ret_contains) {
-        GGL_LOGE("Request failed, Invalid credentials");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Request failed, Invalid credentials");
+        return GG_ERR_FAILURE;
     }
 
     ggl_respond(handle, *creds);
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError rpc_request_formatted_creds(
-    void *ctx, GglMap params, uint32_t handle
+static GgError rpc_request_formatted_creds(
+    void *ctx, GgMap params, uint32_t handle
 ) {
     (void) ctx;
     (void) params;
-    GGL_LOGD("Handling token publish request for TES server.");
+    GG_LOGD("Handling token publish request for TES server.");
 
-    GglBuffer response = { 0 };
-    GglError ret = request_token_from_aws(&response);
-    if (ret != GGL_ERR_OK) {
+    GgBuffer response = { 0 };
+    GgError ret = request_token_from_aws(&response);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     // Create a json object from the URL response
-    GglObject json_cred_obj;
-    GglArena alloc = ggl_arena_init(GGL_BUF(http_response_decode_mem));
-    ret = ggl_json_decode_destructive(response, &alloc, &json_cred_obj);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("TES response not valid JSON.");
+    GgObject json_cred_obj;
+    GgArena alloc = gg_arena_init(GG_BUF(http_response_decode_mem));
+    ret = gg_json_decode_destructive(response, &alloc, &json_cred_obj);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("TES response not valid JSON.");
         return ret;
     }
 
-    if (ggl_obj_type(json_cred_obj) != GGL_TYPE_MAP) {
-        GGL_LOGE("TES response not a JSON object.");
-        return GGL_ERR_FAILURE;
+    if (gg_obj_type(json_cred_obj) != GG_TYPE_MAP) {
+        GG_LOGE("TES response not a JSON object.");
+        return GG_ERR_FAILURE;
     }
 
-    static GglMap server_json_creds = { 0 };
+    static GgMap server_json_creds = { 0 };
     ret = create_map_for_server(
-        ggl_obj_into_map(json_cred_obj), &server_json_creds
+        gg_obj_into_map(json_cred_obj), &server_json_creds
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    ggl_respond(handle, ggl_obj_map(server_json_creds));
-    return GGL_ERR_OK;
+    ggl_respond(handle, gg_obj_map(server_json_creds));
+    return GG_ERR_OK;
 }
 
 static void start_tes_core_bus_server(void) {
     // Server handler
     GglRpcMethodDesc handlers[] = {
-        { GGL_STR("request_credentials"), false, rpc_request_creds, NULL },
-        { GGL_STR("request_credentials_formatted"),
+        { GG_STR("request_credentials"), false, rpc_request_creds, NULL },
+        { GG_STR("request_credentials_formatted"),
           false,
           rpc_request_formatted_creds,
           NULL },
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglBuffer interface = GGL_STR("aws_iot_tes");
+    GgBuffer interface = GG_STR("aws_iot_tes");
 
-    GglError ret = ggl_listen(interface, handlers, handlers_len);
+    GgError ret = ggl_listen(interface, handlers, handlers_len);
 
-    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
+    GG_LOGE("Exiting with error %u.", (unsigned) ret);
 }
 
-GglError initiate_request(
-    GglBuffer root_ca,
-    GglBuffer cert_path,
-    GglBuffer key_path,
-    GglBuffer thing_name,
-    GglBuffer role_alias,
-    GglBuffer cred_endpoint
+GgError initiate_request(
+    GgBuffer root_ca,
+    GgBuffer cert_path,
+    GgBuffer key_path,
+    GgBuffer thing_name,
+    GgBuffer role_alias,
+    GgBuffer cred_endpoint
 ) {
-    GglByteVec url_vec = GGL_BYTE_VEC(global_cred_details.url);
+    GgByteVec url_vec = GG_BYTE_VEC(global_cred_details.url);
 
-    GglError ret = ggl_byte_vec_append(&url_vec, GGL_STR("https://"));
-    ggl_byte_vec_chain_append(&ret, &url_vec, cred_endpoint);
-    ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/role-aliases/"));
-    ggl_byte_vec_chain_append(&ret, &url_vec, role_alias);
-    ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/credentials\0"));
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to construct request URL.");
+    GgError ret = gg_byte_vec_append(&url_vec, GG_STR("https://"));
+    gg_byte_vec_chain_append(&ret, &url_vec, cred_endpoint);
+    gg_byte_vec_chain_append(&ret, &url_vec, GG_STR("/role-aliases/"));
+    gg_byte_vec_chain_append(&ret, &url_vec, role_alias);
+    gg_byte_vec_chain_append(&ret, &url_vec, GG_STR("/credentials\0"));
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to construct request URL.");
         return ret;
     }
 
@@ -220,5 +218,5 @@ GglError initiate_request(
 
     start_tes_core_bus_server();
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }

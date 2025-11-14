@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(uriparse-test LIBS ggl-sdk ggl-uri)
+ggl_init_module(uriparse-test LIBS gg-sdk ggl-uri)

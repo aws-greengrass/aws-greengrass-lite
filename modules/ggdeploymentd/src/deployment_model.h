@@ -5,8 +5,8 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 #define GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 
-#include "ggl/object.h"
-#include <ggl/buffer.h>
+#include <gg/buffer.h>
+#include <gg/object.h>
 
 #define MAX_COMP_NAME_BUF_SIZE 10000
 
@@ -27,15 +27,15 @@ typedef enum {
 } GglDeploymentType;
 
 typedef struct {
-    GglBuffer deployment_id;
-    GglBuffer recipe_directory_path;
-    GglBuffer artifacts_directory_path;
-    GglBuffer configuration_arn;
-    GglBuffer thing_group;
+    GgBuffer deployment_id;
+    GgBuffer recipe_directory_path;
+    GgBuffer artifacts_directory_path;
+    GgBuffer configuration_arn;
+    GgBuffer thing_group;
     GglDeploymentState state;
     // Map of component names to map of component information, in cloud
     // deployment doc format
-    GglMap components;
+    GgMap components;
     GglDeploymentType type;
 } GglDeployment;
 

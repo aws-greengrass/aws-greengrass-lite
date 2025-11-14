@@ -4,7 +4,7 @@
 
 ggl_init_module(
   fleet-provision
-  LIBS ggl-sdk
+  LIBS gg-sdk
        ggl-common
        aws-iot-call
        core-bus

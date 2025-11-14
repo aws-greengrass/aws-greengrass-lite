@@ -6,25 +6,25 @@
 #include "recipe-runner.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <ggl/arena.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/eventstream/decode.h>
-#include <ggl/eventstream/types.h>
-#include <ggl/file.h>
-#include <ggl/flags.h>
-#include <ggl/ipc/client.h>
-#include <ggl/ipc/client_priv.h>
-#include <ggl/ipc/client_raw.h>
-#include <ggl/ipc/limits.h>
-#include <ggl/json_encode.h>
+#include <gg/arena.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/eventstream/decode.h>
+#include <gg/eventstream/types.h>
+#include <gg/file.h>
+#include <gg/flags.h>
+#include <gg/ipc/client.h>
+#include <gg/ipc/client_priv.h>
+#include <gg/ipc/client_raw.h>
+#include <gg/ipc/limits.h>
+#include <gg/json_encode.h>
+#include <gg/log.h>
+#include <gg/map.h>
+#include <gg/object.h>
+#include <gg/vector.h>
 #include <ggl/json_pointer.h>
-#include <ggl/log.h>
-#include <ggl/map.h>
 #include <ggl/nucleus/constants.h>
-#include <ggl/object.h>
 #include <ggl/recipe.h>
-#include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -39,96 +39,96 @@
 
 pid_t child_pid = -1; // To store child process ID
 
-static GglError write_escaped_char(int out_fd, uint8_t c) {
+static GgError write_escaped_char(int out_fd, uint8_t c) {
     if (c == '"' || c == '\\' || c == '$' || c == '`') {
-        GglError ret = ggl_file_write(out_fd, GGL_STR("\\"));
-        if (ret != GGL_ERR_OK) {
+        GgError ret = gg_file_write(out_fd, GG_STR("\\"));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
-    return ggl_file_write(out_fd, (GglBuffer) { &c, 1 });
+    return gg_file_write(out_fd, (GgBuffer) { &c, 1 });
 }
 
-static GglError write_escaped_value(int out_fd, GglBuffer value) {
+static GgError write_escaped_value(int out_fd, GgBuffer value) {
     for (size_t i = 0; i < value.len; i++) {
-        GglError ret = write_escaped_char(out_fd, value.data[i]);
-        if (ret != GGL_ERR_OK) {
+        GgError ret = write_escaped_char(out_fd, value.data[i]);
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError insert_config_value(int out_fd, GglBuffer json_ptr) {
-    static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
-    GglBufVec key_path = GGL_BUF_VEC(key_path_mem);
+static GgError insert_config_value(int out_fd, GgBuffer json_ptr) {
+    static GgBuffer key_path_mem[GG_MAX_OBJECT_DEPTH];
+    GgBufVec key_path = GG_BUF_VEC(key_path_mem);
 
-    GglError ret = ggl_gg_config_jsonp_parse(json_ptr, &key_path);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to parse json pointer key.");
+    GgError ret = ggl_gg_config_jsonp_parse(json_ptr, &key_path);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to parse json pointer key.");
         return ret;
     }
 
     static uint8_t config_value[10000];
     static uint8_t copy_config_value[10000];
-    GglArena alloc = ggl_arena_init(GGL_BUF(config_value));
-    GglObject result = { 0 };
+    GgArena alloc = gg_arena_init(GG_BUF(config_value));
+    GgObject result = { 0 };
     ret = ggipc_get_config(key_path.buf_list, NULL, &alloc, &result);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get config value for substitution.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to get config value for substitution.");
         return ret;
     }
-    GglBuffer final_result = GGL_BUF(copy_config_value);
+    GgBuffer final_result = GG_BUF(copy_config_value);
 
-    if (ggl_obj_type(result) != GGL_TYPE_BUF) {
-        GglByteVec vec = ggl_byte_vec_init(final_result);
-        ret = ggl_json_encode(result, ggl_byte_vec_writer(&vec));
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to encode result as JSON.");
+    if (gg_obj_type(result) != GG_TYPE_BUF) {
+        GgByteVec vec = gg_byte_vec_init(final_result);
+        ret = gg_json_encode(result, gg_byte_vec_writer(&vec));
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to encode result as JSON.");
             return ret;
         }
         final_result = vec.buf;
     } else {
-        final_result = ggl_obj_into_buf(result);
+        final_result = gg_obj_into_buf(result);
     }
 
     return write_escaped_value(out_fd, final_result);
 }
 
-static GglError split_escape_seq(
-    GglBuffer escape_seq, GglBuffer *left, GglBuffer *right
+static GgError split_escape_seq(
+    GgBuffer escape_seq, GgBuffer *left, GgBuffer *right
 ) {
     for (size_t i = 0; i < escape_seq.len; i++) {
         if (escape_seq.data[i] == ':') {
-            *left = ggl_buffer_substr(escape_seq, 0, i);
-            *right = ggl_buffer_substr(escape_seq, i + 1, SIZE_MAX);
-            return GGL_ERR_OK;
+            *left = gg_buffer_substr(escape_seq, 0, i);
+            *right = gg_buffer_substr(escape_seq, i + 1, SIZE_MAX);
+            return GG_ERR_OK;
         }
     }
 
-    GGL_LOGE("No : found in recipe escape sequence.");
-    return GGL_ERR_FAILURE;
+    GG_LOGE("No : found in recipe escape sequence.");
+    return GG_ERR_FAILURE;
 }
 
 // TODO: Simplify this code
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GglError substitute_escape(
+static GgError substitute_escape(
     int out_fd,
-    GglBuffer escape_seq,
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer thing_name
+    GgBuffer escape_seq,
+    GgBuffer root_path,
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgBuffer thing_name
 ) {
-    GglBuffer type;
-    GglBuffer arg;
-    GglError ret = split_escape_seq(escape_seq, &type, &arg);
-    if (ret != GGL_ERR_OK) {
+    GgBuffer type;
+    GgBuffer arg;
+    GgError ret = split_escape_seq(escape_seq, &type, &arg);
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    GGL_LOGT(
+    GG_LOGT(
         "Current variable substitution: %.*s. type = %.*s; arg = %.*s",
         (int) escape_seq.len,
         escape_seq.data,
@@ -138,118 +138,118 @@ static GglError substitute_escape(
         arg.data
     );
 
-    if (ggl_buffer_eq(type, GGL_STR("kernel"))) {
-        if (ggl_buffer_eq(arg, GGL_STR("rootPath"))) {
-            return ggl_file_write(out_fd, root_path);
+    if (gg_buffer_eq(type, GG_STR("kernel"))) {
+        if (gg_buffer_eq(arg, GG_STR("rootPath"))) {
+            return gg_file_write(out_fd, root_path);
         }
-    } else if (ggl_buffer_eq(type, GGL_STR("iot"))) {
-        if (ggl_buffer_eq(arg, GGL_STR("thingName"))) {
-            return ggl_file_write(out_fd, thing_name);
+    } else if (gg_buffer_eq(type, GG_STR("iot"))) {
+        if (gg_buffer_eq(arg, GG_STR("thingName"))) {
+            return gg_file_write(out_fd, thing_name);
         }
-    } else if (ggl_buffer_eq(type, GGL_STR("work"))) {
-        if (ggl_buffer_eq(arg, GGL_STR("path"))) {
-            ret = ggl_file_write(out_fd, root_path);
-            if (ret != GGL_ERR_OK) {
+    } else if (gg_buffer_eq(type, GG_STR("work"))) {
+        if (gg_buffer_eq(arg, GG_STR("path"))) {
+            ret = gg_file_write(out_fd, root_path);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("/work/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("/work/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, component_name);
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, component_name);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            return ggl_file_write(out_fd, GGL_STR("/"));
+            return gg_file_write(out_fd, GG_STR("/"));
         }
-    } else if (ggl_buffer_eq(type, GGL_STR("artifacts"))) {
-        if (ggl_buffer_eq(arg, GGL_STR("path"))) {
-            ret = ggl_file_write(out_fd, root_path);
-            if (ret != GGL_ERR_OK) {
+    } else if (gg_buffer_eq(type, GG_STR("artifacts"))) {
+        if (gg_buffer_eq(arg, GG_STR("path"))) {
+            ret = gg_file_write(out_fd, root_path);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("/packages/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("/packages/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("artifacts/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("artifacts/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, component_name);
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, component_name);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, component_version);
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, component_version);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            return ggl_file_write(out_fd, GGL_STR("/"));
+            return gg_file_write(out_fd, GG_STR("/"));
         }
-        if (ggl_buffer_eq(arg, GGL_STR("decompressedPath"))) {
-            ret = ggl_file_write(out_fd, root_path);
-            if (ret != GGL_ERR_OK) {
+        if (gg_buffer_eq(arg, GG_STR("decompressedPath"))) {
+            ret = gg_file_write(out_fd, root_path);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("/packages/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("/packages/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("artifacts-unarchived/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("artifacts-unarchived/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, component_name);
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, component_name);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, GGL_STR("/"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("/"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            ret = ggl_file_write(out_fd, component_version);
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, component_version);
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
-            return ggl_file_write(out_fd, GGL_STR("/"));
+            return gg_file_write(out_fd, GG_STR("/"));
         }
-    } else if (ggl_buffer_eq(type, GGL_STR("configuration"))) {
+    } else if (gg_buffer_eq(type, GG_STR("configuration"))) {
         return insert_config_value(out_fd, arg);
     }
 
-    GGL_LOGE(
+    GG_LOGE(
         "Unhandled variable substitution: %.*s.",
         (int) escape_seq.len,
         escape_seq.data
     );
-    return GGL_ERR_FAILURE;
+    return GG_ERR_FAILURE;
 }
 
-static GglError handle_escape(
+static GgError handle_escape(
     int out_fd,
     uint8_t **current_pointer,
     const uint8_t *end_pointer,
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer thing_name
+    GgBuffer root_path,
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgBuffer thing_name
 ) {
     static uint8_t escape_contents[256];
-    GglByteVec vec = GGL_BYTE_VEC(escape_contents);
+    GgByteVec vec = GG_BYTE_VEC(escape_contents);
     (*current_pointer)++;
     while (true) {
         if (*current_pointer == end_pointer) {
-            GGL_LOGE("Recipe escape is not terminated.");
-            return GGL_ERR_INVALID;
+            GG_LOGE("Recipe escape is not terminated.");
+            return GG_ERR_INVALID;
         }
         if (**current_pointer != '}') {
-            GglError ret = ggl_byte_vec_push(&vec, **current_pointer);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Recipe escape exceeded max length.");
+            GgError ret = gg_byte_vec_push(&vec, **current_pointer);
+            if (ret != GG_ERR_OK) {
+                GG_LOGE("Recipe escape exceeded max length.");
                 return ret;
             }
             (*current_pointer)++;
@@ -267,46 +267,46 @@ static GglError handle_escape(
     }
 }
 
-static GglError process_set_env(
+static GgError process_set_env(
     int out_fd,
-    GglMap env_values_as_map,
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer thing_name
+    GgMap env_values_as_map,
+    GgBuffer root_path,
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgBuffer thing_name
 ) {
-    GGL_LOGT("Lifecycle Setenv, is a map");
-    GGL_MAP_FOREACH (pair, env_values_as_map) {
-        GglError ret = ggl_file_write(out_fd, GGL_STR("export "));
-        if (ret != GGL_ERR_OK) {
+    GG_LOGT("Lifecycle Setenv, is a map");
+    GG_MAP_FOREACH (pair, env_values_as_map) {
+        GgError ret = gg_file_write(out_fd, GG_STR("export "));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
-        ret = ggl_file_write(out_fd, ggl_kv_key(*pair));
-        if (ret != GGL_ERR_OK) {
+        ret = gg_file_write(out_fd, gg_kv_key(*pair));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
-        GGL_LOGT(
+        GG_LOGT(
             "Lifecycle Setenv, map key: %.*s",
-            (int) ggl_kv_key(*pair).len,
-            ggl_kv_key(*pair).data
+            (int) gg_kv_key(*pair).len,
+            gg_kv_key(*pair).data
         );
-        ret = ggl_file_write(out_fd, GGL_STR("="));
-        if (ret != GGL_ERR_OK) {
+        ret = gg_file_write(out_fd, GG_STR("="));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
 
-        if (ggl_obj_type(*ggl_kv_val(pair)) != GGL_TYPE_BUF) {
-            GGL_LOGW("Invalid lifecycle Setenv, Key values must be String");
-            return GGL_ERR_INVALID;
+        if (gg_obj_type(*gg_kv_val(pair)) != GG_TYPE_BUF) {
+            GG_LOGW("Invalid lifecycle Setenv, Key values must be String");
+            return GG_ERR_INVALID;
         }
-        GglBuffer val = ggl_obj_into_buf(*ggl_kv_val(pair));
-        GGL_LOGT("Lifecycle Setenv, map value: %.*s", (int) val.len, val.data);
+        GgBuffer val = gg_obj_into_buf(*gg_kv_val(pair));
+        GG_LOGT("Lifecycle Setenv, map value: %.*s", (int) val.len, val.data);
         uint8_t *current_pointer = &val.data[0];
         uint8_t *end_pointer = &val.data[val.len];
         if (val.len == 0) {
             // Add in a new line if no value is provided
-            ret = ggl_file_write(out_fd, GGL_STR("\n"));
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, GG_STR("\n"));
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
         }
@@ -316,7 +316,7 @@ static GglError process_set_env(
             }
             if (*current_pointer != '{') {
                 ret = write_escaped_char(out_fd, *current_pointer);
-                if (ret != GGL_ERR_OK) {
+                if (ret != GG_ERR_OK) {
                     return ret;
                 }
                 current_pointer++;
@@ -330,67 +330,67 @@ static GglError process_set_env(
                     component_version,
                     thing_name
                 );
-                if (ret != GGL_ERR_OK) {
+                if (ret != GG_ERR_OK) {
                     return ret;
                 }
             }
         }
-        ret = ggl_file_write(out_fd, GGL_STR("\n"));
-        if (ret != GGL_ERR_OK) {
+        ret = gg_file_write(out_fd, GG_STR("\n"));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError find_and_process_set_env(
+static GgError find_and_process_set_env(
     int out_fd,
-    GglMap map_containing_setenv,
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer thing_name
+    GgMap map_containing_setenv,
+    GgBuffer root_path,
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgBuffer thing_name
 ) {
-    GglObject *env_values;
-    GglError ret = GGL_ERR_OK;
+    GgObject *env_values;
+    GgError ret = GG_ERR_OK;
 
-    if (ggl_map_get(map_containing_setenv, GGL_STR("Setenv"), &env_values)) {
-        if (ggl_obj_type(*env_values) != GGL_TYPE_MAP) {
-            GGL_LOGE("Invalid lifecycle Setenv, Must be a map");
-            return GGL_ERR_INVALID;
+    if (gg_map_get(map_containing_setenv, GG_STR("Setenv"), &env_values)) {
+        if (gg_obj_type(*env_values) != GG_TYPE_MAP) {
+            GG_LOGE("Invalid lifecycle Setenv, Must be a map");
+            return GG_ERR_INVALID;
         }
 
         ret = process_set_env(
             out_fd,
-            ggl_obj_into_map(*env_values),
+            gg_obj_into_map(*env_values),
             root_path,
             component_name,
             component_version,
             thing_name
         );
-        if (ret != GGL_ERR_OK) {
+        if (ret != GG_ERR_OK) {
             return ret;
         }
 
     } else {
-        GGL_LOGT("No Setenv found");
+        GG_LOGT("No Setenv found");
     }
     return ret;
 }
 
-static GglError process_lifecycle_phase(
+static GgError process_lifecycle_phase(
     int out_fd,
-    GglMap selected_lifecycle,
-    GglBuffer phase,
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer thing_name
+    GgMap selected_lifecycle,
+    GgBuffer phase,
+    GgBuffer root_path,
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgBuffer thing_name
 ) {
-    GglBuffer selected_script_as_buf = { 0 };
-    GglMap set_env_as_map = { 0 };
+    GgBuffer selected_script_as_buf = { 0 };
+    GgMap set_env_as_map = { 0 };
     bool is_root;
-    GglError ret = fetch_script_section(
+    GgError ret = fetch_script_section(
         selected_lifecycle,
         phase,
         &is_root,
@@ -399,12 +399,12 @@ static GglError process_lifecycle_phase(
         NULL
     );
 
-    if (ret != GGL_ERR_OK) {
+    if (ret != GG_ERR_OK) {
         return ret;
     }
 
     if (set_env_as_map.len != 0) {
-        GGL_LOGT(
+        GG_LOGT(
             "Processing lifecycle phase Setenv for %.*s",
             (int) phase.len,
             phase.data
@@ -417,20 +417,20 @@ static GglError process_lifecycle_phase(
             component_version,
             thing_name
         );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to process setenv");
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to process setenv");
             return ret;
         }
     }
 
     if (selected_script_as_buf.len == 0) {
         // Add in a new line if no value is provided
-        ret = ggl_file_write(out_fd, GGL_STR("\n"));
-        if (ret != GGL_ERR_OK) {
+        ret = gg_file_write(out_fd, GG_STR("\n"));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
-    GGL_LOGT(
+    GG_LOGT(
         "Processing lifecycle phase script for %.*s",
         (int) phase.len,
         phase.data
@@ -443,8 +443,8 @@ static GglError process_lifecycle_phase(
             break;
         }
         if (*current_pointer != '{') {
-            ret = ggl_file_write(out_fd, (GglBuffer) { current_pointer, 1 });
-            if (ret != GGL_ERR_OK) {
+            ret = gg_file_write(out_fd, (GgBuffer) { current_pointer, 1 });
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
             current_pointer++;
@@ -458,7 +458,7 @@ static GglError process_lifecycle_phase(
                 component_version,
                 thing_name
             );
-            if (ret != GGL_ERR_OK) {
+            if (ret != GG_ERR_OK) {
                 return ret;
             }
         }
@@ -466,24 +466,24 @@ static GglError process_lifecycle_phase(
     return ret;
 }
 
-static GglError write_script_with_replacement(
+static GgError write_script_with_replacement(
     int out_fd,
-    GglMap recipe_as_map,
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer thing_name,
-    GglBuffer phase
+    GgMap recipe_as_map,
+    GgBuffer root_path,
+    GgBuffer component_name,
+    GgBuffer component_version,
+    GgBuffer thing_name,
+    GgBuffer phase
 ) {
-    GglMap selected_lifecycle_map = { 0 };
-    GglError ret
+    GgMap selected_lifecycle_map = { 0 };
+    GgError ret
         = select_linux_lifecycle(recipe_as_map, &selected_lifecycle_map);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to find linux Lifecycle");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to find linux Lifecycle");
         return ret;
     }
 
-    GGL_LOGT("Processing Global Setenv");
+    GG_LOGT("Processing Global Setenv");
     ret = find_and_process_set_env(
         out_fd,
         selected_lifecycle_map,
@@ -492,12 +492,12 @@ static GglError write_script_with_replacement(
         component_version,
         thing_name
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to process setenv");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to process setenv");
         return ret;
     }
 
-    GGL_LOGT(
+    GG_LOGT(
         "Processing other Lifecycle phase: %.*s", (int) phase.len, phase.data
     );
     ret = process_lifecycle_phase(
@@ -509,8 +509,8 @@ static GglError write_script_with_replacement(
         component_version,
         thing_name
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
             "Failed to process lifecycle phase: %.*s",
             (int) phase.len,
             phase.data
@@ -520,30 +520,30 @@ static GglError write_script_with_replacement(
 
     // if startup, send a ready notification before exiting
     // otherwise, simple startup scripts will fail with 'protocol' by systemd
-    if (ggl_buffer_eq(GGL_STR("startup"), phase)) {
-        ret = ggl_file_write(out_fd, GGL_STR("\n"));
-        if (ret != GGL_ERR_OK) {
+    if (gg_buffer_eq(GG_STR("startup"), phase)) {
+        ret = gg_file_write(out_fd, GG_STR("\n"));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
-        ret = ggl_file_write(out_fd, GGL_STR("systemd-notify --ready\n"));
-        if (ret != GGL_ERR_OK) {
+        ret = gg_file_write(out_fd, GG_STR("systemd-notify --ready\n"));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
-        ret = ggl_file_write(out_fd, GGL_STR("systemd-notify --stopping\n"));
-        if (ret != GGL_ERR_OK) {
+        ret = gg_file_write(out_fd, GG_STR("systemd-notify --stopping\n"));
+        if (ret != GG_ERR_OK) {
             return ret;
         }
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError get_system_config_error_cb(
-    void *ctx, GglBuffer error_code, GglBuffer message
+static GgError get_system_config_error_cb(
+    void *ctx, GgBuffer error_code, GgBuffer message
 ) {
     (void) ctx;
 
-    GGL_LOGE(
+    GG_LOGE(
         "Received PrivateGetSystemConfig error %.*s: %.*s.",
         (int) error_code.len,
         error_code.data,
@@ -551,181 +551,180 @@ static GglError get_system_config_error_cb(
         message.data
     );
 
-    return GGL_ERR_FAILURE;
+    return GG_ERR_FAILURE;
 }
 
-static GglError get_system_config_result_cb(void *ctx, GglMap result) {
-    GglBuffer *resp_buf = ctx;
+static GgError get_system_config_result_cb(void *ctx, GgMap result) {
+    GgBuffer *resp_buf = ctx;
 
-    GglObject *value;
-    GglError ret = ggl_map_validate(
+    GgObject *value;
+    GgError ret = gg_map_validate(
         result,
-        GGL_MAP_SCHEMA({ GGL_STR("value"), GGL_REQUIRED, GGL_TYPE_NULL, &value }
-        )
+        GG_MAP_SCHEMA({ GG_STR("value"), GG_REQUIRED, GG_TYPE_NULL, &value })
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed validating server response.");
-        return GGL_ERR_INVALID;
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed validating server response.");
+        return GG_ERR_INVALID;
     }
 
-    if (ggl_obj_type(*value) != GGL_TYPE_BUF) {
-        GGL_LOGE("Config value is not a string.");
-        return GGL_ERR_FAILURE;
+    if (gg_obj_type(*value) != GG_TYPE_BUF) {
+        GG_LOGE("Config value is not a string.");
+        return GG_ERR_FAILURE;
     }
 
     if (resp_buf != NULL) {
-        GglBuffer val_buf = ggl_obj_into_buf(*value);
+        GgBuffer val_buf = gg_obj_into_buf(*value);
 
-        GglArena alloc = ggl_arena_init(*resp_buf);
-        ret = ggl_arena_claim_buf(&val_buf, &alloc);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Insufficent memory provided for response.");
+        GgArena alloc = gg_arena_init(*resp_buf);
+        ret = gg_arena_claim_buf(&val_buf, &alloc);
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Insufficent memory provided for response.");
             return ret;
         }
 
         *resp_buf = val_buf;
     }
 
-    return GGL_ERR_OK;
+    return GG_ERR_OK;
 }
 
-static GglError get_system_config(GglBuffer key, GglBuffer *value) {
+static GgError get_system_config(GgBuffer key, GgBuffer *value) {
     return ggipc_call(
-        GGL_STR("aws.greengrass.private#GetSystemConfig"),
-        GGL_STR("aws.greengrass.private#GetSystemConfigRequest"),
-        GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(key))),
+        GG_STR("aws.greengrass.private#GetSystemConfig"),
+        GG_STR("aws.greengrass.private#GetSystemConfigRequest"),
+        GG_MAP(gg_kv(GG_STR("key"), gg_obj_buf(key))),
         &get_system_config_result_cb,
         &get_system_config_error_cb,
         value
     );
 }
 
-static char svcuid[GGL_IPC_SVCUID_STR_LEN + 1] = { 0 };
+static char svcuid[GG_IPC_SVCUID_STR_LEN + 1] = { 0 };
 
-GglError ggipc_connect_extra_header_handler(EventStreamHeaderIter headers) {
+GgError ggipc_connect_extra_header_handler(EventStreamHeaderIter headers) {
     EventStreamHeader header;
-    while (eventstream_header_next(&headers, &header) == GGL_ERR_OK) {
-        if (ggl_buffer_eq(header.name, GGL_STR("svcuid"))) {
+    while (eventstream_header_next(&headers, &header) == GG_ERR_OK) {
+        if (gg_buffer_eq(header.name, GG_STR("svcuid"))) {
             if (header.value.type != EVENTSTREAM_STRING) {
-                GGL_LOGE("Response svcuid header not string.");
-                return GGL_ERR_INVALID;
+                GG_LOGE("Response svcuid header not string.");
+                return GG_ERR_INVALID;
             }
 
-            if (header.value.string.len > GGL_IPC_SVCUID_STR_LEN) {
-                GGL_LOGE("Response svcuid too long.");
-                return GGL_ERR_NOMEM;
+            if (header.value.string.len > GG_IPC_SVCUID_STR_LEN) {
+                GG_LOGE("Response svcuid too long.");
+                return GG_ERR_NOMEM;
             }
 
             memcpy(svcuid, header.value.string.data, header.value.string.len);
-            return GGL_ERR_OK;
+            return GG_ERR_OK;
         }
     }
 
-    GGL_LOGE("Response missing svcuid header.");
-    return GGL_ERR_FAILURE;
+    GG_LOGE("Response missing svcuid header.");
+    return GG_ERR_FAILURE;
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-GglError runner(const RecipeRunnerArgs *args) {
+GgError runner(const RecipeRunnerArgs *args) {
     // Get the SocketPath from Environment Variable
     char *socket_path =
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
         getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT");
 
     if (socket_path == NULL) {
-        GGL_LOGE("IPC socket path env var not set.");
-        return GGL_ERR_FAILURE;
+        GG_LOGE("IPC socket path env var not set.");
+        return GG_ERR_FAILURE;
     }
 
-    GglBuffer component_name = ggl_buffer_from_null_term(args->component_name);
+    GgBuffer component_name = gg_buffer_from_null_term(args->component_name);
 
     // Fetch the SVCUID
-    GglError ret = ggipc_connect_with_payload(
-        ggl_buffer_from_null_term(socket_path),
-        ggl_obj_map(GGL_MAP(
-            ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component_name))
-        ))
+    GgError ret = ggipc_connect_with_payload(
+        gg_buffer_from_null_term(socket_path),
+        gg_obj_map(
+            GG_MAP(gg_kv(GG_STR("componentName"), gg_obj_buf(component_name)))
+        )
     );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Runner failed to authenticate with nucleus.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Runner failed to authenticate with nucleus.");
         return ret;
     }
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     int sys_ret = setenv("SVCUID", svcuid, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
     sys_ret =
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
         setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", svcuid, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
 
     static uint8_t resp_mem[PATH_MAX];
 
-    GglBuffer resp = GGL_BUF(resp_mem);
+    GgBuffer resp = GG_BUF(resp_mem);
     resp.len -= 1;
-    ret = get_system_config(GGL_STR("rootCaPath"), &resp);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get root CA path from config.");
+    ret = get_system_config(GG_STR("rootCaPath"), &resp);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to get root CA path from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("GG_ROOT_CA_PATH", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
 
-    resp = GGL_BUF(resp_mem);
+    resp = GG_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_get_config_str(
-        GGL_BUF_LIST(GGL_STR("awsRegion")),
-        &GGL_STR("aws.greengrass.NucleusLite"),
+        GG_BUF_LIST(GG_STR("awsRegion")),
+        &GG_STR("aws.greengrass.NucleusLite"),
         &resp
     );
 
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get region from config.");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to get region from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("AWS_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("AWS_DEFAULT_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("GGC_VERSION", GGL_VERSION, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
 
-    resp = GGL_BUF(resp_mem);
+    resp = GG_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_get_config_str(
-        GGL_BUF_LIST(GGL_STR("networkProxy"), GGL_STR("proxy"), GGL_STR("url")),
-        &GGL_STR("aws.greengrass.NucleusLite"),
+        GG_BUF_LIST(GG_STR("networkProxy"), GG_STR("proxy"), GG_STR("url")),
+        &GG_STR("aws.greengrass.NucleusLite"),
         &resp
     );
     switch (ret) {
-    case GGL_ERR_NOMEM:
-        GGL_LOGE(
+    case GG_ERR_NOMEM:
+        GG_LOGE(
             "Failed to get network proxy url from config - value longer than supported."
         );
         return ret;
-    case GGL_ERR_NOENTRY:
-        GGL_LOGD("No network proxy set.");
+    case GG_ERR_NOENTRY:
+        GG_LOGD("No network proxy set.");
         break;
-    case GGL_ERR_OK: {
+    case GG_ERR_OK: {
         resp.data[resp.len] = '\0';
         // NOLINTBEGIN(concurrency-mt-unsafe)
         setenv("all_proxy", (char *) resp.data, true);
@@ -738,27 +737,27 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     }
     default:
-        GGL_LOGE("Failed to get proxy url from config. Error: %d.", ret);
+        GG_LOGE("Failed to get proxy url from config. Error: %d.", ret);
         return ret;
     }
 
-    resp = GGL_BUF(resp_mem);
+    resp = GG_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_get_config_str(
-        GGL_BUF_LIST(GGL_STR("networkProxy"), GGL_STR("noProxyAddresses")),
-        &GGL_STR("aws.greengrass.NucleusLite"),
+        GG_BUF_LIST(GG_STR("networkProxy"), GG_STR("noProxyAddresses")),
+        &GG_STR("aws.greengrass.NucleusLite"),
         &resp
     );
     switch (ret) {
-    case GGL_ERR_NOMEM:
-        GGL_LOGE(
+    case GG_ERR_NOMEM:
+        GG_LOGE(
             "Failed to get network proxy url from config - value longer than supported."
         );
         return ret;
-    case GGL_ERR_NOENTRY:
-        GGL_LOGD("No network proxy set.");
+    case GG_ERR_NOENTRY:
+        GG_LOGD("No network proxy set.");
         break;
-    case GGL_ERR_OK: {
+    case GG_ERR_OK: {
         resp.data[resp.len] = '\0';
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
         setenv("no_proxy", (char *) resp.data, true);
@@ -767,97 +766,97 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     }
     default:
-        GGL_LOGE("Failed to get proxy url from config. Error: %d.", ret);
+        GG_LOGE("Failed to get proxy url from config. Error: %d.", ret);
         return ret;
     }
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
-    GglBuffer thing_name = GGL_BUF(thing_name_mem);
+    GgBuffer thing_name = GG_BUF(thing_name_mem);
     thing_name.len -= 1;
-    ret = get_system_config(GGL_STR("thingName"), &thing_name);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get thing name from config.");
+    ret = get_system_config(GG_STR("thingName"), &thing_name);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to get thing name from config.");
         return ret;
     }
     thing_name.data[thing_name.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("AWS_IOT_THING_NAME", (char *) thing_name.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("setenv failed: %d.", errno);
+        GG_LOGE("setenv failed: %d.", errno);
     }
 
-    GglBuffer root_path = GGL_BUF(resp_mem);
-    ret = get_system_config(GGL_STR("rootPath"), &root_path);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get root path from config.");
+    GgBuffer root_path = GG_BUF(resp_mem);
+    ret = get_system_config(GG_STR("rootPath"), &root_path);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to get root path from config.");
         return ret;
     }
 
     int root_path_fd;
-    ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open rootPath.");
+    ret = gg_dir_open(root_path, O_PATH, false, &root_path_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to open rootPath.");
         return ret;
     }
-    GglBuffer component_version
-        = ggl_buffer_from_null_term(args->component_version);
+    GgBuffer component_version
+        = gg_buffer_from_null_term(args->component_version);
 
-    GglBuffer phase = ggl_buffer_from_null_term(args->phase);
+    GgBuffer phase = gg_buffer_from_null_term(args->phase);
 
     static uint8_t recipe_mem[GGL_COMPONENT_RECIPE_MAX_LEN];
-    GglArena alloc = ggl_arena_init(GGL_BUF(recipe_mem));
-    GglObject recipe = { 0 };
-    GGL_LOGT("Root Path: %.*s", (int) root_path.len, root_path.data);
+    GgArena alloc = gg_arena_init(GG_BUF(recipe_mem));
+    GgObject recipe = { 0 };
+    GG_LOGT("Root Path: %.*s", (int) root_path.len, root_path.data);
     ret = ggl_recipe_get_from_file(
         root_path_fd, component_name, component_version, &alloc, &recipe
     );
-    (void) ggl_close(root_path_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to find the recipe file");
+    (void) gg_close(root_path_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to find the recipe file");
         return ret;
     }
 
     // Check if TES is the dependency within the recipe
-    GglObject *val;
-    if (ggl_map_get(
-            ggl_obj_into_map(recipe), GGL_STR("ComponentDependencies"), &val
+    GgObject *val;
+    if (gg_map_get(
+            gg_obj_into_map(recipe), GG_STR("ComponentDependencies"), &val
         )) {
-        if (ggl_obj_type(*val) != GGL_TYPE_MAP) {
-            return GGL_ERR_PARSE;
+        if (gg_obj_type(*val) != GG_TYPE_MAP) {
+            return GG_ERR_PARSE;
         }
-        GglObject *inner_val;
-        GglMap inner_map = ggl_obj_into_map(*val);
-        if (ggl_map_get(
+        GgObject *inner_val;
+        GgMap inner_map = gg_obj_into_map(*val);
+        if (gg_map_get(
                 inner_map,
-                GGL_STR("aws.greengrass.TokenExchangeService"),
+                GG_STR("aws.greengrass.TokenExchangeService"),
                 &inner_val
             )) {
             static uint8_t resp_mem2[PATH_MAX];
-            GglByteVec resp_vec = GGL_BYTE_VEC(resp_mem2);
-            ret = ggl_byte_vec_append(&resp_vec, GGL_STR("http://localhost:"));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to append http://localhost:");
+            GgByteVec resp_vec = GG_BYTE_VEC(resp_mem2);
+            ret = gg_byte_vec_append(&resp_vec, GG_STR("http://localhost:"));
+            if (ret != GG_ERR_OK) {
+                GG_LOGE("Failed to append http://localhost:");
                 return ret;
             }
-            GglBuffer rest = ggl_byte_vec_remaining_capacity(resp_vec);
+            GgBuffer rest = gg_byte_vec_remaining_capacity(resp_vec);
 
             ret = ggipc_get_config_str(
-                GGL_BUF_LIST(GGL_STR("port")),
-                &GGL_STR("aws.greengrass.TokenExchangeService"),
+                GG_BUF_LIST(GG_STR("port")),
+                &GG_STR("aws.greengrass.TokenExchangeService"),
                 &rest
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
+            if (ret != GG_ERR_OK) {
+                GG_LOGE(
                     "Failed to get port for TES server from config. Possible reason, TES server might not have started yet."
                 );
                 return ret;
             }
             resp_vec.buf.len += rest.len;
-            ret = ggl_byte_vec_append(
-                &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
+            ret = gg_byte_vec_append(
+                &resp_vec, GG_STR("/2016-11-01/credentialprovider/\0")
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to append /2016-11-01/credentialprovider/");
+            if (ret != GG_ERR_OK) {
+                GG_LOGE("Failed to append /2016-11-01/credentialprovider/");
                 return ret;
             }
 
@@ -868,7 +867,7 @@ GglError runner(const RecipeRunnerArgs *args) {
                 true
             );
             if (sys_ret != 0) {
-                GGL_LOGE(
+                GG_LOGE(
                     "setenv AWS_CONTAINER_CREDENTIALS_FULL_URI failed: %d.",
                     errno
                 );
@@ -876,25 +875,25 @@ GglError runner(const RecipeRunnerArgs *args) {
         }
     }
     int dir_fd;
-    ret = ggl_dir_open(root_path, O_PATH, false, &dir_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open %.*s.", (int) root_path.len, root_path.data);
+    ret = gg_dir_open(root_path, O_PATH, false, &dir_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to open %.*s.", (int) root_path.len, root_path.data);
         return ret;
     }
     int new_fd;
-    ret = ggl_dir_openat(dir_fd, GGL_STR("work"), O_PATH, false, &new_fd);
-    (void) ggl_close(dir_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
+    ret = gg_dir_openat(dir_fd, GG_STR("work"), O_PATH, false, &new_fd);
+    (void) gg_close(dir_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
             "Failed to open %.*s/work.", (int) root_path.len, root_path.data
         );
         return ret;
     }
     dir_fd = new_fd;
-    ret = ggl_dir_openat(dir_fd, component_name, O_RDONLY, false, &new_fd);
-    (void) ggl_close(dir_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
+    ret = gg_dir_openat(dir_fd, component_name, O_RDONLY, false, &new_fd);
+    (void) gg_close(dir_fd);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
             "Failed to open %.*s/work/%.*s.",
             (int) root_path.len,
             root_path.data,
@@ -907,27 +906,27 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     sys_ret = fchdir(dir_fd);
     if (sys_ret != 0) {
-        GGL_LOGE("Failed to change working directory: %d.", errno);
-        return GGL_ERR_FAILURE;
+        GG_LOGE("Failed to change working directory: %d.", errno);
+        return GG_ERR_FAILURE;
     }
 
     int script_fd = memfd_create("ggl_component_script", 0);
     if (script_fd < 0) {
-        GGL_LOGE(
+        GG_LOGE(
             "Failed to create memfd for component phase script: %d.", errno
         );
-        return GGL_ERR_FAILURE;
+        return GG_ERR_FAILURE;
     }
 
-    ret = ggl_file_write(script_fd, GGL_STR("#!/bin/sh\n"));
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to write shebang to component phase script.");
+    ret = gg_file_write(script_fd, GG_STR("#!/bin/sh\n"));
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to write shebang to component phase script.");
         return ret;
     }
 
     ret = write_script_with_replacement(
         script_fd,
-        ggl_obj_into_map(recipe),
+        gg_obj_into_map(recipe),
         root_path,
         component_name,
         component_version,
@@ -938,6 +937,6 @@ GglError runner(const RecipeRunnerArgs *args) {
     const char *argv[] = { "/bin/sh", NULL };
     sys_ret = fexecve(script_fd, (char **) argv, environ);
 
-    GGL_LOGE("Failed to execute component phase script: %d.", errno);
-    return GGL_ERR_FATAL;
+    GG_LOGE("Failed to execute component phase script: %d.", errno);
+    return GG_ERR_FATAL;
 }

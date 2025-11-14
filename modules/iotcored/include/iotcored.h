@@ -5,7 +5,7 @@
 #ifndef IOTCORED_H
 #define IOTCORED_H
 
-#include <ggl/error.h>
+#include <gg/error.h>
 
 typedef struct {
     char *interface_name;
@@ -18,6 +18,6 @@ typedef struct {
     char *proxy_uri;
 } IotcoredArgs;
 
-GglError run_iotcored(IotcoredArgs *args);
+GgError run_iotcored(IotcoredArgs *args);
 
 #endif

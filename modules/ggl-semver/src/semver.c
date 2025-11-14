@@ -4,10 +4,10 @@
 
 #include "ggl/semver.h"
 #include <ctype.h>
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/vector.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/log.h>
+#include <gg/vector.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
@@ -15,7 +15,7 @@
 #include <stdint.h>
 
 static bool process_version(
-    GglByteVec current_requirement, char *current_version
+    GgByteVec current_requirement, char *current_version
 ) {
     bool return_status = false;
 
@@ -71,61 +71,61 @@ static bool process_version(
     return return_status;
 }
 
-bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
+bool is_in_range(GgBuffer version, GgBuffer requirements_range) {
     char *requirements_range_as_char = (char *) requirements_range.data;
 
     static uint8_t work_mem_buffer[NAME_MAX];
-    GglByteVec work_mem_vec = GGL_BYTE_VEC(work_mem_buffer);
+    GgByteVec work_mem_vec = GG_BYTE_VEC(work_mem_buffer);
 
     static uint8_t current_version_buffer[NAME_MAX];
-    GglByteVec current_version_vec = GGL_BYTE_VEC(current_version_buffer);
-    GglError ret = ggl_byte_vec_append(&current_version_vec, version);
-    ggl_byte_vec_chain_append(&ret, &current_version_vec, GGL_STR("\0"));
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to copy information over");
+    GgByteVec current_version_vec = GG_BYTE_VEC(current_version_buffer);
+    GgError ret = gg_byte_vec_append(&current_version_vec, version);
+    gg_byte_vec_chain_append(&ret, &current_version_vec, GG_STR("\0"));
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to copy information over");
         return false;
     }
 
     for (ulong index = 0; index < requirements_range.len; index++) {
         if (requirements_range_as_char[index] == ' ') {
             // null terminating as strverscmp requires it
-            ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to copy information over");
+            ret = gg_byte_vec_append(&work_mem_vec, GG_STR("\0"));
+            if (ret != GG_ERR_OK) {
+                GG_LOGE("Failed to copy information over");
                 return false;
             }
             bool result = process_version(
                 work_mem_vec, (char *) current_version_vec.buf.data
             );
             if (result == false) {
-                GGL_LOGT("Requirement wasn't satisfied");
+                GG_LOGT("Requirement wasn't satisfied");
                 return false;
             }
             // Rest once a value is parsed
             work_mem_vec.buf.len = 0;
             index++;
         }
-        ret = ggl_byte_vec_append(
+        ret = gg_byte_vec_append(
             &work_mem_vec,
-            (GglBuffer) { (uint8_t *) &requirements_range_as_char[index], 1 }
+            (GgBuffer) { (uint8_t *) &requirements_range_as_char[index], 1 }
         );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to copy information over");
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to copy information over");
             return false;
         }
     }
 
     if (work_mem_vec.buf.len != 0) {
-        ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to copy information over");
+        ret = gg_byte_vec_append(&work_mem_vec, GG_STR("\0"));
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to copy information over");
             return false;
         }
         bool result = process_version(
             work_mem_vec, (char *) current_version_vec.buf.data
         );
         if (result == false) {
-            GGL_LOGT("Requirement wasn't satisfied");
+            GG_LOGT("Requirement wasn't satisfied");
             return result;
         }
     }

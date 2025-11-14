@@ -7,22 +7,22 @@
 
 //! core-bus-sub-response core-bus interface wrapper
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <gg/object.h>
 #include <stdint.h>
 
-typedef GglError (*GglSubResponseCallback)(void *ctx, GglObject data);
+typedef GgError (*GglSubResponseCallback)(void *ctx, GgObject data);
 
 /// Wrapper for core-bus `ggl_subscribe`
 /// Calls a callback function on the first subscription response, then returns
-GglError ggl_sub_response(
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
+GgError ggl_sub_response(
+    GgBuffer interface,
+    GgBuffer method,
+    GgMap params,
     GglSubResponseCallback callback,
     void *ctx,
-    GglError *remote_error,
+    GgError *remote_error,
     int64_t timeout_seconds
 );
 
