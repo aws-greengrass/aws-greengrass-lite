@@ -1,9 +1,9 @@
-#include "ggl/uri.h"
 #include <assert.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <ggl/uri.h>
 #include <string.h>
 #include <uriparser/Uri.h>
 #include <uriparser/UriBase.h>

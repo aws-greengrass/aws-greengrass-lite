@@ -5,10 +5,10 @@
 #ifndef GGHTTPLIB_AWS_SIGV4_H
 #define GGHTTPLIB_AWS_SIGV4_H
 
-#include "ggl/http.h"
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/vector.h>
+#include <ggl/http.h>
 #include <stddef.h>
 
 /// This is the SHA of an empty i.e. "" payload. It is always constant. This

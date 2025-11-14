@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/recipe.h"
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -18,6 +17,7 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <gg/vector.h>
+#include <ggl/recipe.h>
 #include <ggl/yaml_decode.h>
 #include <inttypes.h>
 #include <limits.h>

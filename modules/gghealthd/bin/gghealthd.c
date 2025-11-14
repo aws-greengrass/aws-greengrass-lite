@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "bus_server.h"
+#include <bus_server.h>
 #include <gg/error.h>
 #include <ggl/nucleus/init.h>
 

@@ -7,7 +7,6 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "authorization_agent.h"
-#include "stdbool.h"
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
@@ -15,6 +14,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 

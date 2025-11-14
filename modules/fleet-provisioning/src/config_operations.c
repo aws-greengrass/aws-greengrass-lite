@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "config_operations.h"
-#include "fleet-provisioning.h"
-#include "ggl/exec.h"
+#include <fleet-provisioning.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
@@ -13,6 +12,7 @@
 #include <gg/object.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/exec.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>

@@ -2,8 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "ggconfigd-test.h"
 #include <gg/error.h>
+#include <ggconfigd-test.h>
 #include <ggl/nucleus/init.h>
 
 int main(void) {

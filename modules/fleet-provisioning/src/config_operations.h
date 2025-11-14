@@ -5,7 +5,7 @@
 #ifndef CONFIG_OPERATIONS_H
 #define CONFIG_OPERATIONS_H
 
-#include "fleet-provisioning.h"
+#include <fleet-provisioning.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>

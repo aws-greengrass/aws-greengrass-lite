@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "embeds.h"
-#include "ggconfigd.h"
 #include "helpers.h"
 #include <assert.h>
 #include <gg/arena.h>
@@ -14,6 +13,7 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <gg/vector.h>
+#include <ggconfigd.h>
 #include <ggl/core_bus/constants.h>
 #include <ggl/core_bus/server.h>
 #include <inttypes.h>

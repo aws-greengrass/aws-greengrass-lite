@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "s3-get-test.h"
 #include <gg/error.h>
 #include <ggl/nucleus/init.h>
+#include <s3-get-test.h>
 
 int main(int argc, char **argv) {
     if (argc < 4) {

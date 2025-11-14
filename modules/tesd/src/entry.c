@@ -2,13 +2,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "tesd.h"
 #include "token_service.h"
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/proxy/environment.h>
+#include <tesd.h>
 #include <stdint.h>
 
 GgError run_tesd(void) {

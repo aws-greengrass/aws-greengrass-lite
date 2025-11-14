@@ -2,13 +2,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/core_bus/aws_iot_mqtt.h"
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/flags.h>
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <stdbool.h>
 #include <stddef.h>

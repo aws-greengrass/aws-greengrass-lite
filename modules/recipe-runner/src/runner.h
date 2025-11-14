@@ -6,8 +6,8 @@
 #ifndef RUNNER_H
 #define RUNNER_H
 
-#include "recipe-runner.h"
 #include <gg/error.h>
+#include <recipe-runner.h>
 
 GgError get_file_content(const char *file_path, char *return_value);
 

@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "s3-get-test.h"
 #include <fcntl.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
@@ -15,6 +14,7 @@
 #include <gg/vector.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/http.h>
+#include <s3-get-test.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>

@@ -2,9 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "dirent.h"
-#include "ggconfigd.h"
 #include "helpers.h"
+#include <dirent.h>
 #include <fcntl.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
@@ -14,6 +13,7 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/vector.h>
+#include <ggconfigd.h>
 #include <ggl/yaml_decode.h>
 #include <string.h>
 #include <stdbool.h>

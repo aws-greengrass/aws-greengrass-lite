@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggipcd.h"
 #include "ipc_components.h"
 #include "ipc_server.h"
 #include <assert.h>
@@ -11,6 +10,7 @@
 #include <gg/error.h>
 #include <gg/log.h>
 #include <gg/vector.h>
+#include <ggipcd.h>
 #include <ggl/core_bus/gg_config.h>
 #include <limits.h>
 #include <stdint.h>

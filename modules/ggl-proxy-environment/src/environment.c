@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/proxy/environment.h"
 #include <assert.h>
 #include <errno.h>
 #include <gg/arena.h>
@@ -11,6 +10,7 @@
 #include <gg/error.h>
 #include <gg/log.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/proxy/environment.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

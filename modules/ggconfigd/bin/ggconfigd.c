@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggconfigd.h"
 #include <argp.h>
 #include <gg/buffer.h>
+#include <ggconfigd.h>
 #include <ggl/nucleus/init.h>
 #include <stdlib.h>
 

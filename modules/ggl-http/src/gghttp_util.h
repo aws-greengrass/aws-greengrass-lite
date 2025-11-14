@@ -5,10 +5,10 @@
 #ifndef GGHTTPLIB_UTIL_H
 #define GGHTTPLIB_UTIL_H
 
-#include "ggl/http.h"
 #include <curl/curl.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
+#include <ggl/http.h>
 
 typedef struct CurlData {
     CURL *curl;

@@ -3,9 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/docker_artifact_cleanup.h"
-#include "ggl/core_bus/gg_config.h"
-#include "ggl/docker_client.h"
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/cleanup.h>
@@ -14,6 +11,9 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <ggl/core_bus/gg_config.h>
+#include <ggl/docker_artifact_cleanup.h>
+#include <ggl/docker_client.h>
 #include <ggl/recipe.h>
 #include <ggl/uri.h>
 #include <pthread.h>

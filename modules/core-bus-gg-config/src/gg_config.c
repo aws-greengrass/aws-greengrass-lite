@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/core_bus/gg_config.h"
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
@@ -11,6 +10,7 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <stddef.h>
 #include <stdint.h>
 

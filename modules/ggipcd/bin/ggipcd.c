@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggipcd.h"
 #include <argp.h>
 #include <gg/error.h>
+#include <ggipcd.h>
 #include <ggl/nucleus/init.h>
 
 static char doc[] = "ggipcd -- Greengrass IPC server for Nucleus Lite";

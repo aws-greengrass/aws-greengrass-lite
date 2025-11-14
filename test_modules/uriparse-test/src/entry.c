@@ -2,13 +2,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "uriparse-test.h"
 #include <assert.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/log.h>
 #include <ggl/uri.h>
+#include <uriparse-test.h>
 #include <stddef.h>
 #include <stdint.h>
 

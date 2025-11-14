@@ -2,12 +2,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/zip.h"
 #include <fcntl.h>
 #include <gg/buffer.h>
 #include <gg/cleanup.h>
+#include <gg/error.h>
 #include <gg/file.h>
 #include <gg/log.h>
+#include <ggl/zip.h>
 #include <inttypes.h>
 #include <sys/types.h>
 #include <zip.h>

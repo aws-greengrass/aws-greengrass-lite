@@ -2,11 +2,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/core_bus/client.h"
 #include "client_common.h"
 #include "object_serde.h"
 #include "types.h"
 #include <gg/arena.h>
+#include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/eventstream/decode.h>
@@ -14,6 +14,7 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/socket.h>
+#include <ggl/core_bus/client.h>
 #include <stddef.h>
 
 GgError ggl_notify(GgBuffer interface, GgBuffer method, GgMap params) {

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "client_common.h"
-#include "ggl/core_bus/client.h"
-#include "ggl/core_bus/constants.h"
 #include "object_serde.h"
 #include "types.h"
 #include <assert.h>
@@ -19,6 +17,8 @@
 #include <gg/object.h>
 #include <gg/socket.h>
 #include <gg/socket_epoll.h>
+#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/constants.h>
 #include <ggl/socket_handle.h>
 #include <pthread.h>
 #include <sys/types.h>

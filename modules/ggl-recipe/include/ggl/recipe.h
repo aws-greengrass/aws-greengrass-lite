@@ -7,11 +7,11 @@
 
 //! Greengrass recipe utils
 
-#include "stdbool.h"
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/object.h>
+#include <stdbool.h>
 
 typedef struct GglRecipeVariable {
     GgBuffer component_dependency_name;

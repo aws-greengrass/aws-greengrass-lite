@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "tls.h"
-#include "iotcored.h"
 #include <assert.h>
 #include <errno.h>
 #include <gg/arena.h>
@@ -12,6 +11,7 @@
 #include <gg/error.h>
 #include <gg/log.h>
 #include <ggl/uri.h>
+#include <iotcored.h>
 #include <limits.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>

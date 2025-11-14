@@ -2,8 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "gg_fleet_statusd.h"
 #include <gg/error.h>
+#include <gg_fleet_statusd.h>
 #include <ggl/nucleus/init.h>
 
 int main(int argc, char **argv) {

@@ -2,12 +2,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/json_pointer.h"
 #include <assert.h>
 #include <gg/buffer.h>
+#include <gg/error.h>
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/vector.h>
+#include <ggl/json_pointer.h>
 #include <stddef.h>
 #include <stdint.h>
 

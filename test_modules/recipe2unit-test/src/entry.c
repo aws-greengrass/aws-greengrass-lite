@@ -2,8 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "ggl/recipe2unit.h"
-#include "recipe2unit-test.h"
 #include <fcntl.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
@@ -11,6 +9,8 @@
 #include <gg/file.h>
 #include <gg/log.h>
 #include <gg/object.h>
+#include <ggl/recipe2unit.h>
+#include <recipe2unit-test.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>

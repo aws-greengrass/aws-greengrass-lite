@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gghttp_util.h"
-#include "ggl/http.h"
 #include <assert.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -15,6 +14,7 @@
 #include <gg/log.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/http.h>
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>

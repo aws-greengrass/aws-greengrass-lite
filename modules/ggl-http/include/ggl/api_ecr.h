@@ -1,9 +1,9 @@
 #ifndef GGL_HTTP_API_ECR_H
 #define GGL_HTTP_API_ECR_H
 
-#include "ggl/http.h"
 #include <gg/buffer.h>
 #include <gg/error.h>
+#include <ggl/http.h>
 #include <stdint.h>
 
 GgError ggl_http_ecr_get_authorization_token(

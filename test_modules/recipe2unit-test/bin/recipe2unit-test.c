@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "recipe2unit-test.h"
 #include <gg/error.h>
 #include <ggl/nucleus/init.h>
+#include <recipe2unit-test.h>
 
 int main(void) {
     ggl_nucleus_init();

@@ -1,4 +1,3 @@
-#include "ggl/api_ecr.h"
 #include "aws_sigv4.h"
 #include "gghttp_util.h"
 #include <assert.h>
@@ -7,6 +6,8 @@
 #include <gg/error.h>
 #include <gg/log.h>
 #include <gg/vector.h>
+#include <ggl/api_ecr.h>
+#include <ggl/http.h>
 #include <stddef.h>
 #include <stdint.h>
 

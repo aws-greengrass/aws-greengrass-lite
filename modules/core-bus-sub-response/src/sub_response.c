@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/core_bus/sub_response.h"
 #include <assert.h>
 #include <errno.h>
 #include <gg/buffer.h>
@@ -11,6 +10,7 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/sub_response.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <sys/types.h>

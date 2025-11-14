@@ -2,8 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/core_bus/server.h"
-#include "ggl/core_bus/constants.h"
 #include "object_serde.h"
 #include "types.h"
 #include <assert.h>
@@ -18,6 +16,8 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/vector.h>
+#include <ggl/core_bus/constants.h>
+#include <ggl/core_bus/server.h>
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
 #include <pthread.h>

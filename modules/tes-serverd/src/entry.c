@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "http_server.h"
-#include "tes-serverd.h"
 #include <gg/error.h>
+#include <tes-serverd.h>
 
 GgError run_tes_serverd(void) {
     GgError ret = http_server();

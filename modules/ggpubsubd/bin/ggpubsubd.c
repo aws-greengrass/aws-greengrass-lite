@@ -2,10 +2,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggpubsubd.h"
 #include <argp.h>
 #include <gg/error.h>
 #include <ggl/nucleus/init.h>
+#include <ggpubsubd.h>
 #include <stdlib.h>
 
 static char doc[] = "ggpubsubd -- Greengrass Publish/Subscribe daemon";

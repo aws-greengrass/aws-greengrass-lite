@@ -4,11 +4,9 @@
 
 #include "cloud_request.h"
 #include "config_operations.h"
-#include "fleet-provisioning.h"
-#include "ggl/exec.h"
 #include "pki_ops.h"
-#include "stdbool.h"
 #include <fcntl.h>
+#include <fleet-provisioning.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/cleanup.h>
@@ -18,12 +16,14 @@
 #include <gg/object.h>
 #include <gg/utils.h>
 #include <gg/vector.h>
+#include <ggl/exec.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <stdio.h>
 
 #define MAX_TEMPLATE_LEN 128
 #define MAX_ENDPOINT_LENGTH 128

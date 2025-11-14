@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/aws_iot_call.h"
 #include <assert.h>
 #include <errno.h>
 #include <gg/arena.h>
@@ -15,6 +14,7 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <gg/vector.h>
+#include <ggl/aws_iot_call.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h> // IWYU pragma: keep (cleanup)
 #include <pthread.h>

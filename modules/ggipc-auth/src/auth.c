@@ -2,12 +2,13 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggipc/auth.h"
 #include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <ggipc/auth.h>
 #include <string.h>
+#include <sys/types.h>
 #include <systemd/sd-login.h>
 
 GgError ggl_ipc_auth_validate_name(pid_t pid, GgBuffer component_name) {

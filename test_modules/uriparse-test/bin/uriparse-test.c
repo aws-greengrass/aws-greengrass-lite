@@ -2,8 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "uriparse-test.h"
 #include <gg/error.h>
+#include <uriparse-test.h>
 
 int main(void) {
     GgError ret = run_uriparse_test();

@@ -2,8 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/yaml_decode.h"
-#include "pthread.h"
 #include <assert.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
@@ -12,6 +10,8 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <ggl/yaml_decode.h>
+#include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
 #include <yaml.h>

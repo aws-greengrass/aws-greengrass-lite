@@ -1,8 +1,4 @@
 #include "http_server.h"
-#include "inttypes.h"
-#include "netinet/in.h"
-#include "stdbool.h"
-#include "stdio.h"
 #include <arpa/inet.h>
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -18,10 +14,13 @@
 #include <gg/vector.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
+#include <inttypes.h>
+#include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <systemd/sd-daemon.h>
-#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
 
 struct evhttp_request;
 

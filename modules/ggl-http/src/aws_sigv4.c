@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "aws_sigv4.h"
-#include "ggl/http.h"
-#include "sigv4.h"
 #include <assert.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/vector.h>
+#include <ggl/http.h>
 #include <openssl/evp.h>
 #include <openssl/types.h>
+#include <sigv4.h>
 #include <sys/time.h>
 #include <time.h>
 #include <stdint.h>

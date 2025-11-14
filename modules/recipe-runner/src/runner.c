@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "runner.h"
-#include "recipe-runner.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <gg/arena.h>
@@ -26,6 +25,7 @@
 #include <ggl/nucleus/constants.h>
 #include <ggl/recipe.h>
 #include <limits.h>
+#include <recipe-runner.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>

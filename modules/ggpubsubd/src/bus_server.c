@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggpubsubd.h"
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
@@ -12,6 +11,7 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <ggl/core_bus/server.h>
+#include <ggpubsubd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <stdbool.h>

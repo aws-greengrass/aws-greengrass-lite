@@ -3,7 +3,6 @@
 // SPDX - License - Identifier : Apache - 2.0
 
 #include "unit_file_generator.h"
-#include "ggl/recipe2unit.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <gg/arena.h>
@@ -17,6 +16,7 @@
 #include <gg/vector.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/recipe.h>
+#include <ggl/recipe2unit.h>
 #include <grp.h>
 #include <limits.h>
 #include <pwd.h>

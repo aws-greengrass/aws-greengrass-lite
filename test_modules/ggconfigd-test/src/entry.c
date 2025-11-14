@@ -1,6 +1,4 @@
 
-#include "ggconfigd-test.h"
-#include "stdbool.h"
 #include <assert.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
@@ -10,11 +8,13 @@
 #include <gg/object.h>
 #include <gg/utils.h>
 #include <gg/vector.h>
+#include <ggconfigd-test.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <limits.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define SUCCESS_STRING "test-and-verify-the-world"

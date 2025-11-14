@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/docker_client.h"
 #include <gg/arena.h>
 #include <gg/base64.h>
+#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/flags.h>
 #include <gg/io.h>
@@ -16,6 +16,7 @@
 #include <gg/object.h>
 #include <gg/vector.h>
 #include <ggl/api_ecr.h>
+#include <ggl/docker_client.h>
 #include <ggl/exec.h>
 #include <ggl/http.h>
 #include <ggl/uri.h>

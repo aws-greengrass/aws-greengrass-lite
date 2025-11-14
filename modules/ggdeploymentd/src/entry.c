@@ -4,10 +4,7 @@
 
 #include "bus_server.h"
 #include "deployment_handler.h"
-#include "ggdeploymentd.h"
 #include "iot_jobs_listener.h"
-#include "sys/stat.h"
-#include "unistd.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <gg/arena.h>
@@ -15,11 +12,14 @@
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/log.h>
+#include <ggdeploymentd.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/proxy/environment.h>
 #include <limits.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
