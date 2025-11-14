@@ -241,8 +241,7 @@ GglError ggl_yaml_decode_destructive(
     static yaml_document_t document;
     if (!yaml_parser_load(&parser, &document)) {
         GGL_LOGE(
-            "Yaml parser load failed. Parser error: %s, at line %zu, column "
-            "%zu",
+            "Yaml parser load failed. Parser error: %s, at line %zu, column %zu",
             parser.problem,
             parser.problem_mark.line + 1,
             parser.problem_mark.column + 1

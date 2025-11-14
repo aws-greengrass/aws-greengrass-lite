@@ -80,9 +80,9 @@ GglError ggl_load_template_params(
             &result
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to read "
-                     "services/aws.greengrass.fleet_provisioning/configuration/"
-                     "templateParams");
+            GGL_LOGE(
+                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/templateParams"
+            );
             return ret;
         }
     }
@@ -115,9 +115,9 @@ static GglError load_csr_common_name(FleetProvArgs *args) {
     }
 
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to read "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "csrCommonName");
+        GGL_LOGE(
+            "Failed to read services/aws.greengrass.fleet_provisioning/configuration/csrCommonName"
+        );
     }
 
     return ret;
@@ -232,9 +232,9 @@ GglError ggl_get_configuration(FleetProvArgs *args) {
             &args->claim_cert
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to read "
-                     "services/aws.greengrass.fleet_provisioning/configuration/"
-                     "claimCertPath");
+            GGL_LOGE(
+                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/claimCertPath"
+            );
             return ret;
         }
     }
@@ -247,9 +247,9 @@ GglError ggl_get_configuration(FleetProvArgs *args) {
             &args->claim_key
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to read "
-                     "services/aws.greengrass.fleet_provisioning/configuration/"
-                     "claimKeyPath");
+            GGL_LOGE(
+                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/claimKeyPath"
+            );
             return ret;
         }
     }
@@ -262,9 +262,9 @@ GglError ggl_get_configuration(FleetProvArgs *args) {
             &args->root_ca_path
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to read "
-                     "services/aws.greengrass.fleet_provisioning/configuration/"
-                     "rootCaPath");
+            GGL_LOGE(
+                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/rootCaPath"
+            );
             return ret;
         }
     }
@@ -277,9 +277,9 @@ GglError ggl_get_configuration(FleetProvArgs *args) {
             &args->template_name
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to read "
-                     "services/aws.greengrass.fleet_provisioning/configuration/"
-                     "templateName");
+            GGL_LOGE(
+                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/templateName"
+            );
             return ret;
         }
     }
@@ -292,9 +292,9 @@ GglError ggl_get_configuration(FleetProvArgs *args) {
             &args->endpoint
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGW("Failed to read "
-                     "services/aws.greengrass.fleet_provisioning/configuration/"
-                     "iotDataEndpoint");
+            GGL_LOGW(
+                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/iotDataEndpoint"
+            );
             return ret;
         }
     }

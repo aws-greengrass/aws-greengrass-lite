@@ -63,8 +63,7 @@ static GglError parse_requiresprivilege_section(
         } else if (ggl_buffer_eq(value, GGL_STR("false"))) {
             *is_root = false;
         } else {
-            GGL_LOGE("RequiresPrivilege needs to be a"
-                     "(true/false) value");
+            GGL_LOGE("RequiresPrivilege needs to be a (true/false) value");
             return GGL_ERR_INVALID;
         }
     }
@@ -355,8 +354,9 @@ static GglError manifest_selection(
             }
         } else {
             // If runtime field is not set, that explicitly means classic-only
-            GGL_LOGD("Skipping manifest as it does not include a runtime "
-                     "platform field.");
+            GGL_LOGD(
+                "Skipping manifest as it does not include a runtime platform field."
+            );
             return GGL_ERR_OK;
         }
 

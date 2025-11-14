@@ -31,8 +31,7 @@ GglError ggl_handle_token_validation(
             info->component, GGL_STR("aws.greengrass.StreamManager")
         )) {
         GGL_LOGE(
-            "Component %.*s does not have access to token verification IPC "
-            "command.",
+            "Component %.*s does not have access to token verification IPC command.",
             (int) info->component.len,
             info->component.data
         );
@@ -40,8 +39,7 @@ GglError ggl_handle_token_validation(
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
             .message = GGL_STR(
-                "Component does not have access to token verification IPC "
-                "command."
+                "Component does not have access to token verification IPC command."
             ) };
 
         return GGL_ERR_FAILURE;

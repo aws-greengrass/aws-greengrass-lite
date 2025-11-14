@@ -37,8 +37,7 @@ static GglError find_active_version(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGI(
-            "Unable to retrieve version of %.*s. Assuming no active version "
-            "found.",
+            "Unable to retrieve version of %.*s. Assuming no active version found.",
             (int) package_name.len,
             package_name.data
         );
@@ -60,8 +59,7 @@ static GglError find_active_version(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGI(
-            "Component status not found for component %.*s despite finding "
-            "active version. Not using this version.",
+            "Component status not found for component %.*s despite finding active version. Not using this version.",
             (int) package_name.len,
             package_name.data
         );
@@ -71,8 +69,7 @@ static GglError find_active_version(
     if (!ggl_buffer_eq(component_status, GGL_STR("RUNNING"))
         && !ggl_buffer_eq(component_status, GGL_STR("FINISHED"))) {
         GGL_LOGI(
-            "Component %.*s is not in the RUNNING or FINISHED states. Not "
-            "using the active version.",
+            "Component %.*s is not in the RUNNING or FINISHED states. Not using the active version.",
             (int) package_name.len,
             package_name.data
         );
@@ -96,8 +93,9 @@ static GglError find_best_candidate_locally(
         );
         return GGL_ERR_OK;
     }
-    GGL_LOGI("No running component satisfies the version requirements. "
-             "Searching in the local component store.");
+    GGL_LOGI(
+        "No running component satisfies the version requirements. Searching in the local component store."
+    );
 
     return find_available_component(
         component_name, version_requirement, version
@@ -128,10 +126,7 @@ bool resolve_component_version(
     // TODO: also check that the component region matches the expected region
     // (component store functionality)
     GGL_LOGI(
-        "Found local candidate for %.*s that satisfies version requirements. "
-        "Using "
-        "the local candidate as the resolved version "
-        "without negotiating with the cloud.",
+        "Found local candidate for %.*s that satisfies version requirements. Using the local candidate as the resolved version without negotiating with the cloud.",
         (int) component_name.len,
         (char *) component_name.data
     );

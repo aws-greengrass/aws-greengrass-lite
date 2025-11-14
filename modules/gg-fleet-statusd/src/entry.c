@@ -179,8 +179,9 @@ static uint64_t get_periodic_status_interval(void) {
                 )) {
                 interval_seconds = parsed_value;
             } else {
-                GGL_LOGD("Invalid value. Using default periodic status "
-                         "interval: 86400 seconds");
+                GGL_LOGD(
+                    "Invalid value. Using default periodic status interval: 86400 seconds"
+                );
                 return 86400; // Default 24 hours
             }
         }

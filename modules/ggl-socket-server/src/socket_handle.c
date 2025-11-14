@@ -135,8 +135,7 @@ GglError ggl_socket_pool_release(
         ret = pool->on_release(handle, index);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Pool on_release callback failed for fd %d, index %u, "
-                "generation %u.",
+                "Pool on_release callback failed for fd %d, index %u, generation %u.",
                 pool->fds[index],
                 index,
                 pool->generations[index]

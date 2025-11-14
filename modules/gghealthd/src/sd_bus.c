@@ -185,8 +185,7 @@ static GglError get_component_result(
     GGL_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
         GGL_LOGE(
-            "Unable to retrieve Component last run timestamp (errno=%d) "
-            "(name=%s) (message=%s)",
+            "Unable to retrieve Component last run timestamp (errno=%d) (name=%s) (message=%s)",
             -ret,
             error.name,
             error.message
@@ -337,8 +336,7 @@ void reset_restart_counters(sd_bus *bus, const char *qualified_name) {
     );
     if (ret < 0) {
         GGL_LOGW(
-            "Failed to reset failure counter for %s (errno=%d) (name=%s) "
-            "(message=%s)",
+            "Failed to reset failure counter for %s (errno=%d) (name=%s) (message=%s)",
             qualified_name,
             -ret,
             error.name,
@@ -369,8 +367,7 @@ GglError restart_component(sd_bus *bus, const char *qualified_name) {
 
     if (ret < 0) {
         GGL_LOGE(
-            "Failed to restart component %s (errno=%d) (name=%s) "
-            "(message=%s)",
+            "Failed to restart component %s (errno=%d) (name=%s) (message=%s)",
             qualified_name,
             -ret,
             error.name,

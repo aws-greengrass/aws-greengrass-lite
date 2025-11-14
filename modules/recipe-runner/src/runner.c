@@ -718,8 +718,9 @@ GglError runner(const RecipeRunnerArgs *args) {
     );
     switch (ret) {
     case GGL_ERR_NOMEM:
-        GGL_LOGE("Failed to get network proxy url from config - value longer "
-                 "than supported.");
+        GGL_LOGE(
+            "Failed to get network proxy url from config - value longer than supported."
+        );
         return ret;
     case GGL_ERR_NOENTRY:
         GGL_LOGD("No network proxy set.");
@@ -750,8 +751,9 @@ GglError runner(const RecipeRunnerArgs *args) {
     );
     switch (ret) {
     case GGL_ERR_NOMEM:
-        GGL_LOGE("Failed to get network proxy url from config - value longer "
-                 "than supported.");
+        GGL_LOGE(
+            "Failed to get network proxy url from config - value longer than supported."
+        );
         return ret;
     case GGL_ERR_NOENTRY:
         GGL_LOGD("No network proxy set.");
@@ -846,8 +848,7 @@ GglError runner(const RecipeRunnerArgs *args) {
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "Failed to get port for TES server from config. Possible "
-                    "reason, TES server might not have started yet."
+                    "Failed to get port for TES server from config. Possible reason, TES server might not have started yet."
                 );
                 return ret;
             }

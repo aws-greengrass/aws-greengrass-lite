@@ -91,13 +91,12 @@ GglError run_uriparse_test(void) {
         // Dockerhub
         GGL_STR("docker:mysql:8.0"),
         // Private ECR
-        GGL_STR("docker:012345678901.dkr.ecr.region.amazonaws.com/repository/"
-                "image:latest"),
+        GGL_STR(
+            "docker:012345678901.dkr.ecr.region.amazonaws.com/repository/image:latest"
+        ),
         // Private ECR w/ digest
         GGL_STR(
-            "docker:012345678901.dkr.ecr.region.amazonaws.com/repository/"
-            "image@sha256:"
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            "docker:012345678901.dkr.ecr.region.amazonaws.com/repository/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         )
     );
     const GglUriInfo EXPECTED_URI[] = {
@@ -110,16 +109,14 @@ GglError run_uriparse_test(void) {
                        .path = GGL_STR("mysql:8.0") },
         (GglUriInfo
         ) { .scheme = GGL_STR("docker"),
-            .path
-            = GGL_STR("012345678901.dkr.ecr.region.amazonaws.com/repository/"
-                      "image:latest") },
+            .path = GGL_STR(
+                "012345678901.dkr.ecr.region.amazonaws.com/repository/image:latest"
+            ) },
         (GglUriInfo
         ) { .scheme = GGL_STR("docker"),
-            .path
-            = GGL_STR("012345678901.dkr.ecr.region.amazonaws.com/repository/"
-                      "image@sha256:"
-                      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b"
-                      "7852b855") }
+            .path = GGL_STR(
+                "012345678901.dkr.ecr.region.amazonaws.com/repository/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            ) }
     };
 
     const GglDockerUriInfo EXPECTED_DOCKER_URI[] = {
@@ -140,9 +137,9 @@ GglError run_uriparse_test(void) {
             .username = GGL_STR("repository"),
             .repository = GGL_STR("image"),
             .digest_algorithm = GGL_STR("sha256"),
-            .digest
-            = GGL_STR("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b"
-                      "7852b855") }
+            .digest = GGL_STR(
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            ) }
     };
     static_assert(
         sizeof(EXPECTED_DOCKER_URI) / sizeof(*EXPECTED_DOCKER_URI)

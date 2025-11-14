@@ -28,8 +28,7 @@
 
 static_assert(
     GGL_PUBSUB_MAX_SUBSCRIPTIONS < GGL_COREBUS_MAX_CLIENTS,
-    "GGL_PUBSUB_MAX_SUBSCRIPTIONS too large; if it is >= core bus client "
-    "maximum, then subscriptions can block publishes from being handled."
+    "GGL_PUBSUB_MAX_SUBSCRIPTIONS too large; if it is >= core bus client maximum, then subscriptions can block publishes from being handled."
 );
 
 static uint32_t sub_handle[GGL_PUBSUB_MAX_SUBSCRIPTIONS];

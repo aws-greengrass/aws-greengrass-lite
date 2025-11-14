@@ -39,8 +39,7 @@ static GglError decode_object_destructive(GglObject *obj, GglArena *arena) {
                 = decode_object_destructive(ggl_kv_val(kv), arena);
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "decode map value at index %d and key %.*s failed with "
-                    "error code: %d",
+                    "decode map value at index %d and key %.*s failed with error code: %d",
                     (int) (kv - map.pairs),
                     (int) ggl_kv_key(*kv).len,
                     ggl_kv_key(*kv).data,

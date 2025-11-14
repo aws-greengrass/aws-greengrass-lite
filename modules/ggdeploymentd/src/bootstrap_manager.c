@@ -57,9 +57,7 @@ GglError save_component_info(
     GglBuffer component_name, GglBuffer component_version, GglBuffer type
 ) {
     GGL_LOGD(
-        "Saving component name and version for %.*s as type %.*s to the config "
-        "to track "
-        "deployment state.",
+        "Saving component name and version for %.*s as type %.*s to the config to track deployment state.",
         (int) component_name.len,
         component_name.data,
         (int) type.len,
@@ -108,8 +106,7 @@ GglError save_component_info(
         }
     } else {
         GGL_LOGE(
-            "Invalid component type of %.*s received. Expected type "
-            "'bootstrap' or 'completed'.",
+            "Invalid component type of %.*s received. Expected type 'bootstrap' or 'completed'.",
             (int) type.len,
             type.data
         );
@@ -167,8 +164,9 @@ GglError save_iot_jobs_version(int64_t jobs_version) {
 }
 
 GglError save_deployment_info(GglDeployment *deployment) {
-    GGL_LOGD("Encountered component requiring bootstrap. Saving deployment "
-             "state to config.");
+    GGL_LOGD(
+        "Encountered component requiring bootstrap. Saving deployment state to config."
+    );
 
     GglObject deployment_doc = ggl_obj_map(GGL_MAP(
         ggl_kv(

@@ -199,11 +199,13 @@ GglError convert_to_unit(
     if (existing_phases->has_bootstrap == false
         && existing_phases->has_install == false
         && existing_phases->has_run_startup == false) {
-        GGL_LOGE("Recipes without at least 1 valid lifecycle step aren't "
-                 "currently supported by GGLite");
+        GGL_LOGE(
+            "Recipes without at least 1 valid lifecycle step aren't currently supported by GGLite"
+        );
 
-        GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
-                 "recipe reference for the correct casing.");
+        GGL_LOGW(
+            "Note that in GG Lite, keys are case sensitive. Check the recipe reference for the correct casing."
+        );
         return GGL_ERR_INVALID;
     }
 

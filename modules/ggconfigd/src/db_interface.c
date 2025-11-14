@@ -105,9 +105,7 @@ GglError ggconfig_open(void) {
                 );
                 if (rc) {
                     GGL_LOGI(
-                        "Failed to add an index to the relationTable %s, "
-                        "expect an "
-                        "autoindex to be created",
+                        "Failed to add an index to the relationTable %s, expect an autoindex to be created",
                         err_message
                     );
                     sqlite3_free(err_message);
@@ -537,8 +535,8 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
             err = value_is_present_for_key(current_key_id, &value_is_present);
             if (err != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "failed to check for value for key %d (%.*s) in key path "
-                    "%s with id %" PRId64 " with error %s",
+                    "failed to check for value for key %d (%.*s) in key path %s with id %" PRId64
+                    " with error %s",
                     (int) index,
                     (int) current_key_buffer.len,
                     current_key_buffer.data,
@@ -550,8 +548,8 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
             }
             if (value_is_present) {
                 GGL_LOGW(
-                    "value already present for key %d (%.*s) in key path %s "
-                    "with id %" PRId64 ". Failing request.",
+                    "value already present for key %d (%.*s) in key path %s with id %" PRId64
+                    ". Failing request.",
                     (int) index,
                     (int) current_key_buffer.len,
                     current_key_buffer.data,
@@ -633,8 +631,8 @@ static GglError notify_single_key(
         } break;
         default:
             GGL_LOGE(
-                "Unexpected rc %d while getting handles to notify for key with "
-                "id %" PRId64 " with error: %s",
+                "Unexpected rc %d while getting handles to notify for key with id %" PRId64
+                " with error: %s",
                 rc,
                 notify_key_id,
                 sqlite3_errmsg(config_database)
@@ -758,8 +756,7 @@ GglError ggconfig_write_value_at_key(
         err = notify_nested_key(key_path, ids);
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
-                "Failed to notify all subscribers about update for key path %s "
-                "with error %s",
+                "Failed to notify all subscribers about update for key path %s with error %s",
                 print_key_path(key_path),
                 ggl_strerror(err)
             );
@@ -792,8 +789,7 @@ GglError ggconfig_write_value_at_key(
     if (child_is_present) {
         GGL_LOGW(
             "Key %s with id %" PRId64
-            " is an object with one or more children, so "
-            "it can not also store a value. Failing request.",
+            " is an object with one or more children, so it can not also store a value. Failing request.",
             print_key_path(key_path),
             last_key_id
         );
@@ -809,8 +805,8 @@ GglError ggconfig_write_value_at_key(
     }
     if (!value_is_present) {
         GGL_LOGW(
-            "Key %s with id %" PRId64 " is an empty map, so it can not have a "
-            "value written to it. Failing request.",
+            "Key %s with id %" PRId64
+            " is an empty map, so it can not have a value written to it. Failing request.",
             print_key_path(key_path),
             last_key_id
         );
@@ -833,8 +829,9 @@ GglError ggconfig_write_value_at_key(
     }
     if (existing_timestamp > timestamp) {
         GGL_LOGD(
-            "key %s has an existing timestamp %" PRId64 " newer than provided "
-            "timestamp %" PRId64 ", so it will not be updated",
+            "key %s has an existing timestamp %" PRId64
+            " newer than provided timestamp %" PRId64
+            ", so it will not be updated",
             print_key_path(key_path),
             existing_timestamp,
             timestamp
@@ -860,8 +857,7 @@ GglError ggconfig_write_value_at_key(
     err = notify_nested_key(key_path, ids);
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
-            "failed to notify subscribers about update for key path %s with "
-            "error %s",
+            "failed to notify subscribers about update for key path %s with error %s",
             print_key_path(key_path),
             ggl_strerror(err)
         );
@@ -1144,8 +1140,7 @@ GglError ggconfig_list_subkeys(GglList *key_path, GglList *subkeys) {
     }
     if (value_is_present) {
         GGL_LOGW(
-            "Key %s is a value, not a map, so subkeys/children can not be "
-            "listed.",
+            "Key %s is a value, not a map, so subkeys/children can not be listed.",
             print_key_path(key_path)
         );
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
@@ -1336,10 +1331,7 @@ GglError ggconfig_delete_key(GglList *key_path) {
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to delete subscribers for id %" PRId64
-                " with error %s. This should not happen, but keyids are not "
-                "reused and thus "
-                "any subscriptions on this key will not be activated anymore, "
-                "so execution can continue.",
+                " with error %s. This should not happen, but keyids are not reused and thus any subscriptions on this key will not be activated anymore, so execution can continue.",
                 descendant_id,
                 ggl_strerror(err)
             );

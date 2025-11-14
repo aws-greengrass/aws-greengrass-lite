@@ -162,8 +162,9 @@ static GglError find_docker_uri_separators(
                 GGL_LOGT("Found a slash while parsing Docker URI");
                 continue;
             }
-            GGL_LOGE("More than two slashes found while parsing Docker URI, "
-                     "URI is invalid.");
+            GGL_LOGE(
+                "More than two slashes found while parsing Docker URI, URI is invalid."
+            );
             return GGL_ERR_INVALID;
         }
         if (uri.data[position - 1] == ':') {
@@ -173,8 +174,9 @@ static GglError find_docker_uri_separators(
                 GGL_LOGT("Found a colon while parsing Docker URI");
                 continue;
             }
-            GGL_LOGE("More than three colons found while parsing Docker URI, "
-                     "URI is invalid.");
+            GGL_LOGE(
+                "More than three colons found while parsing Docker URI, URI is invalid."
+            );
             return GGL_ERR_INVALID;
         }
         if (uri.data[position - 1] == '@') {
@@ -184,8 +186,9 @@ static GglError find_docker_uri_separators(
                 GGL_LOGT("Found an @ while parsing Docker URI");
                 continue;
             }
-            GGL_LOGE("More than one '@' symbol found while parsing Docker URI, "
-                     "URI is invalid.");
+            GGL_LOGE(
+                "More than one '@' symbol found while parsing Docker URI, URI is invalid."
+            );
             return GGL_ERR_INVALID;
         }
         if (uri.data[position - 1] == '.') {
@@ -211,8 +214,9 @@ static GglError parse_docker_registry_segment(
         // URI has no registry segment. Default to official docker hub for
         // registry.
         info->registry = GGL_STR("docker.io");
-        GGL_LOGT("Assuming official docker hub by default while parsing Docker "
-                 "URI as no registry is provided.");
+        GGL_LOGT(
+            "Assuming official docker hub by default while parsing Docker URI as no registry is provided."
+        );
     } else if (slash_count == 2) {
         info->username = ggl_buffer_substr(uri, slashes[1] + 1, slashes[0]);
         GGL_LOGT(
@@ -260,8 +264,9 @@ static GglError parse_repo_with_digest(
     size_t at
 ) {
     if (colon_count == 0 || colons[0] < at) {
-        GGL_LOGE("Docker URI contains a digest but does not include a "
-                 "colon in the digest");
+        GGL_LOGE(
+            "Docker URI contains a digest but does not include a colon in the digest"
+        );
         return GGL_ERR_INVALID;
     }
     assert(colons[0] != SIZE_MAX);
@@ -381,8 +386,9 @@ static GglError parse_docker_repo_segment(
             info, uri, slashes, slash_count, colons, colon_count
         );
         if (err != GGL_ERR_OK) {
-            GGL_LOGE("Error while parsing Docker URI repository segment "
-                     "without digest");
+            GGL_LOGE(
+                "Error while parsing Docker URI repository segment without digest"
+            );
             return err;
         }
     }

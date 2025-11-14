@@ -75,8 +75,9 @@ GglError ggl_handle_publish_to_topic(
     }
 
     if ((json_message == NULL) == (binary_message == NULL)) {
-        GGL_LOGE("'publishMessage' must have exactly one of 'binaryMessage' or "
-                 "'jsonMessage'.");
+        GGL_LOGE(
+            "'publishMessage' must have exactly one of 'binaryMessage' or 'jsonMessage'."
+        );
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
             .message = GGL_STR("Received invalid parameters.") };

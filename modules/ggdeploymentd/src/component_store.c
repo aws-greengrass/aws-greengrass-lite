@@ -108,8 +108,7 @@ GglError iterate_over_components(
         }
         if (rest.len == 0) {
             GGL_LOGD(
-                "Recipe file name formatted incorrectly. Continuing to next "
-                "file."
+                "Recipe file name formatted incorrectly. Continuing to next file."
             );
             continue;
         }

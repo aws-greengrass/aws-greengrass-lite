@@ -39,14 +39,16 @@ static GglError apply_reset_config(
     }
 
     if (ggl_obj_type(*reset_configuration) != GGL_TYPE_LIST) {
-        GGL_LOGE("Reset update did not parse into a list "
-                 "during configuration updates.");
+        GGL_LOGE(
+            "Reset update did not parse into a list during configuration updates."
+        );
         return GGL_ERR_INVALID;
     }
     GGL_LIST_FOREACH (reset_element, ggl_obj_into_list(*reset_configuration)) {
         if (ggl_obj_type(*reset_element) != GGL_TYPE_BUF) {
-            GGL_LOGE("Configuration key for reset config "
-                     "update not provided as a buffer.");
+            GGL_LOGE(
+                "Configuration key for reset config update not provided as a buffer."
+            );
             return GGL_ERR_INVALID;
         }
 
@@ -94,8 +96,7 @@ static GglError apply_reset_config(
         ret = ggl_gg_config_delete(key_path.buf_list);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Failed to perform configuration reset updates "
-                "for component %.*s.",
+                "Failed to perform configuration reset updates for component %.*s.",
                 (int) component_name.len,
                 component_name.data
             );
@@ -103,8 +104,7 @@ static GglError apply_reset_config(
         }
 
         GGL_LOGI(
-            "Made a configuration reset update for component "
-            "%.*s",
+            "Made a configuration reset update for component %.*s",
             (int) component_name.len,
             component_name.data
         );
@@ -134,8 +134,9 @@ static GglError apply_merge_config(
         return GGL_ERR_OK;
     }
     if (ggl_obj_type(*merge_configuration) != GGL_TYPE_MAP) {
-        GGL_LOGE("Merge update did not parse into a map during "
-                 "configuration updates.");
+        GGL_LOGE(
+            "Merge update did not parse into a map during configuration updates."
+        );
         return GGL_ERR_INVALID;
     }
 
@@ -151,8 +152,7 @@ static GglError apply_merge_config(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "Failed to write configuration merge updates for "
-            "component %.*s to ggconfigd.",
+            "Failed to write configuration merge updates for component %.*s to ggconfigd.",
             (int) component_name.len,
             component_name.data
         );
@@ -193,8 +193,9 @@ GglError apply_configurations(
         return GGL_ERR_OK;
     }
     if (ggl_obj_type(*doc_component_info) != GGL_TYPE_MAP) {
-        GGL_LOGE("Component information did not parse into a map during "
-                 "configuration updates.");
+        GGL_LOGE(
+            "Component information did not parse into a map during configuration updates."
+        );
         return GGL_ERR_INVALID;
     }
 
@@ -216,8 +217,9 @@ GglError apply_configurations(
     }
 
     if (ggl_obj_type(*component_configuration) != GGL_TYPE_MAP) {
-        GGL_LOGE("Configuration update did not parse into a map during "
-                 "configuration updates.");
+        GGL_LOGE(
+            "Configuration update did not parse into a map during configuration updates."
+        );
         return GGL_ERR_INVALID;
     }
 

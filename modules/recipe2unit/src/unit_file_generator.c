@@ -46,8 +46,7 @@ static GglError parse_dependency_type(
     GglObject *val;
     if (ggl_obj_type(*ggl_kv_val(&component_dependency)) != GGL_TYPE_MAP) {
         GGL_LOGE(
-            "Any information provided under[ComponentDependencies] section "
-            "only supports a key value map type."
+            "Any information provided under[ComponentDependencies] section only supports a key value map type."
         );
         return GGL_ERR_INVALID;
     }
@@ -157,8 +156,9 @@ static GglError fill_unit_section(
 
     ret = ggl_byte_vec_append(
         concat_unit_vector,
-        GGL_STR("PartOf=greengrass-lite.target\nWants=ggl.core.ggipcd."
-                "service\nAfter=ggl.core.ggipcd.service\n")
+        GGL_STR(
+            "PartOf=greengrass-lite.target\nWants=ggl.core.ggipcd.service\nAfter=ggl.core.ggipcd.service\n"
+        )
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -319,8 +319,9 @@ static GglError expand_timeout(
         return ret;
     }
     if (!ggl_buffer_eq(variable.type, GGL_STR("configuration"))) {
-        GGL_LOGE("Timeout recipe variable must come from configuration. (e.g. "
-                 "{configuration:/json/pointer/to/key})");
+        GGL_LOGE(
+            "Timeout recipe variable must come from configuration. (e.g. {configuration:/json/pointer/to/key})"
+        );
         return GGL_ERR_INVALID;
     }
 
@@ -738,8 +739,9 @@ static GglError fill_service_section(
     // Add Env Var for GG_root path
     ret = ggl_byte_vec_append(
         out,
-        GGL_STR("Environment=\"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_"
-                "COMPONENT=")
+        GGL_STR(
+            "Environment=\"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT="
+        )
     );
     ggl_byte_vec_chain_append(
         &ret, out, ggl_buffer_from_null_term(args->root_dir)

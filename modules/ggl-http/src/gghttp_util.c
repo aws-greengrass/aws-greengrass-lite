@@ -240,8 +240,7 @@ static size_t write_response_to_buffer(
         size_t remaining_capacity
             = ggl_byte_vec_remaining_capacity(*output_vector).len;
         GGL_LOGE(
-            "Not enough space to hold full body. Est. remaining bytes: %zu. "
-            "Buffer remaining capacity: %zu",
+            "Not enough space to hold full body. Est. remaining bytes: %zu. Buffer remaining capacity: %zu",
             size_of_response_data,
             remaining_capacity
         );
@@ -367,8 +366,9 @@ static GglError set_curl_proxy_config(CurlData *curl_data) {
                 &cert
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGD("No certificate provided to be used with https proxy. "
-                         "Not setting cert/key in curl config.");
+                GGL_LOGD(
+                    "No certificate provided to be used with https proxy. Not setting cert/key in curl config."
+                );
 
                 // Return here with success.
                 return GGL_ERR_OK;
@@ -394,8 +394,9 @@ static GglError set_curl_proxy_config(CurlData *curl_data) {
                 &key
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGD("No key provided to be used with https proxy. Not "
-                         "setting cert/key in curl config.");
+                GGL_LOGD(
+                    "No key provided to be used with https proxy. Not setting cert/key in curl config."
+                );
 
                 // Return here with success.
                 return GGL_ERR_OK;

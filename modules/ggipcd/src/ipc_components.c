@@ -146,8 +146,7 @@ GglError ggl_ipc_start_component_server(void) {
     res = pthread_detach(ptid);
     if (res != 0) {
         GGL_LOGE(
-            "Failed to detach the ggl_ipc_component_server thread with error "
-            "%d.",
+            "Failed to detach the ggl_ipc_component_server thread with error %d.",
             res
         );
         return GGL_ERR_FATAL;

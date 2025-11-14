@@ -467,8 +467,7 @@ static GglError process_job_execution(GglMap job_execution) {
     case DSA_ENQUEUE_JOB: {
         if (deployment_doc == NULL) {
             GGL_LOGE(
-                "Job status is queued/in progress, but no deployment doc was "
-                "given."
+                "Job status is queued/in progress, but no deployment doc was given."
             );
             return GGL_ERR_INVALID;
         }

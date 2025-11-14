@@ -60,9 +60,10 @@ GglError publish_fleet_status_update(
 
     bool device_healthy = true;
 
-    GglBuffer component_info_mem = GGL_BUF((uint8_t[PAYLOAD_BUFFER_LEN - 128]
-    ) { 0 }); // The size of the payload buffer minus some bytes we will need
-              // for boilerplate contents, is the max we can send
+    // The size of the payload buffer minus some bytes we will need for
+    // boilerplate contents, is the max we can send
+    GglBuffer component_info_mem
+        = GGL_BUF((uint8_t[PAYLOAD_BUFFER_LEN - 128]) { 0 });
     GglArena alloc = ggl_arena_init(component_info_mem);
 
     // retrieve running components from services config
@@ -86,8 +87,7 @@ GglError publish_fleet_status_update(
     GGL_LIST_FOREACH (component_obj, components) {
         if (ggl_obj_type(*component_obj) != GGL_TYPE_BUF) {
             GGL_LOGE(
-                "Incorrect type of component key received. Expected buffer. "
-                "Cannot publish fleet status update for this entry."
+                "Incorrect type of component key received. Expected buffer. Cannot publish fleet status update for this entry."
             );
             continue;
         }
@@ -124,9 +124,7 @@ GglError publish_fleet_status_update(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Unable to retrieve version of %.*s with error %s. Cannot "
-                "publish fleet "
-                "status update for this component.",
+                "Unable to retrieve version of %.*s with error %s. Cannot publish fleet status update for this component.",
                 (int) component.len,
                 component.data,
                 ggl_strerror(ret)
@@ -142,8 +140,7 @@ GglError publish_fleet_status_update(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Failed to retrieve health status for %.*s with error %s. "
-                "Cannot publish fleet status update for this component.",
+                "Failed to retrieve health status for %.*s with error %s. Cannot publish fleet status update for this component.",
                 (int) component.len,
                 component.data,
                 ggl_strerror(ret)
@@ -165,10 +162,7 @@ GglError publish_fleet_status_update(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Unable to retrieve fleet configuration arn list for component "
-                "%.*s from "
-                "config with error %s. Cannot publish fleet status update for "
-                "this component.",
+                "Unable to retrieve fleet configuration arn list for component %.*s from config with error %s. Cannot publish fleet status update for this component.",
                 (int) component.len,
                 component.data,
                 ggl_strerror(ret)
@@ -177,9 +171,7 @@ GglError publish_fleet_status_update(
         }
         if (ggl_obj_type(arn_list) != GGL_TYPE_LIST) {
             GGL_LOGE(
-                "Fleet configuration arn retrieved from config not of "
-                "type list for component %.*s. Cannot publish fleet "
-                "status update for this component.",
+                "Fleet configuration arn retrieved from config not of type list for component %.*s. Cannot publish fleet status update for this component.",
                 (int) component.len,
                 component.data
             );
@@ -209,9 +201,7 @@ GglError publish_fleet_status_update(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Failed to add component info for %.*s to component list with "
-                "error %s. Cannot publish fleet status update for this "
-                "component.",
+                "Failed to add component info for %.*s to component list with error %s. Cannot publish fleet status update for this component.",
                 (int) component.len,
                 component.data,
                 ggl_strerror(ret)

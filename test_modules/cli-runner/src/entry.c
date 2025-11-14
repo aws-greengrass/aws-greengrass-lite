@@ -28,20 +28,22 @@ typedef struct InputEntry {
 } InputEntry;
 
 GglError run_cli_runner(void) {
-    const RunnerEntry ENTRIES[]
-        = { { .arg_list = { "ls", "-z", NULL },
-              .successful = false,
-              .expected_output = GGL_STR("ls: invalid option -- 'z'\nTry 'ls "
-                                         "--help' for more information.\n") },
-            { .arg_list = { "echo", "hello", NULL },
-              .successful = true,
-              .expected_output = GGL_STR("hello\n") },
-            { .arg_list = { "ls-l", NULL },
-              .successful = false,
-              .expected_output = GGL_STR("") },
-            { .arg_list = { "ls", "-l", NULL },
-              .successful = true,
-              .expected_output = { 0 } } };
+    const RunnerEntry ENTRIES[] = {
+        { .arg_list = { "ls", "-z", NULL },
+          .successful = false,
+          .expected_output = GGL_STR(
+              "ls: invalid option -- 'z'\nTry 'ls --help' for more information.\n"
+          ) },
+        { .arg_list = { "echo", "hello", NULL },
+          .successful = true,
+          .expected_output = GGL_STR("hello\n") },
+        { .arg_list = { "ls-l", NULL },
+          .successful = false,
+          .expected_output = GGL_STR("") },
+        { .arg_list = { "ls", "-l", NULL },
+          .successful = true,
+          .expected_output = { 0 } }
+    };
     uint8_t output_buf[256];
 
     for (size_t i = 0; i < sizeof(ENTRIES) / sizeof(*ENTRIES); ++i) {

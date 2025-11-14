@@ -75,8 +75,9 @@ static GglError send_csr_request(
     }
 
     if (ggl_obj_type(*token_val) != GGL_TYPE_BUF) {
-        GGL_LOGE("Failed to register certificate. Reason: Invalid "
-                 "certificateOwnershipToken.");
+        GGL_LOGE(
+            "Failed to register certificate. Reason: Invalid certificateOwnershipToken."
+        );
         return GGL_ERR_INVALID;
     }
 

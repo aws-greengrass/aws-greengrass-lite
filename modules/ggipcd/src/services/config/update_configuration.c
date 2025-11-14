@@ -70,12 +70,14 @@ GglError ggl_handle_update_configuration(
             && ggl_buffer_eq(
                 ggl_obj_into_buf(key_path.items[0]), GGL_STR("accessControl")
             )) {
-            GGL_LOGE("Received invalid parameters. Can not change component "
-                     "accessControl over IPC.");
+            GGL_LOGE(
+                "Received invalid parameters. Can not change component accessControl over IPC."
+            );
             *ipc_error = (GglIpcError
             ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
-                .message = GGL_STR("Config update is not allowed for following "
-                                   "field [accessControl]") };
+                .message = GGL_STR(
+                    "Config update is not allowed for following field [accessControl]"
+                ) };
             return GGL_ERR_INVALID;
         }
     }
@@ -84,13 +86,13 @@ GglError ggl_handle_update_configuration(
         GGL_MAP_FOREACH (kv, ggl_obj_into_map(*value_to_merge)) {
             if (ggl_buffer_eq(ggl_kv_key(*kv), GGL_STR("accessControl"))) {
                 GGL_LOGE(
-                    "Received invalid parameters. Can not change component "
-                    "accessControl over IPC."
+                    "Received invalid parameters. Can not change component accessControl over IPC."
                 );
                 *ipc_error = (GglIpcError
                 ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
-                    .message = GGL_STR("Config update is not allowed for "
-                                       "following field [accessControl]") };
+                    .message = GGL_STR(
+                        "Config update is not allowed for following field [accessControl]"
+                    ) };
                 return GGL_ERR_INVALID;
             }
         }

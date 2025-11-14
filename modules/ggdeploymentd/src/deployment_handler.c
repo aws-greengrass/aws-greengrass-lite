@@ -978,15 +978,15 @@ static GglError generate_resolve_component_candidates_body(
         &architecture_detail_read_value
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGD("No architecture.detail found, so not including it in the "
-                 "component candidates search.");
+        GGL_LOGD(
+            "No architecture.detail found, so not including it in the component candidates search."
+        );
         architecture_detail_read_value = ggl_obj_buf(GGL_STR(""));
     }
 
     if (ggl_obj_type(architecture_detail_read_value) != GGL_TYPE_BUF) {
         GGL_LOGD(
-            "architecture.detail platformOverride in the config is not a "
-            "buffer, so not including it in the component candidates search"
+            "architecture.detail platformOverride in the config is not a buffer, so not including it in the component candidates search"
         );
         architecture_detail_read_value = ggl_obj_buf(GGL_STR(""));
     }
@@ -1147,14 +1147,15 @@ static GglError parse_dataplane_response_and_save_recipe(
         dataplane_response, &alloc, &json_candidates_response_obj
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error when parsing resolveComponentCandidates response to "
-                 "json.");
+        GGL_LOGE(
+            "Error when parsing resolveComponentCandidates response to json."
+        );
         return ret;
     }
 
     if (ggl_obj_type(json_candidates_response_obj) != GGL_TYPE_MAP) {
-        GGL_LOGE("resolveComponentCandidates response did not parse into a "
-                 "map.");
+        GGL_LOGE("resolveComponentCandidates response did not parse into a map."
+        );
         return ret;
     }
 
@@ -1178,8 +1179,7 @@ static GglError parse_dataplane_response_and_save_recipe(
     ) {
         if (!first_component) {
             GGL_LOGE(
-                "resolveComponentCandidates returned information for more than "
-                "one component."
+                "resolveComponentCandidates returned information for more than one component."
             );
             return GGL_ERR_INVALID;
         }
@@ -1243,10 +1243,9 @@ static GglError parse_dataplane_response_and_save_recipe(
                     ggl_obj_into_buf(*vendor_guidance_obj),
                     GGL_STR("DISCONTINUED")
                 )) {
-                GGL_LOGW("The component version has been discontinued by its "
-                         "publisher. You can deploy this component version, "
-                         "but we recommend that you use a different version of "
-                         "this component");
+                GGL_LOGW(
+                    "The component version has been discontinued by its publisher. You can deploy this component version, but we recommend that you use a different version of this component"
+                );
             }
         }
 
@@ -1313,8 +1312,9 @@ static GglError parse_dataplane_response_and_save_recipe(
                 &fd
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to open file at the dir when writing cloud "
-                         "recipe.");
+                GGL_LOGE(
+                    "Failed to open file at the dir when writing cloud recipe."
+                );
                 return ret;
             }
             GGL_CLEANUP(cleanup_close, fd);
@@ -1355,14 +1355,12 @@ static GglError parse_thing_groups_list(
         list_thing_groups_response, alloc, &json_thing_groups_object
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error when parsing listThingGroups response to "
-                 "json.");
+        GGL_LOGE("Error when parsing listThingGroups response to json.");
         return ret;
     }
 
     if (ggl_obj_type(json_thing_groups_object) != GGL_TYPE_MAP) {
-        GGL_LOGE("listThingGroups response did not parse into a "
-                 "map.");
+        GGL_LOGE("listThingGroups response did not parse into a map.");
         return ret;
     }
 
@@ -1441,11 +1439,7 @@ static GglError resolve_dependencies(
             GglBuffer software_version = GGL_STR(GGL_VERSION);
             if (!ggl_buffer_eq(component_version, software_version)) {
                 GGL_LOGE(
-                    "The deployment failed. The aws.greengrass.NucleusLite "
-                    "component version specified in the deployment is %.*s, "
-                    "but the version of the GG Lite software is %.*s. Please "
-                    "ensure that the version in the deployment matches before "
-                    "attempting the deployment again.",
+                    "The deployment failed. The aws.greengrass.NucleusLite component version specified in the deployment is %.*s, but the version of the GG Lite software is %.*s. Please ensure that the version in the deployment matches before attempting the deployment again.",
                     (int) component_version.len,
                     component_version.data,
                     (int) software_version.len,
@@ -1476,8 +1470,7 @@ static GglError resolve_dependencies(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGW(
-            "Error while deleting thing group to root components mapping for "
-            "thing group %.*s",
+            "Error while deleting thing group to root components mapping for thing group %.*s",
             (int) thing_group_name.len,
             thing_group_name.data
         );
@@ -1533,12 +1526,14 @@ static GglError resolve_dependencies(
         }
     } else {
         if (!ggl_buffer_eq(GGL_STR("LOCAL_DEPLOYMENTS"), thing_group_name)) {
-            GGL_LOGE("Cloud call to list thing groups failed. Cloud deployment "
-                     "requires an updated thing group list.");
+            GGL_LOGE(
+                "Cloud call to list thing groups failed. Cloud deployment requires an updated thing group list."
+            );
             return ret;
         }
-        GGL_LOGI("Cloud call to list thing groups failed. Using previous thing "
-                 "groups list as deployment is local.");
+        GGL_LOGI(
+            "Cloud call to list thing groups failed. Using previous thing groups list as deployment is local."
+        );
         ret = ggl_gg_config_read(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -1550,8 +1545,7 @@ static GglError resolve_dependencies(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGI(
-                "No info found in config for thing groups list, assuming no "
-                "thing group memberships."
+                "No info found in config for thing groups list, assuming no thing group memberships."
             );
             thing_groups_list = &empty_list_obj;
         }
@@ -1594,9 +1588,7 @@ static GglError resolve_dependencies(
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGI(
-                    "No info found in config for root components for thing "
-                    "group %.*s, assuming no components are part of this thing "
-                    "group.",
+                    "No info found in config for root components for thing group %.*s, assuming no components are part of this thing group.",
                     (int) thing_group_name_from_item.len,
                     thing_group_name_from_item.data
                 );
@@ -1604,8 +1596,7 @@ static GglError resolve_dependencies(
                 if (ggl_obj_type(group_root_components_read_value)
                     != GGL_TYPE_MAP) {
                     GGL_LOGE(
-                        "Did not read a map from config for thing group to "
-                        "root components map"
+                        "Did not read a map from config for thing group to root components map"
                     );
                     return GGL_ERR_INVALID;
                 }
@@ -1649,11 +1640,7 @@ static GglError resolve_dependencies(
                             need_to_add_root_component = false;
                         } else {
                             GGL_LOGE(
-                                "There is a version conflict for component "
-                                "%.*s, where two deployments are asking for "
-                                "versions %.*s and %.*s. Please check that "
-                                "this root component does not have conflicting "
-                                "versions across your deployments.",
+                                "There is a version conflict for component %.*s, where two deployments are asking for versions %.*s and %.*s. Please check that this root component does not have conflicting versions across your deployments.",
                                 (int) ggl_kv_key(*root_component_pair).len,
                                 ggl_kv_key(*root_component_pair).data,
                                 (int) root_component_val.len,
@@ -1697,10 +1684,7 @@ static GglError resolve_dependencies(
                         }
 
                         GGL_LOGD(
-                            "Added %.*s to the list of root components to "
-                            "resolve "
-                            "from "
-                            "the thing group %.*s",
+                            "Added %.*s to the list of root components to resolve from the thing group %.*s",
                             (int) root_component_name_buf.len,
                             root_component_name_buf.data,
                             (int) thing_group_name_from_item.len,
@@ -1727,12 +1711,14 @@ static GglError resolve_dependencies(
             &local_components_read_value
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGI("No local components found in config, proceeding "
-                     "deployment without needing to add local components.");
+            GGL_LOGI(
+                "No local components found in config, proceeding deployment without needing to add local components."
+            );
         } else {
             if (ggl_obj_type(local_components_read_value) != GGL_TYPE_MAP) {
-                GGL_LOGE("Did not read a map from config while looking up "
-                         "local components.");
+                GGL_LOGE(
+                    "Did not read a map from config while looking up local components."
+                );
                 return GGL_ERR_INVALID;
             }
 
@@ -1772,9 +1758,7 @@ static GglError resolve_dependencies(
                         need_to_add_root_component = false;
                     } else {
                         GGL_LOGE(
-                            "There is a version conflict for component %.*s, "
-                            "where it is already locally deployed as version "
-                            "%.*s and the deployment requests version %.*s.",
+                            "There is a version conflict for component %.*s, where it is already locally deployed as version %.*s and the deployment requests version %.*s.",
                             (int) ggl_kv_key(*root_component_pair).len,
                             ggl_kv_key(*root_component_pair).data,
                             (int) root_component_val.len,
@@ -1810,8 +1794,7 @@ static GglError resolve_dependencies(
                         )
                     );
                     GGL_LOGD(
-                        "Added %.*s to the list of root components to resolve "
-                        "as it has been previously locally deployed.",
+                        "Added %.*s to the list of root components to resolve as it has been previously locally deployed.",
                         (int) root_component_name_buf.len,
                         root_component_name_buf.data
                     );
@@ -1990,9 +1973,9 @@ static GglError resolve_dependencies(
                         dep_version_requirement
                     );
                     if (!meets_requirements) {
-                        GGL_LOGE("Already resolved component does not meet new "
-                                 "dependency requirement, failing dependency "
-                                 "resolution.");
+                        GGL_LOGE(
+                            "Already resolved component does not meet new dependency requirement, failing dependency resolution."
+                        );
                         return GGL_ERR_FAILURE;
                     }
                 }
@@ -2026,8 +2009,9 @@ static GglError resolve_dependencies(
                             &ret, &new_req_vec, dep_version_requirement
                         );
                         if (ret != GGL_ERR_OK) {
-                            GGL_LOGE("Failed to create new requirements for "
-                                     "dependency version.");
+                            GGL_LOGE(
+                                "Failed to create new requirements for dependency version."
+                            );
                             return ret;
                         }
 
@@ -2037,8 +2021,9 @@ static GglError resolve_dependencies(
                             new_req_vec.buf.len
                         );
                         if (new_req == NULL) {
-                            GGL_LOGE("Ran out of memory while trying to create "
-                                     "new requirements");
+                            GGL_LOGE(
+                                "Ran out of memory while trying to create new requirements"
+                            );
                             return GGL_ERR_NOMEM;
                         }
 
@@ -2160,8 +2145,7 @@ static GglError add_arn_list_to_config(
         GglList arn_list = ggl_obj_into_list(arn_list_obj);
         if (arn_list.len >= MAX_DEPLOYMENT_TARGETS) {
             GGL_LOGE(
-                "Cannot append configArn: Component is deployed as part of too "
-                "many deployments (%zu >= %zu).",
+                "Cannot append configArn: Component is deployed as part of too many deployments (%zu >= %zu).",
                 arn_list.len,
                 (size_t) MAX_DEPLOYMENT_TARGETS
             );
@@ -2177,8 +2161,9 @@ static GglError add_arn_list_to_config(
                     get_unversioned_substring(configuration_arn)
                 )) {
                 // arn for this group already added to config, replace it
-                GGL_LOGD("Configuration arn already exists for this thing "
-                         "group, overwriting it.");
+                GGL_LOGD(
+                    "Configuration arn already exists for this thing group, overwriting it."
+                );
                 *arn = ggl_obj_buf(configuration_arn);
                 ret = ggl_gg_config_write(
                     GGL_BUF_LIST(
@@ -2274,8 +2259,7 @@ static GglError send_fss_update(
 
     if (ret != 0) {
         GGL_LOGE(
-            "Failed to send send_fleet_status_update to fleet status service: "
-            "%d.",
+            "Failed to send send_fleet_status_update to fleet status service: %d.",
             ret
         );
         return ret;
@@ -2458,8 +2442,9 @@ static void handle_deployment(
         &resolved_components_kv_vec
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to do dependency resolution for deployment, failing "
-                 "deployment.");
+        GGL_LOGE(
+            "Failed to do dependency resolution for deployment, failing deployment."
+        );
         return;
     }
 
@@ -2477,8 +2462,9 @@ static void handle_deployment(
     ret = get_tes_credentials(&tes_credentials);
     bool tes_creds_retrieved = (ret == GGL_ERR_OK);
     if (!tes_creds_retrieved) {
-        GGL_LOGW("Failed to retrieve TES credentials, attempting to complete "
-                 "deployment without TES credentials.");
+        GGL_LOGW(
+            "Failed to retrieve TES credentials, attempting to complete deployment without TES credentials."
+        );
     }
 
     int artifact_store_fd = -1;
@@ -2537,8 +2523,7 @@ static void handle_deployment(
         );
         if (ret == GGL_ERR_OK) {
             GGL_LOGD(
-                "Component %.*s completed processing in previous run. Will not "
-                "be reprocessed.",
+                "Component %.*s completed processing in previous run. Will not be reprocessed.",
                 (int) ggl_kv_key(*pair).len,
                 ggl_kv_key(*pair).data
             );
@@ -2549,9 +2534,7 @@ static void handle_deployment(
         // component
         if (component_bootstrap_phase_completed(ggl_kv_key(*pair))) {
             GGL_LOGD(
-                "Bootstrap component %.*s encountered. Bootstrap phase has "
-                "already been completed. Adding to list of components to "
-                "process to complete any other lifecycle stages.",
+                "Bootstrap component %.*s encountered. Bootstrap phase has already been completed. Adding to list of components to process to complete any other lifecycle stages.",
                 (int) ggl_kv_key(*pair).len,
                 ggl_kv_key(*pair).data
             );
@@ -2561,8 +2544,7 @@ static void handle_deployment(
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "Failed to add component info for %.*s to deployment "
-                    "vector.",
+                    "Failed to add component info for %.*s to deployment vector.",
                     (int) ggl_kv_key(*pair).len,
                     ggl_kv_key(*pair).data
                 );
@@ -2620,8 +2602,9 @@ static void handle_deployment(
             &old_component_version
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGD("Failed to get component version from config, "
-                     "assuming component is new.");
+            GGL_LOGD(
+                "Failed to get component version from config, assuming component is new."
+            );
         } else {
             if (ggl_buffer_eq(pair_val, old_component_version)) {
                 GGL_LOGD(
@@ -2646,26 +2629,24 @@ static void handle_deployment(
         if (arn_ret != GGL_ERR_OK) {
             // TODO: Check over artifacts list even if local deployment and
             // attempt download if needed
-            GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
-                     "are found on-disk.");
+            GGL_LOGW(
+                "Failed to retrieve arn. Assuming recipe artifacts are found on-disk."
+            );
         } else if (!component_updated) {
             // TODO: Check artifact hashes to see if artifacts have changed/need
             // to be redownloaded
-            GGL_LOGD("Not retrieving component artifacts as the version has "
-                     "not changed.");
+            GGL_LOGD(
+                "Not retrieving component artifacts as the version has not changed."
+            );
         } else if (!tes_creds_retrieved) {
             if (deployment->type != LOCAL_DEPLOYMENT) {
                 GGL_LOGE(
-                    "TES credentials were not retrieved and deployment is not "
-                    "a local deployment. Unable to do artifact retrieval."
+                    "TES credentials were not retrieved and deployment is not a local deployment. Unable to do artifact retrieval."
                 );
                 return;
             }
             GGL_LOGW(
-                "TES credentials were not retrieved, but deployment "
-                "is local. Skipping artifact retrieval for component %.*s and "
-                "attempting "
-                "to complete deployment.",
+                "TES credentials were not retrieved, but deployment is local. Skipping artifact retrieval for component %.*s and attempting to complete deployment.",
                 (int) ggl_kv_key(*pair).len,
                 ggl_kv_key(*pair).data
             );
@@ -2878,8 +2859,9 @@ static void handle_deployment(
         if (!ggl_buffer_eq(
                 ggl_obj_into_buf(*component_name), ggl_kv_key(*pair)
             )) {
-            GGL_LOGE("Component name from recipe does not match component name "
-                     "from recipe file.");
+            GGL_LOGE(
+                "Component name from recipe does not match component name from recipe file."
+            );
             return;
         }
 
@@ -2890,8 +2872,7 @@ static void handle_deployment(
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "Failed to add component info for %.*s to deployment "
-                    "vector.",
+                    "Failed to add component info for %.*s to deployment vector.",
                     (int) ggl_kv_key(*pair).len,
                     ggl_kv_key(*pair).data
                 );
@@ -2913,8 +2894,7 @@ static void handle_deployment(
 
             if (ret != GGL_ERR_OK) {
                 GGL_LOGD(
-                    "Failed to retrieve health status for %.*s. Redeploying "
-                    "component.",
+                    "Failed to retrieve health status for %.*s. Redeploying component.",
                     (int) ggl_kv_key(*pair).len,
                     ggl_kv_key(*pair).data
                 );
@@ -2924,16 +2904,14 @@ static void handle_deployment(
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
-                        "Failed to add component info for %.*s to deployment "
-                        "vector.",
+                        "Failed to add component info for %.*s to deployment vector.",
                         (int) ggl_kv_key(*pair).len,
                         ggl_kv_key(*pair).data
                     );
                     return;
                 }
                 GGL_LOGD(
-                    "Added %.*s to list of components that need to be "
-                    "processed.",
+                    "Added %.*s to list of components that need to be processed.",
                     (int) ggl_kv_key(*pair).len,
                     ggl_kv_key(*pair).data
                 );
@@ -2961,16 +2939,14 @@ static void handle_deployment(
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
-                        "Failed to add component info for %.*s to deployment "
-                        "vector.",
+                        "Failed to add component info for %.*s to deployment vector.",
                         (int) ggl_kv_key(*pair).len,
                         ggl_kv_key(*pair).data
                     );
                     return;
                 }
                 GGL_LOGD(
-                    "Added %.*s to list of components that need to be "
-                    "processed.",
+                    "Added %.*s to list of components that need to be processed.",
                     (int) ggl_kv_key(*pair).len,
                     ggl_kv_key(*pair).data
                 );
@@ -3044,8 +3020,7 @@ static void handle_deployment(
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGD(
-                        "Component %.*s does not have the relevant install "
-                        "service file",
+                        "Component %.*s does not have the relevant install service file",
                         (int) component_name.len,
                         component_name.data
                     );
@@ -3056,8 +3031,9 @@ static void handle_deployment(
                         &install_comp_name_buf_vec, component_name
                     );
                     if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to add the install component name "
-                                 "into vector");
+                        GGL_LOGE(
+                            "Failed to add the install component name into vector"
+                        );
                         return;
                     }
 
@@ -3101,8 +3077,7 @@ static void handle_deployment(
                             return;
                         }
                         GGL_LOGI(
-                            "systemctl link exited for %.*s with child status "
-                            "%d\n",
+                            "systemctl link exited for %.*s with child status %d\n",
                             (int) install_service_file_path_vec.buf.len,
                             install_service_file_path_vec.buf.data,
                             WEXITSTATUS(system_ret)
@@ -3213,8 +3188,7 @@ static void handle_deployment(
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGD(
-                        "Component %.*s does not have the relevant run "
-                        "service file",
+                        "Component %.*s does not have the relevant run service file",
                         (int) component_name.len,
                         component_name.data
                     );
@@ -3288,8 +3262,7 @@ static void handle_deployment(
                             return;
                         }
                         GGL_LOGI(
-                            "systemctl enable exited with child status "
-                            "%d\n",
+                            "systemctl enable exited with child status %d\n",
                             WEXITSTATUS(system_ret)
                         );
                     } else {
@@ -3370,8 +3343,7 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         GGL_LOGD("No deployments previously in progress detected.");
     } else {
         GGL_LOGI(
-            "Found previously in progress deployment %.*s. Resuming "
-            "deployment.",
+            "Found previously in progress deployment %.*s. Resuming deployment.",
             (int) bootstrap_deployment.deployment_id.len,
             bootstrap_deployment.deployment_id.data
         );
@@ -3392,14 +3364,16 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         );
 
         if (send_deployment_update && bootstrap_deployment_succeeded) {
-            GGL_LOGI("Completed deployment processing and reporting job as "
-                     "SUCCEEDED.");
+            GGL_LOGI(
+                "Completed deployment processing and reporting job as SUCCEEDED."
+            );
             (void) update_current_jobs_deployment(
                 bootstrap_deployment.deployment_id, GGL_STR("SUCCEEDED")
             );
         } else if (send_deployment_update) {
-            GGL_LOGW("Completed deployment processing and reporting job as "
-                     "FAILED.");
+            GGL_LOGW(
+                "Completed deployment processing and reporting job as FAILED."
+            );
             (void) update_current_jobs_deployment(
                 bootstrap_deployment.deployment_id, GGL_STR("FAILED")
             );
@@ -3437,14 +3411,16 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         // TODO: need error details from handle_deployment
         if (deployment_succeeded) {
-            GGL_LOGI("Completed deployment processing and reporting job as "
-                     "SUCCEEDED.");
+            GGL_LOGI(
+                "Completed deployment processing and reporting job as SUCCEEDED."
+            );
             (void) update_current_jobs_deployment(
                 deployment->deployment_id, GGL_STR("SUCCEEDED")
             );
         } else {
-            GGL_LOGW("Completed deployment processing and reporting job as "
-                     "FAILED.");
+            GGL_LOGW(
+                "Completed deployment processing and reporting job as FAILED."
+            );
             (void) update_current_jobs_deployment(
                 deployment->deployment_id, GGL_STR("FAILED")
             );

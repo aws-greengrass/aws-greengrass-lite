@@ -10,6 +10,7 @@ BinPackArguments: false
 BinPackParameters: false
 BreakBeforeBraces: Attach
 BreakAfterAttributes: Always
+BreakStringLiterals: false
 ColumnLimit: 80
 IncludeBlocks: Merge
 IncludeCategories:

@@ -65,8 +65,7 @@ static void test_insert(
 
     if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
-            "insert of key %s expected error %s but there was not a remote "
-            "error",
+            "insert of key %s expected error %s but there was not a remote error",
             print_key_path(test_key),
             ggl_strerror(expected_result)
         );
@@ -74,8 +73,7 @@ static void test_insert(
     }
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "insert of key %s did not expect error but got error %s and remote "
-            "error %s",
+            "insert of key %s did not expect error but got error %s and remote error %s",
             print_key_path(test_key),
             ggl_strerror(error),
             ggl_strerror(remote_error)
@@ -269,8 +267,7 @@ static void test_get(
     }
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "get key %s did not expect error but got error %s and remote "
-            "error %s",
+            "get key %s did not expect error but got error %s and remote error %s",
             print_key_path(test_key_path),
             ggl_strerror(error),
             ggl_strerror(remote_error)
@@ -322,8 +319,7 @@ static void test_list(
     }
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "list key %s did not expect error but got error %s and remote "
-            "error %s",
+            "list key %s did not expect error but got error %s and remote error %s",
             print_key_path(test_key_path),
             ggl_strerror(error),
             ggl_strerror(remote_error)
@@ -370,8 +366,7 @@ static void test_delete(GglList key_path, GglError expected_result) {
     }
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "delete key %s did not expect error but got error %s and remote "
-            "error %s",
+            "delete key %s did not expect error but got error %s and remote error %s",
             print_key_path(key_path),
             ggl_strerror(error),
             ggl_strerror(remote_error)
@@ -433,8 +428,7 @@ static void test_subscribe(GglList key, GglError expected_response) {
     );
     if (expected_response != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
-            "subscribe key %s expected result %d but there was not a remote "
-            "error",
+            "subscribe key %s expected result %d but there was not a remote error",
             print_key_path(key),
             (int) expected_response
         );
@@ -442,8 +436,7 @@ static void test_subscribe(GglList key, GglError expected_response) {
     }
     if (expected_response == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "insert of key %s did not expect error but got error %s and remote "
-            "error %s",
+            "insert of key %s did not expect error but got error %s and remote error %s",
             print_key_path(key),
             ggl_strerror(error),
             ggl_strerror(remote_error)
@@ -491,8 +484,7 @@ timestamp = 1723142212
 static void test_write_object(void) {
     char test_key_path_json[] = "[\"component\",\"foobar\"]";
     char test_value_json[]
-        = "{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\": "
-          "\"string\" },\"corge\" : true, \"grault\" : false}";
+        = "{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\": \"string\" },\"corge\" : true, \"grault\" : false}";
     GglObject test_key_path_object;
     GglObject test_value_object;
     static uint8_t big_buffer[4096];

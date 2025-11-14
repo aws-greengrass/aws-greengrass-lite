@@ -453,8 +453,7 @@ GglError disable_and_unlink_service(
             GGL_LOGD("removing symlink failed");
         }
         GGL_LOGI(
-            "rm /usr/lib/systemd/system/[service] exited with child status "
-            "%d\n",
+            "rm /usr/lib/systemd/system/[service] exited with child status %d\n",
             WEXITSTATUS(system_ret)
         );
     } else {

@@ -208,8 +208,9 @@ static GglError parse_deployment_obj(
         if (cloud_components != NULL) {
             doc->components = ggl_obj_into_map(*cloud_components);
         } else {
-            GGL_LOGW("Deployment is of type thing group deployment but does "
-                     "not have component information.");
+            GGL_LOGW(
+                "Deployment is of type thing group deployment but does not have component information."
+            );
         }
 
         if (configuration_arn_obj != NULL) {
@@ -245,9 +246,9 @@ static GglError parse_deployment_obj(
             &local_deployment_root_components_read_value
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGI("No info found in config for root components for local "
-                     "deployments, assuming no components have been deployed "
-                     "locally yet.");
+            GGL_LOGI(
+                "No info found in config for root components for local deployments, assuming no components have been deployed locally yet."
+            );
             // If no components existed in past deployments, then there is
             // nothing to remove and the list of components for local deployment
             // is just components to add.
@@ -256,16 +257,18 @@ static GglError parse_deployment_obj(
                 ggl_obj_into_map(*root_component_versions_to_add)
             ) {
                 if (ggl_obj_type(*ggl_kv_val(component_pair)) != GGL_TYPE_BUF) {
-                    GGL_LOGE("Local deployment component version read "
-                             "incorrectly from the deployment doc.");
+                    GGL_LOGE(
+                        "Local deployment component version read incorrectly from the deployment doc."
+                    );
                     return GGL_ERR_INVALID;
                 }
 
                 // TODO: Add configurationUpdate and runWith
                 GglKV *new_component_info_mem = GGL_ARENA_ALLOC(alloc, GglKV);
                 if (new_component_info_mem == NULL) {
-                    GGL_LOGE("No memory when allocating memory while enqueuing "
-                             "local deployment.");
+                    GGL_LOGE(
+                        "No memory when allocating memory while enqueuing local deployment."
+                    );
                     return GGL_ERR_NOMEM;
                 }
                 *new_component_info_mem
@@ -289,8 +292,9 @@ static GglError parse_deployment_obj(
         } else {
             if (ggl_obj_type(local_deployment_root_components_read_value)
                 != GGL_TYPE_MAP) {
-                GGL_LOGE("Local deployment component list read incorrectly "
-                         "from the config.");
+                GGL_LOGE(
+                    "Local deployment component list read incorrectly from the config."
+                );
                 return GGL_ERR_INVALID;
             }
             // Pre-populate with all local components that already have been
@@ -301,22 +305,23 @@ static GglError parse_deployment_obj(
             ) {
                 if (ggl_obj_type(*ggl_kv_val(old_component_pair))
                     != GGL_TYPE_BUF) {
-                    GGL_LOGE("Local deployment component version read "
-                             "incorrectly from the config.");
+                    GGL_LOGE(
+                        "Local deployment component version read incorrectly from the config."
+                    );
                     return GGL_ERR_INVALID;
                 }
 
                 GGL_LOGD(
-                    "Found existing local component %.*s as part of local "
-                    "deployments group.",
+                    "Found existing local component %.*s as part of local deployments group.",
                     (int) ggl_kv_key(*old_component_pair).len,
                     ggl_kv_key(*old_component_pair).data
                 );
 
                 GglKV *old_component_info_mem = GGL_ARENA_ALLOC(alloc, GglKV);
                 if (old_component_info_mem == NULL) {
-                    GGL_LOGE("No memory when allocating memory while enqueuing "
-                             "local deployment.");
+                    GGL_LOGE(
+                        "No memory when allocating memory while enqueuing local deployment."
+                    );
                     return GGL_ERR_NOMEM;
                 }
                 *old_component_info_mem = ggl_kv(
@@ -344,8 +349,9 @@ static GglError parse_deployment_obj(
                 ggl_obj_into_map(*root_component_versions_to_add)
             ) {
                 if (ggl_obj_type(*ggl_kv_val(component_pair)) != GGL_TYPE_BUF) {
-                    GGL_LOGE("Local deployment component version read "
-                             "incorrectly from the deployment doc.");
+                    GGL_LOGE(
+                        "Local deployment component version read incorrectly from the deployment doc."
+                    );
                     return GGL_ERR_INVALID;
                 }
 
@@ -357,15 +363,15 @@ static GglError parse_deployment_obj(
                         &existing_component_data
                     )) {
                     GGL_LOGD(
-                        "Locally deployed component not previously deployed, "
-                        "adding it to the list of local components."
+                        "Locally deployed component not previously deployed, adding it to the list of local components."
                     );
                     // TODO: Add configurationUpdate and runWith
                     GglKV *new_component_info_mem
                         = GGL_ARENA_ALLOC(alloc, GglKV);
                     if (new_component_info_mem == NULL) {
-                        GGL_LOGE("No memory when allocating memory while "
-                                 "enqueuing local deployment.");
+                        GGL_LOGE(
+                            "No memory when allocating memory while enqueuing local deployment."
+                        );
                         return GGL_ERR_NOMEM;
                     }
                     *new_component_info_mem = ggl_kv(
@@ -388,8 +394,9 @@ static GglError parse_deployment_obj(
                     GglKV *new_component_info_mem
                         = GGL_ARENA_ALLOC(alloc, GglKV);
                     if (new_component_info_mem == NULL) {
-                        GGL_LOGE("No memory when allocating memory while "
-                                 "enqueuing local deployment.");
+                        GGL_LOGE(
+                            "No memory when allocating memory while enqueuing local deployment."
+                        );
                         return GGL_ERR_NOMEM;
                     }
                     *new_component_info_mem = ggl_kv(
