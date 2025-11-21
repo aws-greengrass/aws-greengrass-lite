@@ -20,6 +20,9 @@ To configure and run Greengrass Nucleus Lite, see the
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).
 
+For AI agent driven getting started please follow the instruction from the
+[greengrass-agent-context-pack github repo](https://github.com/aws-greengrass/greengrass-agent-context-pack).
+
 For easy device onboarding and example implementation, you may want to check out
 [Avnet's workshop](https://event.on24.com/wcc/r/5114804/16BB67D34A48F65741B4C0A5EA675F1A).
 
