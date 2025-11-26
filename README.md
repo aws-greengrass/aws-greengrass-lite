@@ -42,6 +42,11 @@ The `main` branch contains ongoing development work and:
 - Could include breaking changes.
 - Is not recommended for production use.
 
+### ⚠️ RISC-V Support Warning
+
+RISC-V architecture support is experimental and not fully tested. Use with
+caution in production environments.
+
 ## Supported Greengrass V2 IPC commands (Features)
 
 IPC support is provided by ggipcd. The support translates the IPC command to
