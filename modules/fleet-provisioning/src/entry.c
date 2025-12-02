@@ -189,7 +189,11 @@ GgError run_fleet_prov(FleetProvArgs *args) {
 
     int priv_key;
     ret = gg_file_openat(
-        output_dir, GG_STR("priv_key"), O_RDWR | O_CREAT, 0600, &priv_key
+        output_dir,
+        GG_STR("priv_key"),
+        O_RDWR | O_CREAT | O_TRUNC,
+        0600,
+        &priv_key
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Error opening private key file for writing.");
@@ -199,7 +203,11 @@ GgError run_fleet_prov(FleetProvArgs *args) {
 
     int pub_key;
     ret = gg_file_openat(
-        output_dir, GG_STR("pub_key.pub"), O_RDWR | O_CREAT, 0600, &pub_key
+        output_dir,
+        GG_STR("pub_key.pub"),
+        O_RDWR | O_CREAT | O_TRUNC,
+        0600,
+        &pub_key
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Error opening public key file for writing.");
@@ -209,7 +217,11 @@ GgError run_fleet_prov(FleetProvArgs *args) {
 
     int cert_req;
     ret = gg_file_openat(
-        output_dir, GG_STR("cert_req.pem"), O_RDWR | O_CREAT, 0600, &cert_req
+        output_dir,
+        GG_STR("cert_req.pem"),
+        O_RDWR | O_CREAT | O_TRUNC,
+        0600,
+        &cert_req
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Error opening CSR file for writing.");
@@ -242,7 +254,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     ret = gg_file_openat(
         output_dir,
         GG_STR("certificate.pem"),
-        O_RDWR | O_CREAT,
+        O_RDWR | O_CREAT | O_TRUNC,
         0600,
         &certificate_fd
     );
