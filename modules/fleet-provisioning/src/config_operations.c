@@ -151,7 +151,7 @@ static GgError load_optional_config(
     }
     GgError ret = read_config_str(key, mem, mem_size, output);
     if (ret == GG_ERR_NOENTRY) {
-        GG_LOGW("%s not provided, using default path %s", key, default_path);
+        GG_LOGI("%s not provided, using default path: %s", key, default_path);
         return GG_ERR_OK;
     }
     if (ret != GG_ERR_OK) {
