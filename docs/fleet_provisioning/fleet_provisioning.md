@@ -132,6 +132,10 @@ services:
       templateName: "GreengrassFleetProvisioningTemplate" #[Modify here]
       templateParams:
         SerialNumber: "a2_b9_d2_5a_fd_f9" #[Modify here]
+      # Optional: Custom paths for generated certificates (defaults to /var/lib/greengrass/credentials/)
+      # csrPath: "/custom/path/cert_req.pem" #[Optional]
+      # certPath: "/custom/path/certificate.pem" #[Optional]
+      # keyPath: "/custom/path/priv_key" #[Optional]
 ```
 
 Things to note about the above config:
@@ -139,12 +143,27 @@ Things to note about the above config:
 1. You can copy and paste from the generated sample file `part.config.yaml`. The
    starting point is `aws.greengrass.fleet_provisioning` through `templateName`.
    Note that `templateParams` is still required.
-2. If you wish to move the certificate to a different location, then you need to
-   update the path accordingly.
+2. **Optional certificate paths**: You can specify custom paths for the
+   generated certificates using `csrPath`, `certPath`, and `keyPath`. If not
+   specified, files will be created in `/var/lib/greengrass/credentials/` by
+   default.
+   - `csrPath`: Path where the Certificate Signing Request (CSR) will be
+     generated
+   - `certPath`: Path where the device certificate will be stored
+   - `keyPath`: Path where the private key will be stored
+   - These paths can be used to customize both the location and filename of the
+     generated certificates (e.g., `/custom/dir/my-device-cert.pem`)
+   - Note: The CSR file is automatically removed after successful provisioning
+   - If custom paths are provided, only those specific files will be created at
+     the custom locations; other files will still use the default directory
+3. The system configuration paths (`privateKeyPath`, `certificateFilePath`,
+   etc.) will be automatically updated after successful provisioning to point to
+   the generated certificate locations.
 
-Once completed, the config needs to be moved and all services need to be started
-(if not started already). Run the following command, assuming your current
-working directory is the root of the greengrass repository:
+Once you have finished editing the `config.yaml` file with your fleet
+provisioning settings, deploy it to the system and start the Greengrass
+services. Run the following commands, assuming your current working directory is
+the root of the greengrass repository:
 
 ```sh
 mkdir -p /etc/greengrass
@@ -166,9 +185,6 @@ $ sudo /usr/local/bin/fleet-provisioning
 If you cannot find `fleet-provisioning` under `/usr/local/bin`, then reconfigure
 CMake with the flag `-D CMAKE_INSTALL_PREFIX=/usr/local`, rebuild, and
 reinstall.
-
-Here you can also add `--out_cert_path path/to/dir/` to provide an alternate
-directory. The default is `/var/lib/greengrass/credentials/`.
 
 This will trigger the fleet provisioning script, which will take a few minutes
 to complete.
