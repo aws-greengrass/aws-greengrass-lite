@@ -15,7 +15,6 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/utils.h>
-#include <gg/vector.h>
 #include <ggl/exec.h>
 #include <limits.h>
 #include <sys/types.h>
@@ -32,61 +31,49 @@
 
 #define USER_GROUP (GGL_SYSTEMD_SYSTEM_USER ":" GGL_SYSTEMD_SYSTEM_GROUP)
 
+static GgError change_custom_file_ownership(FleetProvArgs *args) {
+    GgError ret;
+    if (args->cert_path != NULL) {
+        const char *cert_chown_args[]
+            = { "chown", USER_GROUP, args->cert_path, NULL };
+        ret = ggl_exec_command(cert_chown_args);
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to change ownership of custom certificate");
+            return ret;
+        }
+    }
+    if (args->key_path != NULL) {
+        const char *key_chown_args[]
+            = { "chown", USER_GROUP, args->key_path, NULL };
+        ret = ggl_exec_command(key_chown_args);
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to change ownership of custom private key");
+            return ret;
+        }
+    }
+    if (args->csr_path != NULL) {
+        if (unlink(args->csr_path) != 0) {
+            GG_LOGW("Failed to remove CSR file");
+        }
+    }
+    return GG_ERR_OK;
+}
+
 static GgError cleanup_actions(
-    GgBuffer output_dir_path,
-    GgBuffer tmp_cert_path,
-    GgBuffer thing_name,
-    FleetProvArgs *args
+    GgBuffer output_dir_path, GgBuffer thing_name, FleetProvArgs *args
 ) {
-    // Create destination directory
-    const char *mkdir_dest_args[]
-        = { "mkdir", "-p", (char *) output_dir_path.data, NULL };
-    GgError ret = ggl_exec_command(mkdir_dest_args);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create destination directory");
-        return ret;
-    }
-    GG_LOGI("Successfully created destination directory");
-
-    // Copy certificates from output_dir contents to destination_dir (overwrite
-    // existing)
-    static uint8_t cmd_mem[PATH_MAX * 2];
-    GgByteVec cmd = GG_BYTE_VEC(cmd_mem);
-    ret = gg_byte_vec_append(&cmd, GG_STR("cp -rf "));
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    ret = gg_byte_vec_append(&cmd, tmp_cert_path);
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    ret = gg_byte_vec_append(&cmd, GG_STR("* "));
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    ret = gg_byte_vec_append(&cmd, output_dir_path);
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    ret = gg_byte_vec_push(&cmd, '\0');
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-
-    const char *sh_args[] = { "sh", "-c", (char *) cmd.buf.data, NULL };
-    ret = ggl_exec_command(sh_args);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to copy certificates to destination directory");
-        return ret;
-    }
-    GG_LOGI("Successfully copied certificates to destination directory");
-
-    ret = ggl_update_system_cert_paths(output_dir_path, args, thing_name);
+    GgError ret
+        = ggl_update_system_cert_paths(output_dir_path, args, thing_name);
     if (ret != GG_ERR_OK) {
         return ret;
     }
 
     ret = ggl_update_iot_endpoints(args);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = change_custom_file_ownership(args);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -128,6 +115,32 @@ static void cleanup_kill_process(const pid_t *pid) {
     (void) ggl_exec_kill_process(*pid);
 }
 
+static GgError open_file_or_default(
+    char *custom_path,
+    int output_dir,
+    GgBuffer default_name,
+    const char *error_msg,
+    int *fd
+) {
+    GgError ret;
+    if (custom_path != NULL) {
+        ret = gg_file_open(
+            gg_buffer_from_null_term(custom_path),
+            O_RDWR | O_CREAT | O_TRUNC,
+            0600,
+            fd
+        );
+    } else {
+        ret = gg_file_openat(
+            output_dir, default_name, O_RDWR | O_CREAT | O_TRUNC, 0600, fd
+        );
+    }
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("%s", error_msg);
+    }
+    return ret;
+}
+
 GgError run_fleet_prov(FleetProvArgs *args) {
     uint8_t config_resp_mem[PATH_MAX] = { 0 };
     GgArena alloc = gg_arena_init(GG_BUF(config_resp_mem));
@@ -156,8 +169,6 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         return GG_ERR_OK;
     }
 
-    GgBuffer tmp_cert_path = GG_STR("/tmp/provisioning/");
-
     ret = ggl_get_configuration(args);
     if (ret != GG_ERR_OK) {
         return ret;
@@ -168,13 +179,18 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         return ret;
     }
 
+    GgBuffer output_dir_path = GG_STR("/var/lib/greengrass/credentials/");
+    if (args->output_dir != NULL) {
+        output_dir_path = gg_buffer_from_null_term(args->output_dir);
+    }
+
     int output_dir;
-    ret = gg_dir_open(tmp_cert_path, O_PATH, true, &output_dir);
+    ret = gg_dir_open(output_dir_path, O_PATH, true, &output_dir);
     if (ret != GG_ERR_OK) {
         GG_LOGE(
             "Error opening output directory %.*s.",
-            (int) tmp_cert_path.len,
-            tmp_cert_path.data
+            (int) output_dir_path.len,
+            output_dir_path.data
         );
         return ret;
     }
@@ -187,57 +203,38 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     }
     GG_CLEANUP(cleanup_kill_process, iotcored_pid);
 
-    int priv_key;
-    ret = gg_file_openat(
+    int priv_key = -1;
+    ret = open_file_or_default(
+        args->key_path,
         output_dir,
         GG_STR("priv_key"),
-        O_RDWR | O_CREAT | O_TRUNC,
-        0600,
+        "Error opening private key file.",
         &priv_key
     );
     if (ret != GG_ERR_OK) {
-        GG_LOGE("Error opening private key file for writing.");
         return ret;
     }
     GG_CLEANUP(cleanup_close, priv_key);
 
-    int pub_key;
-    ret = gg_file_openat(
-        output_dir,
-        GG_STR("pub_key.pub"),
-        O_RDWR | O_CREAT | O_TRUNC,
-        0600,
-        &pub_key
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Error opening public key file for writing.");
-        return ret;
-    }
-    GG_CLEANUP(cleanup_close, pub_key);
-
-    int cert_req;
-    ret = gg_file_openat(
+    int cert_req = -1;
+    ret = open_file_or_default(
+        args->csr_path,
         output_dir,
         GG_STR("cert_req.pem"),
-        O_RDWR | O_CREAT | O_TRUNC,
-        0600,
+        "Error opening CSR file.",
         &cert_req
     );
     if (ret != GG_ERR_OK) {
-        GG_LOGE("Error opening CSR file for writing.");
         return ret;
     }
     GG_CLEANUP(cleanup_close, cert_req);
 
-    ret = ggl_pki_generate_keypair(
-        priv_key, pub_key, cert_req, args->csr_common_name
-    );
+    ret = ggl_pki_generate_keypair(priv_key, cert_req, args->csr_common_name);
     if (ret != GG_ERR_OK) {
         return ret;
     }
 
     (void) lseek(priv_key, 0, SEEK_SET);
-    (void) lseek(pub_key, 0, SEEK_SET);
     (void) lseek(cert_req, 0, SEEK_SET);
 
     // Read CSR from file descriptor
@@ -251,15 +248,14 @@ GgError run_fleet_prov(FleetProvArgs *args) {
 
     // Create certificate output file
     int certificate_fd;
-    ret = gg_file_openat(
+    ret = open_file_or_default(
+        args->cert_path,
         output_dir,
         GG_STR("certificate.pem"),
-        O_RDWR | O_CREAT | O_TRUNC,
-        0600,
+        "Error opening certificate file.",
         &certificate_fd
     );
     if (ret != GG_ERR_OK) {
-        GG_LOGE("Error opening certificate file for writing.");
         return ret;
     }
     GG_CLEANUP(cleanup_close, certificate_fd);
@@ -281,12 +277,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         return ret;
     }
 
-    GgBuffer output_dir_path = GG_STR("/var/lib/greengrass/credentials/");
-    if (args->output_dir != NULL) {
-        output_dir_path = gg_buffer_from_null_term(args->output_dir);
-    }
-
-    ret = cleanup_actions(output_dir_path, tmp_cert_path, thing_name, args);
+    ret = cleanup_actions(output_dir_path, thing_name, args);
     if (ret != GG_ERR_OK) {
         return ret;
     }

@@ -17,6 +17,9 @@ typedef struct {
     char *iotcored_path;
     char *csr_common_name;
     char *output_dir;
+    char *csr_path;
+    char *cert_path;
+    char *key_path;
 } FleetProvArgs;
 
 GgError run_fleet_prov(FleetProvArgs *args);

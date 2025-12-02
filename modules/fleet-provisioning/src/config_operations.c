@@ -123,6 +123,46 @@ static GgError load_csr_common_name(FleetProvArgs *args) {
     return ret;
 }
 
+static GgError load_required_config(
+    const char *key, uint8_t *mem, size_t mem_size, char **output
+) {
+    if (*output != NULL) {
+        return GG_ERR_OK;
+    }
+    GgError ret = read_config_str(key, mem, mem_size, output);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Failed to read services/aws.greengrass.fleet_provisioning/configuration/%s",
+            key
+        );
+    }
+    return ret;
+}
+
+static GgError load_optional_config(
+    const char *key,
+    uint8_t *mem,
+    size_t mem_size,
+    char **output,
+    const char *default_path
+) {
+    if (*output != NULL) {
+        return GG_ERR_OK;
+    }
+    GgError ret = read_config_str(key, mem, mem_size, output);
+    if (ret == GG_ERR_NOENTRY) {
+        GG_LOGW("%s not provided, using default path %s", key, default_path);
+        return GG_ERR_OK;
+    }
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Failed to read services/aws.greengrass.fleet_provisioning/configuration/%s",
+            key
+        );
+    }
+    return ret;
+}
+
 GgError ggl_update_iot_endpoints(FleetProvArgs *args) {
     GgError ret = ggl_gg_config_write(
         GG_BUF_LIST(
@@ -221,85 +261,95 @@ GgError ggl_get_configuration(FleetProvArgs *args) {
     static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
     static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
     static uint8_t endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
+    static uint8_t csr_path_mem[PATH_MAX] = { 0 };
+    static uint8_t cert_path_mem[PATH_MAX] = { 0 };
+    static uint8_t key_path_mem[PATH_MAX] = { 0 };
 
     GgError ret;
 
-    if (args->claim_cert == NULL) {
-        ret = read_config_str(
-            "claimCertPath",
-            claim_cert_mem,
-            sizeof(claim_cert_mem),
-            &args->claim_cert
-        );
-        if (ret != GG_ERR_OK) {
-            GG_LOGE(
-                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/claimCertPath"
-            );
-            return ret;
-        }
+    ret = load_required_config(
+        "claimCertPath",
+        claim_cert_mem,
+        sizeof(claim_cert_mem),
+        &args->claim_cert
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    if (args->claim_key == NULL) {
-        ret = read_config_str(
-            "claimKeyPath",
-            claim_key_mem,
-            sizeof(claim_key_mem),
-            &args->claim_key
-        );
-        if (ret != GG_ERR_OK) {
-            GG_LOGE(
-                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/claimKeyPath"
-            );
-            return ret;
-        }
+    ret = load_required_config(
+        "claimKeyPath", claim_key_mem, sizeof(claim_key_mem), &args->claim_key
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    if (args->root_ca_path == NULL) {
-        ret = read_config_str(
-            "rootCaPath",
-            root_ca_path_mem,
-            sizeof(root_ca_path_mem),
-            &args->root_ca_path
-        );
-        if (ret != GG_ERR_OK) {
-            GG_LOGE(
-                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/rootCaPath"
-            );
-            return ret;
-        }
+    ret = load_required_config(
+        "rootCaPath",
+        root_ca_path_mem,
+        sizeof(root_ca_path_mem),
+        &args->root_ca_path
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    if (args->template_name == NULL) {
-        ret = read_config_str(
-            "templateName",
-            template_name_mem,
-            sizeof(template_name_mem),
-            &args->template_name
-        );
-        if (ret != GG_ERR_OK) {
-            GG_LOGE(
-                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/templateName"
-            );
-            return ret;
-        }
+    ret = load_required_config(
+        "templateName",
+        template_name_mem,
+        sizeof(template_name_mem),
+        &args->template_name
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    if (args->endpoint == NULL) {
-        ret = read_config_str(
-            "iotDataEndpoint",
-            endpoint_mem,
-            sizeof(endpoint_mem),
-            &args->endpoint
-        );
-        if (ret != GG_ERR_OK) {
-            GG_LOGW(
-                "Failed to read services/aws.greengrass.fleet_provisioning/configuration/iotDataEndpoint"
-            );
-            return ret;
-        }
+    ret = load_required_config(
+        "iotDataEndpoint", endpoint_mem, sizeof(endpoint_mem), &args->endpoint
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    return load_csr_common_name(args);
+    ret = load_csr_common_name(args);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = load_optional_config(
+        "csrPath",
+        csr_path_mem,
+        sizeof(csr_path_mem),
+        &args->csr_path,
+        "/tmp/provisioning/cert_req.pem"
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = load_optional_config(
+        "certPath",
+        cert_path_mem,
+        sizeof(cert_path_mem),
+        &args->cert_path,
+        "/tmp/provisioning/certificate.pem"
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = load_optional_config(
+        "keyPath",
+        key_path_mem,
+        sizeof(key_path_mem),
+        &args->key_path,
+        "/tmp/provisioning/priv_key"
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    return GG_ERR_OK;
 }
 
 GgError ggl_update_system_cert_paths(
@@ -335,17 +385,23 @@ GgError ggl_update_system_cert_paths(
     }
 
     // Private key path
-    path_vec.buf.len = 0;
-    ret = gg_byte_vec_append(&path_vec, output_dir_path);
-    gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/priv_key"));
-    gg_byte_vec_chain_push(&ret, &path_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        return ret;
+    const char *key_path_str;
+    if (args->key_path == NULL) {
+        path_vec.buf.len = 0;
+        ret = gg_byte_vec_append(&path_vec, output_dir_path);
+        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/priv_key"));
+        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        key_path_str = (char *) path_vec.buf.data;
+    } else {
+        key_path_str = args->key_path;
     }
 
     ret = ggl_gg_config_write(
         GG_BUF_LIST(GG_STR("system"), GG_STR("privateKeyPath")),
-        gg_obj_buf(gg_buffer_from_null_term((char *) path_vec.buf.data)),
+        gg_obj_buf(gg_buffer_from_null_term((char *) key_path_str)),
         &(int64_t) { 3 }
     );
     if (ret != GG_ERR_OK) {
@@ -363,17 +419,23 @@ GgError ggl_update_system_cert_paths(
     }
 
     // Certificate path
-    path_vec.buf.len = 0;
-    ret = gg_byte_vec_append(&path_vec, output_dir_path);
-    gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
-    gg_byte_vec_chain_push(&ret, &path_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        return ret;
+    const char *cert_path_str;
+    if (args->cert_path == NULL) {
+        path_vec.buf.len = 0;
+        ret = gg_byte_vec_append(&path_vec, output_dir_path);
+        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
+        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        cert_path_str = (char *) path_vec.buf.data;
+    } else {
+        cert_path_str = args->cert_path;
     }
 
     ret = ggl_gg_config_write(
         GG_BUF_LIST(GG_STR("system"), GG_STR("certificateFilePath")),
-        gg_obj_buf(gg_buffer_from_null_term((char *) path_vec.buf.data)),
+        gg_obj_buf(gg_buffer_from_null_term((char *) cert_path_str)),
         &(int64_t) { 3 }
     );
     if (ret != GG_ERR_OK) {

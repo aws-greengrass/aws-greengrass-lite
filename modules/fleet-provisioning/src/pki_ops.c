@@ -28,19 +28,19 @@ static void cleanup_x509_name(X509_NAME **name) {
 }
 
 GgError ggl_pki_generate_keypair(
-    int private_key_fd, int public_key_fd, int csr_fd, const char *common_name
+    int private_key_fd, int csr_fd, const char *common_name
 ) {
-    EVP_PKEY *pkey = EVP_PKEY_Q_keygen(NULL, NULL, "EC", "P-256");
-    if (!pkey) {
+    EVP_PKEY *priv_key = EVP_PKEY_Q_keygen(NULL, NULL, "EC", "P-256");
+    if (!priv_key) {
         GG_LOGE("Failed to generate new private key.");
         return GG_ERR_FAILURE;
     }
-    GG_CLEANUP(cleanup_evp_pkey, pkey);
+    GG_CLEANUP(cleanup_evp_pkey, priv_key);
 
     BIO *out = BIO_new_fd(private_key_fd, BIO_NOCLOSE);
 
     int ssl_ret
-        = PEM_write_bio_PrivateKey(out, pkey, NULL, NULL, 0, NULL, NULL);
+        = PEM_write_bio_PrivateKey(out, priv_key, NULL, NULL, 0, NULL, NULL);
     BIO_free(out);
     if (ssl_ret == 0) {
         GG_LOGE("Failed to write new private key.");
@@ -50,20 +50,6 @@ GgError ggl_pki_generate_keypair(
     GgError ret = gg_fsync(private_key_fd);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to fsync private key.");
-        return GG_ERR_FAILURE;
-    }
-
-    out = BIO_new_fd(public_key_fd, BIO_NOCLOSE);
-    ssl_ret = PEM_write_bio_PUBKEY(out, pkey);
-    BIO_free(out);
-    if (ssl_ret == 0) {
-        GG_LOGE("Failed to write new public key.");
-        return GG_ERR_FAILURE;
-    }
-
-    ret = gg_fsync(public_key_fd);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to fsync public key.");
         return GG_ERR_FAILURE;
     }
 
@@ -97,13 +83,13 @@ GgError ggl_pki_generate_keypair(
         return GG_ERR_FAILURE;
     }
 
-    ssl_ret = X509_REQ_set_pubkey(csr, pkey);
+    ssl_ret = X509_REQ_set_pubkey(csr, priv_key);
     if (ssl_ret == 0) {
         GG_LOGE("Failed to set x509 request public key.");
         return GG_ERR_FAILURE;
     }
 
-    ssl_ret = X509_REQ_sign(csr, pkey, EVP_sha256());
+    ssl_ret = X509_REQ_sign(csr, priv_key, EVP_sha256());
     if (ssl_ret == 0) {
         GG_LOGE("Failed to sign x509 request.");
         return GG_ERR_FAILURE;
