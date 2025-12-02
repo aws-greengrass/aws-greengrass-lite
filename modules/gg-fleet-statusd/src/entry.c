@@ -155,14 +155,10 @@ static uint64_t get_periodic_status_interval(void) {
         &alloc,
         &interval_obj
     );
-
-    GG_LOGD(
-        "Config read result: %d, interval_obj type: %d",
-        ret,
-        gg_obj_type(interval_obj)
-    );
+    GG_LOGD("Config read result: %d", ret);
 
     if (ret == GG_ERR_OK) {
+        GG_LOGD("interval_obj type: %d", gg_obj_type(interval_obj));
         uint64_t interval_seconds = 0;
 
         if (gg_obj_type(interval_obj) == GG_TYPE_I64) {
