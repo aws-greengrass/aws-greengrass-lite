@@ -33,6 +33,7 @@ EOK
 epoll
 EPOLLIN
 esac
+esys
 evbuffer
 eventfd
 evhttp
@@ -40,6 +41,7 @@ evkeyvalq
 execvp
 execvpe
 FDNAMES
+FIXEDTPM
 FOWNER
 Fssd
 fstrict
@@ -135,7 +137,11 @@ tcti
 tesd
 tlog
 tmpfiles
+TPMA
+TPMI
+TPML
 tpmrm
+TPMS
 uefi
 unacked
 unarchived

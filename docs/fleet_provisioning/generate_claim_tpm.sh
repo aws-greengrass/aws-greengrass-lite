@@ -93,7 +93,7 @@ echo "Loading the key..."
 tpm2_load -C "${TEMP_DIR}/primary.ctx" -r "${TEMP_DIR}/device.priv" -u "${TEMP_DIR}/device.pub" -c "${TEMP_DIR}/device.ctx"
 
 echo "Making the key persistent..."
-tpm2_evictcontrol -C o -c "${TEMP_DIR}/device.ctx" ${TPM_KEY_HANDLE}
+tpm2_evictcontrol -C o -c "${TEMP_DIR}/device.ctx" "${TPM_KEY_HANDLE}"
 
 echo "Generating CSR with TPM claim key..."
 openssl req -new -provider tpm2 -key "handle:${TPM_KEY_HANDLE}" \

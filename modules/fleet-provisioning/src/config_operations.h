@@ -10,7 +10,7 @@
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/object.h>
-#include <tss2/tss2_esys.h>
+#include <tss2_tpm2_types.h>
 #include <stdbool.h>
 
 GgError ggl_update_iot_endpoints(FleetProvArgs *args);

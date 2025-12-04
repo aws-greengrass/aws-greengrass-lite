@@ -21,6 +21,7 @@
 #include <ggl/exec.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <tss2_tpm2_types.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
 #include <stdbool.h>
@@ -181,6 +182,105 @@ static GgError open_file_or_default(
     return ret;
 }
 
+static GgError handle_tpm_flow(
+    GgBuffer output_dir_path, int *csr_fd_out, TPMI_DH_PERSISTENT *handle_out
+) {
+    GgError ret;
+
+    // Generate TPM persistent key
+    ret = ggl_tpm_generate_keys(handle_out);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("TPM: Failed to generate TPM keys");
+        return ret;
+    }
+
+    // Construct CSR file path
+    static uint8_t csr_path_mem[256];
+    GgByteVec csr_path = GG_BYTE_VEC(csr_path_mem);
+
+    ret = gg_byte_vec_append(&csr_path, output_dir_path);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = gg_byte_vec_append(&csr_path, GG_STR("cert_req.pem"));
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = gg_byte_vec_push(&csr_path, '\0');
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    // Generate CSR using TPM provider
+    ret = ggl_tpm_generate_csr(csr_path.buf, *handle_out);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("TPM: Failed to generate CSR");
+        return ret;
+    }
+
+    // Open CSR file for reading
+    ret = open_file_or_default(
+        (char *) csr_path.buf.data,
+        -1,
+        (GgBuffer) { 0 },
+        "Error opening CSR file.",
+        csr_fd_out
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("TPM: Failed to open CSR file for reading");
+    }
+
+    return GG_ERR_OK;
+}
+
+static GgError handle_pki_flow(
+    FleetProvArgs *args, int output_dir, int *csr_fd_out
+) {
+    GgError ret;
+    int priv_key = -1;
+
+    // Open or create private key file
+    ret = open_file_or_default(
+        args->key_path,
+        output_dir,
+        GG_STR("priv_key"),
+        "Error opening private key file.",
+        &priv_key
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+    GG_CLEANUP(cleanup_close, priv_key);
+
+    // Open or create CSR file
+    ret = open_file_or_default(
+        args->csr_path,
+        output_dir,
+        GG_STR("cert_req.pem"),
+        "Error opening CSR file.",
+        csr_fd_out
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    // Generate keypair + CSR using PKI
+    ret = ggl_pki_generate_keypair(
+        priv_key, *csr_fd_out, args->csr_common_name
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("PKI: Failed to generate keypair + CSR");
+        return ret;
+    }
+
+    // Reset position for future reads
+    (void) lseek(priv_key, 0, SEEK_SET);
+
+    return GG_ERR_OK;
+}
+
 GgError run_fleet_prov(FleetProvArgs *args) {
     uint8_t config_resp_mem[PATH_MAX] = { 0 };
     GgArena alloc = gg_arena_init(GG_BUF(config_resp_mem));
@@ -189,8 +289,11 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     GgArena template_alloc = gg_arena_init(GG_BUF(template_params_mem));
     GgMap template_params = { 0 };
 
+    GgError ret;
+
+    // Config checks
     bool enabled = false;
-    GgError ret = ggl_has_provisioning_config(alloc, &enabled);
+    ret = ggl_has_provisioning_config(alloc, &enabled);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -219,10 +322,10 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         return ret;
     }
 
-    GgBuffer output_dir_path = GG_STR("/var/lib/greengrass/credentials/");
-    if (args->output_dir != NULL) {
-        output_dir_path = gg_buffer_from_null_term(args->output_dir);
-    }
+    // Output dir
+    GgBuffer output_dir_path = args->output_dir
+        ? gg_buffer_from_null_term(args->output_dir)
+        : GG_STR("/var/lib/greengrass/credentials/");
 
     int output_dir;
     ret = gg_dir_open(output_dir_path, O_PATH, true, &output_dir);
@@ -236,118 +339,51 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     }
     GG_CLEANUP(cleanup_close, output_dir);
 
-    pid_t iotcored_pid = -1;
-    ret = start_iotcored(args, &iotcored_pid);
+    // Start IoTCored
+    pid_t pid = -1;
+    ret = start_iotcored(args, &pid);
     if (ret != GG_ERR_OK) {
         return ret;
     }
-    GG_CLEANUP(cleanup_kill_process, iotcored_pid);
+    GG_CLEANUP(cleanup_kill_process, pid);
 
+    // TPM or regular pki
     int cert_req = -1;
-    TPMI_DH_PERSISTENT new_handle;
+    TPMI_DH_PERSISTENT new_handle = 0;
 
     if (args->use_tpm) {
-        // Generate TPM keys
-        ret = ggl_tpm_generate_keys(&new_handle);
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-
-        // Create CSR file path
-        static uint8_t csr_path_mem[256];
-        GgByteVec csr_path = GG_BYTE_VEC(csr_path_mem);
-        ret = gg_byte_vec_append(&csr_path, output_dir_path);
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-        ret = gg_byte_vec_append(&csr_path, GG_STR("cert_req.pem"));
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-        ret = gg_byte_vec_push(&csr_path, '\0');
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-
-        // Generate CSR using TPM
-        ret = ggl_tpm_generate_csr(csr_path.buf, new_handle);
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-
-        // Open file descriptor to read the CSR
-        ret = open_file_or_default(
-            (char *) csr_path.buf.data,
-            -1,
-            (GgBuffer) { 0 },
-            "Error opening CSR file.",
-            &cert_req
-        );
-
-        if (ret != GG_ERR_OK) {
-            GG_LOGE("Error opening CSR file for reading.");
-            return ret;
-        }
-
+        ret = handle_tpm_flow(output_dir_path, &cert_req, &new_handle);
     } else {
-        int priv_key = -1;
-        ret = open_file_or_default(
-            args->key_path,
-            output_dir,
-            GG_STR("priv_key"),
-            "Error opening private key file.",
-            &priv_key
-        );
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-        GG_CLEANUP(cleanup_close, priv_key);
-
-        ret = open_file_or_default(
-            args->csr_path,
-            output_dir,
-            GG_STR("cert_req.pem"),
-            "Error opening CSR file.",
-            &cert_req
-        );
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-
-        ret = ggl_pki_generate_keypair(
-            priv_key, cert_req, args->csr_common_name
-        );
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-
-        (void) lseek(priv_key, 0, SEEK_SET);
+        ret = handle_pki_flow(args, output_dir, &cert_req);
+    }
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
     GG_CLEANUP(cleanup_close, cert_req);
     (void) lseek(cert_req, 0, SEEK_SET);
 
-    // Read CSR from file descriptor
+    // Read CSR
     uint8_t csr_mem[MAX_CSR_LENGTH] = { 0 };
     ssize_t csr_len = read(cert_req, csr_mem, sizeof(csr_mem) - 1);
     if (csr_len <= 0) {
         GG_LOGE("Failed to read CSR from file.");
         return GG_ERR_FAILURE;
     }
-    GgBuffer csr_buf = { .data = csr_mem, .len = (size_t) csr_len };
+    GgBuffer csr_buf = { csr_mem, (size_t) csr_len };
 
     // Create certificate output file
-    int certificate_fd;
+    int cert_fd;
     ret = open_file_or_default(
         args->cert_path,
         output_dir,
         GG_STR("certificate.pem"),
         "Error opening certificate file.",
-        &certificate_fd
+        &cert_fd
     );
     if (ret != GG_ERR_OK) {
         return ret;
     }
-    GG_CLEANUP(cleanup_close, certificate_fd);
+    GG_CLEANUP(cleanup_close, cert_fd);
 
     // Wait for MQTT(iotcored) connection to establish
     (void) gg_sleep(5);
@@ -360,7 +396,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         gg_buffer_from_null_term(args->template_name),
         template_params,
         &thing_name,
-        certificate_fd
+        cert_fd
     );
     if (ret != GG_ERR_OK) {
         return ret;

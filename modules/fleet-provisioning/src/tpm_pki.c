@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "tpm_pki.h"
 #include <gg/log.h>
-#include <openssl/crypto.h>
 #include <tss2/tss2_esys.h>
-#include <tss2/tss2_mu.h>
-#include <tss2/tss2_rc.h>
+#include <tss2_common.h>
+#include <tss2_tpm2_types.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -256,7 +256,7 @@ GgError ggl_tpm_generate_csr(
 
     GG_LOGD("Generating CSR with command: %s", cmd);
 
-    int result = system(cmd);
+    int result = system(cmd); // NOLINT(concurrency-mt-unsafe)
     if (result != 0) {
         GG_LOGE("Failed to generate CSR using OpenSSL command");
         return GG_ERR_FAILURE;

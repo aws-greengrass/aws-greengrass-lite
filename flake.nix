@@ -96,6 +96,7 @@
           , libzip
           , dbus
           , systemdLibs
+          , tpm2-tss
           }:
           stdenv.mkDerivation {
             name = "aws-greengrass-lite";
@@ -112,6 +113,7 @@
               dbus
               systemdLibs
               libzip
+              tpm2-tss
             ] ++ lib.optional (!stdenv.hostPlatform.isGnu) argp-standalone;
             cmakeBuildType = "MinSizeRel";
             cmakeFlags = (fetchContentFlags pkgs) ++ [ "-DENABLE_WERROR=1" ];

@@ -7,7 +7,7 @@
 
 #include <gg/buffer.h>
 #include <gg/error.h>
-#include <tss2/tss2_esys.h>
+#include <tss2_tpm2_types.h>
 
 GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle);
 GgError ggl_tpm_generate_csr(

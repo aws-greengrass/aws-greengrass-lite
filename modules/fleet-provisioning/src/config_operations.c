@@ -14,10 +14,10 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/exec.h>
 #include <limits.h>
-#include <tss2/tss2_esys.h>
+#include <tss2_tpm2_types.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define MAX_TEMPLATE_LEN 128
 #define MAX_ENDPOINT_LENGTH 128
@@ -414,7 +414,7 @@ GgError ggl_update_system_cert_paths(
     if (args->key_path == NULL) {
         path_vec.buf.len = 0;
         // Set the persistent handle as the private key path if TPM is enabled
-        if (args->use_tpm) {
+        if (args->use_tpm && persist_handle != 0) {
             static char handle_buf[32];
             snprintf(
                 handle_buf, sizeof(handle_buf), "handle:0x%x", persist_handle
