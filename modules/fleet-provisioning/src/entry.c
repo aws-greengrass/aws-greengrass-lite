@@ -5,6 +5,7 @@
 #include "cloud_request.h"
 #include "config_operations.h"
 #include "pki_ops.h"
+#include "tpm_pki.h"
 #include <fcntl.h>
 #include <fleet-provisioning.h>
 #include <gg/arena.h>
@@ -15,6 +16,8 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/utils.h>
+#include <gg/vector.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/exec.h>
 #include <limits.h>
 #include <sys/types.h>
@@ -60,10 +63,14 @@ static GgError change_custom_file_ownership(FleetProvArgs *args) {
 }
 
 static GgError cleanup_actions(
-    GgBuffer output_dir_path, GgBuffer thing_name, FleetProvArgs *args
+    GgBuffer output_dir_path,
+    GgBuffer thing_name,
+    FleetProvArgs *args,
+    TPMI_DH_PERSISTENT handle
 ) {
-    GgError ret
-        = ggl_update_system_cert_paths(output_dir_path, args, thing_name);
+    GgError ret = ggl_update_system_cert_paths(
+        output_dir_path, args, thing_name, handle
+    );
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -87,6 +94,32 @@ static GgError cleanup_actions(
         return ret;
     }
     GG_LOGI("Successfully changed ownership of certificates to %s", USER_GROUP);
+
+    // Certificate path
+    static uint8_t path_memory[PATH_MAX] = { 0 };
+    GgByteVec path_vec = GG_BYTE_VEC(path_memory);
+    const char *cert_path_str;
+    if (args->cert_path == NULL) {
+        ret = gg_byte_vec_append(&path_vec, output_dir_path);
+        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
+        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        cert_path_str = (char *) path_vec.buf.data;
+    } else {
+        cert_path_str = args->cert_path;
+    }
+
+    // Update system certificate file path
+    ret = ggl_gg_config_write(
+        GG_BUF_LIST(GG_STR("system"), GG_STR("certificateFilePath")),
+        gg_obj_buf(gg_buffer_from_null_term((char *) cert_path_str)),
+        &(int64_t) { 3 }
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
 
     return GG_ERR_OK;
 }
@@ -124,12 +157,19 @@ static GgError open_file_or_default(
 ) {
     GgError ret;
     if (custom_path != NULL) {
-        ret = gg_file_open(
-            gg_buffer_from_null_term(custom_path),
-            O_RDWR | O_CREAT | O_TRUNC,
-            0600,
-            fd
-        );
+        if (default_name.len == 0) {
+            ret = gg_file_open(
+                gg_buffer_from_null_term(custom_path), O_RDONLY, 0, fd
+            );
+        } else {
+            ret = gg_file_open(
+                gg_buffer_from_null_term(custom_path),
+                O_RDWR | O_CREAT | O_TRUNC,
+                0600,
+                fd
+            );
+        }
+
     } else {
         ret = gg_file_openat(
             output_dir, default_name, O_RDWR | O_CREAT | O_TRUNC, 0600, fd
@@ -203,38 +243,87 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     }
     GG_CLEANUP(cleanup_kill_process, iotcored_pid);
 
-    int priv_key = -1;
-    ret = open_file_or_default(
-        args->key_path,
-        output_dir,
-        GG_STR("priv_key"),
-        "Error opening private key file.",
-        &priv_key
-    );
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    GG_CLEANUP(cleanup_close, priv_key);
-
     int cert_req = -1;
-    ret = open_file_or_default(
-        args->csr_path,
-        output_dir,
-        GG_STR("cert_req.pem"),
-        "Error opening CSR file.",
-        &cert_req
-    );
-    if (ret != GG_ERR_OK) {
-        return ret;
+    TPMI_DH_PERSISTENT new_handle;
+
+    if (args->use_tpm) {
+        // Generate TPM keys
+        ret = ggl_tpm_generate_keys(&new_handle);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+
+        // Create CSR file path
+        static uint8_t csr_path_mem[256];
+        GgByteVec csr_path = GG_BYTE_VEC(csr_path_mem);
+        ret = gg_byte_vec_append(&csr_path, output_dir_path);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        ret = gg_byte_vec_append(&csr_path, GG_STR("cert_req.pem"));
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        ret = gg_byte_vec_push(&csr_path, '\0');
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+
+        // Generate CSR using TPM
+        ret = ggl_tpm_generate_csr(csr_path.buf, new_handle);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+
+        // Open file descriptor to read the CSR
+        ret = open_file_or_default(
+            (char *) csr_path.buf.data,
+            -1,
+            (GgBuffer) { 0 },
+            "Error opening CSR file.",
+            &cert_req
+        );
+
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Error opening CSR file for reading.");
+            return ret;
+        }
+
+    } else {
+        int priv_key = -1;
+        ret = open_file_or_default(
+            args->key_path,
+            output_dir,
+            GG_STR("priv_key"),
+            "Error opening private key file.",
+            &priv_key
+        );
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        GG_CLEANUP(cleanup_close, priv_key);
+
+        ret = open_file_or_default(
+            args->csr_path,
+            output_dir,
+            GG_STR("cert_req.pem"),
+            "Error opening CSR file.",
+            &cert_req
+        );
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+
+        ret = ggl_pki_generate_keypair(
+            priv_key, cert_req, args->csr_common_name
+        );
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+
+        (void) lseek(priv_key, 0, SEEK_SET);
     }
     GG_CLEANUP(cleanup_close, cert_req);
-
-    ret = ggl_pki_generate_keypair(priv_key, cert_req, args->csr_common_name);
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-
-    (void) lseek(priv_key, 0, SEEK_SET);
     (void) lseek(cert_req, 0, SEEK_SET);
 
     // Read CSR from file descriptor
@@ -277,7 +366,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         return ret;
     }
 
-    ret = cleanup_actions(output_dir_path, thing_name, args);
+    ret = cleanup_actions(output_dir_path, thing_name, args, new_handle);
     if (ret != GG_ERR_OK) {
         return ret;
     }

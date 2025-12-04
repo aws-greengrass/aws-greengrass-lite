@@ -5,10 +5,13 @@
 #ifndef TPM_PKI_H
 #define TPM_PKI_H
 
-#include <ggl/buffer.h>
-#include <ggl/error.h>
+#include <gg/buffer.h>
+#include <gg/error.h>
+#include <tss2/tss2_esys.h>
 
-GglError ggl_tpm_generate_keys(void);
-GglError ggl_tpm_generate_csr(GglBuffer csr_file_path);
+GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle);
+GgError ggl_tpm_generate_csr(
+    GgBuffer csr_file_path, TPMI_DH_PERSISTENT new_handle
+);
 
 #endif

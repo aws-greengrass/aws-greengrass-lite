@@ -14,6 +14,7 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/exec.h>
 #include <limits.h>
+#include <tss2/tss2_esys.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -264,6 +265,7 @@ GgError ggl_get_configuration(FleetProvArgs *args) {
     static uint8_t csr_path_mem[PATH_MAX] = { 0 };
     static uint8_t cert_path_mem[PATH_MAX] = { 0 };
     static uint8_t key_path_mem[PATH_MAX] = { 0 };
+    static uint8_t default_path_mem[PATH_MAX] = { 0 };
 
     GgError ret;
 
@@ -316,34 +318,54 @@ GgError ggl_get_configuration(FleetProvArgs *args) {
         return ret;
     }
 
+    GgByteVec path_vec = GG_BYTE_VEC(default_path_mem);
+    ret = gg_byte_vec_append(
+        &path_vec, GG_STR("/var/lib/greengrass/credentials")
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    size_t base_len = path_vec.buf.len;
+    gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/cert_req.pem"));
+    gg_byte_vec_chain_push(&ret, &path_vec, '\0');
+
     ret = load_optional_config(
         "csrPath",
         csr_path_mem,
         sizeof(csr_path_mem),
         &args->csr_path,
-        "/tmp/provisioning/cert_req.pem"
+        (char *) path_vec.buf.data
     );
     if (ret != GG_ERR_OK) {
         return ret;
     }
+
+    path_vec.buf.len = base_len;
+    gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
+    gg_byte_vec_chain_push(&ret, &path_vec, '\0');
 
     ret = load_optional_config(
         "certPath",
         cert_path_mem,
         sizeof(cert_path_mem),
         &args->cert_path,
-        "/tmp/provisioning/certificate.pem"
+        (char *) path_vec.buf.data
     );
     if (ret != GG_ERR_OK) {
         return ret;
     }
+
+    path_vec.buf.len = base_len;
+    gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/priv_key"));
+    gg_byte_vec_chain_push(&ret, &path_vec, '\0');
 
     ret = load_optional_config(
         "keyPath",
         key_path_mem,
         sizeof(key_path_mem),
         &args->key_path,
-        "/tmp/provisioning/priv_key"
+        (char *) path_vec.buf.data
     );
     if (ret != GG_ERR_OK) {
         return ret;
@@ -353,7 +375,10 @@ GgError ggl_get_configuration(FleetProvArgs *args) {
 }
 
 GgError ggl_update_system_cert_paths(
-    GgBuffer output_dir_path, FleetProvArgs *args, GgBuffer thing_name
+    GgBuffer output_dir_path,
+    FleetProvArgs *args,
+    GgBuffer thing_name,
+    TPMI_DH_PERSISTENT persist_handle
 ) {
     static uint8_t path_memory[PATH_MAX] = { 0 };
     GgByteVec path_vec = GG_BYTE_VEC(path_memory);
@@ -388,8 +413,19 @@ GgError ggl_update_system_cert_paths(
     const char *key_path_str;
     if (args->key_path == NULL) {
         path_vec.buf.len = 0;
-        ret = gg_byte_vec_append(&path_vec, output_dir_path);
-        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/priv_key"));
+        // Set the persistent handle as the private key path if TPM is enabled
+        if (args->use_tpm) {
+            static char handle_buf[32];
+            snprintf(
+                handle_buf, sizeof(handle_buf), "handle:0x%x", persist_handle
+            );
+            ret = gg_byte_vec_append(
+                &path_vec, gg_buffer_from_null_term((char *) handle_buf)
+            );
+        } else {
+            ret = gg_byte_vec_append(&path_vec, output_dir_path);
+            gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/priv_key"));
+        }
         gg_byte_vec_chain_push(&ret, &path_vec, '\0');
         if (ret != GG_ERR_OK) {
             return ret;
@@ -412,30 +448,6 @@ GgError ggl_update_system_cert_paths(
     ret = ggl_gg_config_write(
         GG_BUF_LIST(GG_STR("system"), GG_STR("thingName")),
         gg_obj_buf(thing_name),
-        &(int64_t) { 3 }
-    );
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-
-    // Certificate path
-    const char *cert_path_str;
-    if (args->cert_path == NULL) {
-        path_vec.buf.len = 0;
-        ret = gg_byte_vec_append(&path_vec, output_dir_path);
-        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
-        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-        cert_path_str = (char *) path_vec.buf.data;
-    } else {
-        cert_path_str = args->cert_path;
-    }
-
-    ret = ggl_gg_config_write(
-        GG_BUF_LIST(GG_STR("system"), GG_STR("certificateFilePath")),
-        gg_obj_buf(gg_buffer_from_null_term((char *) cert_path_str)),
         &(int64_t) { 3 }
     );
     if (ret != GG_ERR_OK) {

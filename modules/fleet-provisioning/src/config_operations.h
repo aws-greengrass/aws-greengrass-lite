@@ -10,6 +10,7 @@
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/object.h>
+#include <tss2/tss2_esys.h>
 #include <stdbool.h>
 
 GgError ggl_update_iot_endpoints(FleetProvArgs *args);
@@ -20,7 +21,10 @@ GgError ggl_load_template_params(
     FleetProvArgs *args, GgArena *alloc, GgMap *template_params
 );
 GgError ggl_update_system_cert_paths(
-    GgBuffer output_dir_path, FleetProvArgs *args, GgBuffer thing_name
+    GgBuffer output_dir_path,
+    FleetProvArgs *args,
+    GgBuffer thing_name,
+    TPMI_DH_PERSISTENT persist_handle
 );
 
 #endif
