@@ -17,7 +17,6 @@
 #include <gg/object.h>
 #include <gg/utils.h>
 #include <gg/vector.h>
-#include <ggl/core_bus/gg_config.h>
 #include <ggl/exec.h>
 #include <limits.h>
 #include <sys/types.h>
@@ -69,9 +68,8 @@ static GgError cleanup_actions(
     FleetProvArgs *args,
     TPMI_DH_PERSISTENT handle
 ) {
-    GgError ret = ggl_update_system_cert_paths(
-        output_dir_path, args, thing_name, handle
-    );
+    GgError ret
+        = ggl_update_system_config(output_dir_path, args, thing_name, handle);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -96,28 +94,8 @@ static GgError cleanup_actions(
     }
     GG_LOGI("Successfully changed ownership of certificates to %s", USER_GROUP);
 
-    // Certificate path
-    static uint8_t path_memory[PATH_MAX] = { 0 };
-    GgByteVec path_vec = GG_BYTE_VEC(path_memory);
-    const char *cert_path_str;
-    if (args->cert_path == NULL) {
-        ret = gg_byte_vec_append(&path_vec, output_dir_path);
-        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
-        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-        cert_path_str = (char *) path_vec.buf.data;
-    } else {
-        cert_path_str = args->cert_path;
-    }
-
     // Update system certificate file path
-    ret = ggl_gg_config_write(
-        GG_BUF_LIST(GG_STR("system"), GG_STR("certificateFilePath")),
-        gg_obj_buf(gg_buffer_from_null_term((char *) cert_path_str)),
-        &(int64_t) { 3 }
-    );
+    ret = ggl_update_system_cert_path(output_dir_path, args);
     if (ret != GG_ERR_OK) {
         return ret;
     }

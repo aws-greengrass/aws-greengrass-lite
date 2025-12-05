@@ -374,7 +374,7 @@ GgError ggl_get_configuration(FleetProvArgs *args) {
     return GG_ERR_OK;
 }
 
-GgError ggl_update_system_cert_paths(
+GgError ggl_update_system_config(
     GgBuffer output_dir_path,
     FleetProvArgs *args,
     GgBuffer thing_name,
@@ -448,6 +448,39 @@ GgError ggl_update_system_cert_paths(
     ret = ggl_gg_config_write(
         GG_BUF_LIST(GG_STR("system"), GG_STR("thingName")),
         gg_obj_buf(thing_name),
+        &(int64_t) { 3 }
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    return GG_ERR_OK;
+}
+
+GgError ggl_update_system_cert_path(
+    GgBuffer output_dir_path, FleetProvArgs *args
+) {
+    static uint8_t cert_path_memory[PATH_MAX] = { 0 };
+    GgByteVec path_vec = GG_BYTE_VEC(cert_path_memory);
+    GgError ret;
+
+    const char *cert_path_str;
+    if (args->cert_path == NULL) {
+        ret = gg_byte_vec_append(&path_vec, output_dir_path);
+        gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/certificate.pem"));
+        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        cert_path_str = (char *) path_vec.buf.data;
+    } else {
+        cert_path_str = args->cert_path;
+    }
+
+    // Update system certificate file path
+    ret = ggl_gg_config_write(
+        GG_BUF_LIST(GG_STR("system"), GG_STR("certificateFilePath")),
+        gg_obj_buf(gg_buffer_from_null_term((char *) cert_path_str)),
         &(int64_t) { 3 }
     );
     if (ret != GG_ERR_OK) {

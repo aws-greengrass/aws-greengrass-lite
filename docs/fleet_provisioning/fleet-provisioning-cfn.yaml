@@ -1,9 +1,13 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Parameters:
+  ResourceSuffix:
+    Type: String
+    Default: ""
+    Description: "Suffix to append to resource names (e.g., -TPM)"
   ProvisioningTemplateName:
     Type: String
-    Default: "GreengrassFleetProvisioningTemplate"
+    Default: "GGFleetProvisioningTemplate"
   GGTokenExchangeRoleName:
     Type: String
     Default: "GGTokenExchangeRole"
@@ -28,7 +32,7 @@ Resources:
   GGTokenExchangeRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Ref GGTokenExchangeRoleName
+      RoleName: !Sub "${GGTokenExchangeRoleName}${ResourceSuffix}"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -66,7 +70,7 @@ Resources:
   GGFleetProvisioningRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Ref GGFleetProvisioningRoleName
+      RoleName: !Sub "${GGFleetProvisioningRoleName}${ResourceSuffix}"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -90,7 +94,7 @@ Resources:
   GGTokenExchangeRoleAlias:
     Type: AWS::IoT::RoleAlias
     Properties:
-      RoleAlias: !Sub "${GGTokenExchangeRoleAliasName}-${AWS::StackName}"
+      RoleAlias: !Sub "${GGTokenExchangeRoleAliasName}${ResourceSuffix}-${AWS::StackName}"
       RoleArn: !GetAtt GGTokenExchangeRole.Arn
       CredentialDurationSeconds: 3600
 
@@ -98,7 +102,7 @@ Resources:
   GGThingGroup:
     Type: AWS::IoT::ThingGroup
     Properties:
-      ThingGroupName: !Ref GGThingGroupName
+      ThingGroupName: !Sub "${GGThingGroupName}${ResourceSuffix}"
 
   # IoT Policy for Fleet Provisioning Claim Certificates
   FleetProvisioningPolicy:
@@ -118,12 +122,12 @@ Resources:
               - "iot:Receive"
             Resource:
               - !Sub arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/certificates/create-from-csr/*
-              - !Sub arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/provisioning-templates/${ProvisioningTemplateName}/provision/*
+              - !Sub arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/provisioning-templates/${ProvisioningTemplateName}${ResourceSuffix}/provision/*
           - Effect: Allow
             Action: "iot:Subscribe"
             Resource:
               - !Sub arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/certificates/create-from-csr/*
-              - !Sub arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/provisioning-templates/${ProvisioningTemplateName}/provision/*
+              - !Sub arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/provisioning-templates/${ProvisioningTemplateName}${ResourceSuffix}/provision/*
 
   # IoT Policy for Greengrass Core Devices
   GreengrassV2IoTThingPolicy:
@@ -182,7 +186,7 @@ Resources:
   MacValidationLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Ref MacValidationLambdaName
+      FunctionName: !Sub "${MacValidationLambdaName}${ResourceSuffix}"
       Handler: index.handler
       Role: !GetAtt MacValidationLambdaRole.Arn
       Runtime: nodejs18.x
@@ -227,7 +231,7 @@ Resources:
   FleetProvisioningTemplate:
     Type: AWS::IoT::ProvisioningTemplate
     Properties:
-      TemplateName: !Ref ProvisioningTemplateName
+      TemplateName: !Sub "${ProvisioningTemplateName}${ResourceSuffix}"
       Description: "Fleet provisioning template for Greengrass devices"
       Enabled: true
       ProvisioningRoleArn: !GetAtt GGFleetProvisioningRole.Arn
@@ -275,7 +279,7 @@ Resources:
                   ]
                 },
                 "ThingGroups": [
-                  "${GGThingGroupName}"
+                  "${GGThingGroupName}${ResourceSuffix}"
                 ]
               }
             },
@@ -297,13 +301,13 @@ Resources:
 Outputs:
   ProvisioningTemplateName:
     Description: "Name of the provisioning template"
-    Value: !Ref ProvisioningTemplateName
+    Value: !Sub "${ProvisioningTemplateName}${ResourceSuffix}"
   TokenExchangeRoleAlias:
     Description: "Role alias for token exchange"
-    Value: !Sub "${GGTokenExchangeRoleAliasName}-${AWS::StackName}"
+    Value: !Sub "${GGTokenExchangeRoleAliasName}${ResourceSuffix}-${AWS::StackName}"
   ThingGroupName:
     Description: "Thing group for Greengrass devices"
-    Value: !Ref GGThingGroupName
+    Value: !Sub "${GGThingGroupName}${ResourceSuffix}"
   MacValidationLambdaArn:
     Description: "ARN of the MAC address validation Lambda function"
     Value: !GetAtt MacValidationLambda.Arn

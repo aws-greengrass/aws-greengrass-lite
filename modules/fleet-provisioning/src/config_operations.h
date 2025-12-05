@@ -20,11 +20,14 @@ GgError ggl_get_configuration(FleetProvArgs *args);
 GgError ggl_load_template_params(
     FleetProvArgs *args, GgArena *alloc, GgMap *template_params
 );
-GgError ggl_update_system_cert_paths(
+GgError ggl_update_system_config(
     GgBuffer output_dir_path,
     FleetProvArgs *args,
     GgBuffer thing_name,
     TPMI_DH_PERSISTENT persist_handle
+);
+GgError ggl_update_system_cert_path(
+    GgBuffer output_dir_path, FleetProvArgs *args
 );
 
 #endif

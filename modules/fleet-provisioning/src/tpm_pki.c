@@ -74,23 +74,14 @@ static TPMI_DH_PERSISTENT find_unused_handle(ESYS_CONTEXT *ctx) {
     return 0;
 }
 
-GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
+static GgError create_primary_key(
+    ESYS_CONTEXT *esys_ctx, ESYS_TR *primary_handle
+) {
     TSS2_RC rc;
-    ESYS_CONTEXT *esys_ctx = NULL;
 
-    rc = Esys_Initialize(&esys_ctx, NULL, NULL);
-    if (rc != TSS2_RC_SUCCESS) {
-        GG_LOGE("Failed to initialize ESYS context: 0x%x", rc);
-        return GG_ERR_FAILURE;
-    }
-
-    // Find an unused handle
-    *new_handle = find_unused_handle(esys_ctx);
-    if (*new_handle == 0) {
-        GG_LOGE("No empty TPM handle available");
-        Esys_Finalize(&esys_ctx);
-        return GG_ERR_FAILURE;
-    }
+    TPM2B_SENSITIVE_CREATE in_sensitive
+        = { .size = 0,
+            .sensitive = { .userAuth = { .size = 0 }, .data = { .size = 0 } } };
 
     // Use default ECC P-256 template for primary key
     TPM2B_PUBLIC in_public_primary = { 0 };
@@ -99,6 +90,7 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
     in_public_primary.publicArea.objectAttributes = TPMA_OBJECT_RESTRICTED
         | TPMA_OBJECT_DECRYPT | TPMA_OBJECT_FIXEDTPM | TPMA_OBJECT_FIXEDPARENT
         | TPMA_OBJECT_SENSITIVEDATAORIGIN | TPMA_OBJECT_USERWITHAUTH;
+
     in_public_primary.publicArea.parameters.eccDetail.symmetric.algorithm
         = TPM2_ALG_AES;
     in_public_primary.publicArea.parameters.eccDetail.symmetric.keyBits.aes
@@ -111,18 +103,10 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
         = TPM2_ECC_NIST_P256;
     in_public_primary.publicArea.parameters.eccDetail.kdf.scheme
         = TPM2_ALG_NULL;
-    in_public_primary.publicArea.unique.ecc.x.size = 0;
-    in_public_primary.publicArea.unique.ecc.y.size = 0;
-
-    TPM2B_SENSITIVE_CREATE in_sensitive
-        = { .size = 0,
-            .sensitive = { .userAuth = { .size = 0 }, .data = { .size = 0 } } };
 
     TPM2B_DATA outside_info = { .size = 0 };
     TPML_PCR_SELECTION creation_pcr = { .count = 0 };
 
-    // Create primary key
-    ESYS_TR primary_handle = ESYS_TR_NONE;
     rc = Esys_CreatePrimary(
         esys_ctx,
         ESYS_TR_RH_OWNER,
@@ -133,17 +117,33 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
         &in_public_primary,
         &outside_info,
         &creation_pcr,
-        &primary_handle,
+        primary_handle,
         NULL,
         NULL,
         NULL,
         NULL
     );
+
     if (rc != TSS2_RC_SUCCESS) {
         GG_LOGE("Failed to create primary key: 0x%x", rc);
-        Esys_Finalize(&esys_ctx);
         return GG_ERR_FAILURE;
     }
+
+    return GG_ERR_OK;
+}
+
+static GgError create_private_key(
+    ESYS_CONTEXT *esys_ctx,
+    ESYS_TR primary_handle,
+    TPM2B_PRIVATE **out_private,
+    TPM2B_PUBLIC **out_public,
+    ESYS_TR *child_handle
+) {
+    TSS2_RC rc;
+
+    TPM2B_SENSITIVE_CREATE in_sensitive
+        = { .size = 0,
+            .sensitive = { .userAuth = { .size = 0 }, .data = { .size = 0 } } };
 
     // Use default ECC P-256 template for child key
     TPM2B_PUBLIC in_public_child = { 0 };
@@ -152,6 +152,7 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
     in_public_child.publicArea.objectAttributes = TPMA_OBJECT_SIGN_ENCRYPT
         | TPMA_OBJECT_FIXEDTPM | TPMA_OBJECT_FIXEDPARENT
         | TPMA_OBJECT_SENSITIVEDATAORIGIN | TPMA_OBJECT_USERWITHAUTH;
+
     in_public_child.publicArea.parameters.eccDetail.symmetric.algorithm
         = TPM2_ALG_NULL;
     in_public_child.publicArea.parameters.eccDetail.scheme.scheme
@@ -161,12 +162,10 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
     in_public_child.publicArea.parameters.eccDetail.curveID
         = TPM2_ECC_NIST_P256;
     in_public_child.publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
-    in_public_child.publicArea.unique.ecc.x.size = 0;
-    in_public_child.publicArea.unique.ecc.y.size = 0;
 
-    // Create child ECC key
-    TPM2B_PRIVATE *out_private = NULL;
-    TPM2B_PUBLIC *out_public = NULL;
+    TPM2B_DATA outside_info = { .size = 0 };
+    TPML_PCR_SELECTION creation_pcr = { .count = 0 };
+
     rc = Esys_Create(
         esys_ctx,
         primary_handle,
@@ -177,42 +176,43 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
         &in_public_child,
         &outside_info,
         &creation_pcr,
-        &out_private,
-        &out_public,
+        out_private,
+        out_public,
         NULL,
         NULL,
         NULL
     );
+
     if (rc != TSS2_RC_SUCCESS) {
         GG_LOGE("Failed to create child key: 0x%x", rc);
-        cleanup_tpm_resources(
-            esys_ctx, primary_handle, ESYS_TR_NONE, out_private, out_public
-        );
         return GG_ERR_FAILURE;
     }
 
-    // Load child key
-    ESYS_TR child_handle = ESYS_TR_NONE;
     rc = Esys_Load(
         esys_ctx,
         primary_handle,
         ESYS_TR_PASSWORD,
         ESYS_TR_NONE,
         ESYS_TR_NONE,
-        out_private,
-        out_public,
-        &child_handle
+        *out_private,
+        *out_public,
+        child_handle
     );
+
     if (rc != TSS2_RC_SUCCESS) {
         GG_LOGE("Failed to load child key: 0x%x", rc);
-        cleanup_tpm_resources(
-            esys_ctx, primary_handle, ESYS_TR_NONE, out_private, out_public
-        );
         return GG_ERR_FAILURE;
     }
 
-    // Make child key persistent
+    return GG_ERR_OK;
+}
+
+static GgError make_key_persistent(
+    ESYS_CONTEXT *esys_ctx, ESYS_TR child_handle, TPMI_DH_PERSISTENT handle
+) {
+    TSS2_RC rc;
     ESYS_TR persistent_out = ESYS_TR_NONE;
+
     rc = Esys_EvictControl(
         esys_ctx,
         ESYS_TR_RH_OWNER,
@@ -220,21 +220,75 @@ GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
         ESYS_TR_PASSWORD,
         ESYS_TR_NONE,
         ESYS_TR_NONE,
-        *new_handle,
+        handle,
         &persistent_out
     );
+
     if (rc != TSS2_RC_SUCCESS) {
         GG_LOGE("Failed to make key persistent: 0x%x", rc);
+        return GG_ERR_FAILURE;
+    }
+
+    return GG_ERR_OK;
+}
+
+GgError ggl_tpm_generate_keys(TPMI_DH_PERSISTENT *new_handle) {
+    GgError ret;
+    TSS2_RC rc;
+    ESYS_CONTEXT *esys_ctx = NULL;
+
+    // Initialize ESYS context
+    rc = Esys_Initialize(&esys_ctx, NULL, NULL);
+    if (rc != TSS2_RC_SUCCESS) {
+        GG_LOGE("Failed to initialize ESYS context: 0x%x", rc);
+        return GG_ERR_FAILURE;
+    }
+
+    // Find an unused persistent handle
+    *new_handle = find_unused_handle(esys_ctx);
+    if (*new_handle == 0) {
+        GG_LOGE("No empty TPM handle available");
+        Esys_Finalize(&esys_ctx);
+        return GG_ERR_FAILURE;
+    }
+
+    ESYS_TR primary_handle = ESYS_TR_NONE;
+    ESYS_TR child_handle = ESYS_TR_NONE;
+    TPM2B_PRIVATE *out_private = NULL;
+    TPM2B_PUBLIC *out_public = NULL;
+
+    // Create primary key
+    ret = create_primary_key(esys_ctx, &primary_handle);
+    if (ret != GG_ERR_OK) {
+        Esys_Finalize(&esys_ctx);
+        return GG_ERR_FAILURE;
+    }
+
+    // Create and load child key
+    ret = create_private_key(
+        esys_ctx, primary_handle, &out_private, &out_public, &child_handle
+    );
+    if (ret != GG_ERR_OK) {
+        cleanup_tpm_resources(
+            esys_ctx, primary_handle, ESYS_TR_NONE, out_private, out_public
+        );
+        return GG_ERR_FAILURE;
+    }
+
+    // Make key persistent
+    ret = make_key_persistent(esys_ctx, child_handle, *new_handle);
+    if (ret != GG_ERR_OK) {
         cleanup_tpm_resources(
             esys_ctx, primary_handle, child_handle, out_private, out_public
         );
         return GG_ERR_FAILURE;
     }
 
-    // Cleanup
+    // Cleanup & finish
     cleanup_tpm_resources(
         esys_ctx, primary_handle, child_handle, out_private, out_public
     );
+
     GG_LOGI("TPM key created and made persistent at handle 0x%x", *new_handle);
     return GG_ERR_OK;
 }

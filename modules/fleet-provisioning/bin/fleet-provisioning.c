@@ -9,6 +9,7 @@
 #include <gg/vector.h>
 #include <ggl/binpath.h>
 #include <ggl/nucleus/init.h>
+#include <stdbool.h>
 
 static char doc[] = "fleet-provisioning -- AWS IoT Fleet Provisioning client";
 
@@ -88,7 +89,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         args->output_dir = arg;
         break;
     case 'u':
-        args->use_tpm = 1;
+        args->use_tpm = true;
         break;
     default:
         return ARGP_ERR_UNKNOWN;

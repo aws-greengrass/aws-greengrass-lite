@@ -4,7 +4,7 @@ set -e
 # Variables - modify these as needed
 REGION="${AWS_DEFAULT_REGION:-us-west-2}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-STACK_NAME="GreengrassFleetProvisioning"
+STACK_NAME="GreengrassFleetProvisioning-TPM"
 TPM_KEY_HANDLE="${TPM_KEY_HANDLE:-0x81000000}" # Change to an available handle if this one is in use
 
 # Calculate directories relative to script location
@@ -56,6 +56,7 @@ if [ "$STACK_STATUS" == "DOES_NOT_EXIST" ]; then
   aws cloudformation create-stack \
     --stack-name ${STACK_NAME} \
     --template-body file://"${SCRIPT_DIR}"/fleet-provisioning-cfn.yaml \
+    --parameters ParameterKey=ResourceSuffix,ParameterValue="-TPM" \
     --capabilities CAPABILITY_NAMED_IAM \
     --region "${REGION}"
   echo "Waiting for stack creation to complete..."
@@ -65,6 +66,7 @@ else
   aws cloudformation update-stack \
     --stack-name ${STACK_NAME} \
     --template-body file://"${SCRIPT_DIR}"/fleet-provisioning-cfn.yaml \
+    --parameters ParameterKey=ResourceSuffix,ParameterValue="-TPM" \
     --capabilities CAPABILITY_NAMED_IAM \
     --region "${REGION}" || echo "No updates are to be performed."
 fi
