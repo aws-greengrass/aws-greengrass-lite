@@ -16,7 +16,10 @@ on:
 
 jobs:
   list-tests:
-    if: github.repository == 'aws-greengrass/aws-greengrass-lite'
+    if:
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name ==
+      'aws-greengrass/aws-greengrass-lite'
     runs-on: ubuntu-24.04
     outputs:
       tests: ${{ steps.list.outputs.tests }}
@@ -45,7 +48,10 @@ jobs:
           echo "tests=$tests" >> $GITHUB_OUTPUT
 
   uat-test:
-    if: github.repository == 'aws-greengrass/aws-greengrass-lite'
+    if:
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name ==
+      'aws-greengrass/aws-greengrass-lite'
     needs: list-tests
     strategy:
       fail-fast: false
