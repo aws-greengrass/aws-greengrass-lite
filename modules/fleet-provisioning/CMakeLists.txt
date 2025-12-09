@@ -2,8 +2,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(TSS2_ESYS REQUIRED tss2-esys)
+if(TPM_SUPPORT)
+  set(TPM_LIBS PkgConfig::tss2-esys)
+  message(STATUS "TPM support enabled for fleet-provisioning")
+endif()
 
 ggl_init_module(
   fleet-provision
@@ -17,9 +19,7 @@ ggl_init_module(
        core-bus-aws-iot-mqtt
        PkgConfig::openssl
        uuid
-       ${TSS2_ESYS_LIBRARIES})
-
-target_include_directories(fleet-provision PRIVATE ${TSS2_ESYS_INCLUDE_DIRS})
+       ${TPM_LIBS})
 target_compile_definitions(
   fleet-provision
   PRIVATE "GGL_SYSTEMD_SYSTEM_USER=\"${GGL_SYSTEMD_SYSTEM_USER}\"")
