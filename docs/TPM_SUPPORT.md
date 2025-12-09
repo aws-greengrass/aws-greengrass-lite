@@ -4,9 +4,11 @@ This guide demonstrates how to set up AWS Greengrass Lite with TPM 2.0 support
 using Amazon EC2 NitroTPM. The TPM provides hardware-backed security for device
 identity and cryptographic operations.
 
-## Step 1: Set up NitroTPM Instance
+## TPM Setup
 
-### 1.1 Launch Temporary Instance
+### Step 1: Set up NitroTPM Instance (as an example)
+
+#### 1.1 Launch Temporary Instance
 
 Launch a temporary Ubuntu 24.04 instance on a NitroTPM-supported instance type
 to create a custom AMI. This instance is used only for creating the custom AMI
@@ -19,14 +21,14 @@ and can be deleted after AMI creation.
    - Root device name (e.g., `/dev/sda1`)
    - Volume ID
 
-### 1.2 Create EBS Snapshot
+#### 1.2 Create EBS Snapshot
 
 Create a snapshot of the root volume following the
 [EBS snapshot creation guide](https://docs.aws.amazon.com/ebs/latest/userguide/ebs-create-snapshot.html).
 
 Note the snapshot ID for the next step.
 
-### 1.3 Register NitroTPM-enabled AMI
+#### 1.3 Register NitroTPM-enabled AMI
 
 Create a custom AMI with TPM 2.0 support:
 
@@ -42,14 +44,14 @@ aws ec2 register-image \
 
 Replace `DeviceName` and `SnapshotId` with your actual values.
 
-### 1.4 Launch Final Instance
+#### 1.4 Launch Final Instance
 
 Launch your production instance using the custom AMI created in the previous
 step.
 
 **Important**: When connecting via SSH, use the `ubuntu` user, not `root`.
 
-### 1.5 Verify TPM Functionality
+#### 1.5 Verify TPM Functionality
 
 Verify that the TPM device is available:
 
@@ -59,16 +61,16 @@ ls -la /dev/tpm*
 
 You should see `/dev/tpm0` and `/dev/tpmrm0` devices.
 
-## Step 2: Install and Configure TPM Tools
+### Step 2: Install and Configure TPM Tools
 
-### 2.1 Install Required Packages
+#### 2.1 Install Required Packages
 
 ```bash
 sudo apt update
-sudo apt install tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0
+sudo apt install tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0 libtss2-dev
 ```
 
-### 2.2 Verify TPM Device Permissions
+#### 2.2 Verify TPM Device Permissions
 
 Check that TPM devices have correct permissions:
 
@@ -77,7 +79,7 @@ ls -l /dev/tpm0    # Should be owned by tss:root with permissions 0660
 ls -l /dev/tpmrm0  # Should be owned by tss:tss with permissions 0660
 ```
 
-## Step 3: Configure OpenSSL TPM2 Provider
+### Step 3: Configure OpenSSL TPM2 Provider
 
 Edit the OpenSSL configuration file:
 
@@ -111,27 +113,36 @@ using:
 find /usr -name "tpm2.so"
 ```
 
-## Step 4: Generate Persistent TPM Keys
+## Device Provisioning
 
-### 4.1 Create Primary Key
+You may refer to the
+[Fleet Provisioning guide](./fleet_provisioning/fleet_provisioning.md) for
+detailed instructions on how to provision your Greengrass device using fleet
+provisioning with TPM support.
+
+If you prefer manual provisioning, follow the instructions below.
+
+### Step 4: Generate Persistent TPM Keys
+
+#### 4.1 Create Primary Key
 
 ```bash
 sudo tpm2_createprimary -C o -c primary.ctx
 ```
 
-### 4.2 Create ECC Key
+#### 4.2 Create ECC Key
 
 ```bash
 sudo tpm2_create -C primary.ctx -g sha256 -G ecc256 -r device.priv -u device.pub
 ```
 
-### 4.3 Load the Key
+#### 4.3 Load the Key
 
 ```bash
 sudo tpm2_load -C primary.ctx -r device.priv -u device.pub -c device.ctx
 ```
 
-### 4.4 Make Key Persistent
+#### 4.4 Make Key Persistent
 
 ```bash
 sudo tpm2_evictcontrol -C o -c device.ctx 0x81000002
@@ -139,7 +150,7 @@ sudo tpm2_evictcontrol -C o -c device.ctx 0x81000002
 
 This creates a persistent key with handle `0x81000002` (example handle).
 
-## Step 5: Create Certificate Signing Request (CSR)
+### Step 5: Create Certificate Signing Request (CSR)
 
 Generate a CSR using the persistent TPM key:
 
@@ -152,9 +163,9 @@ openssl req -new -provider tpm2 -key "handle:0x81000002" \
 Replace `0x81000002` with your chosen handle value and `TPMThing` with your
 desired thing name.
 
-## Step 6: Provision AWS IoT Thing
+### Step 6: Provision AWS IoT Thing
 
-### 6.1 Create Thing in AWS IoT Console
+#### 6.1 Create Thing in AWS IoT Console
 
 1. Go to AWS IoT Console → Manage → Things
 2. Create Thing with name `TPMThing` (or your chosen name)
@@ -164,15 +175,17 @@ desired thing name.
 For detailed manual provisioning steps, see the
 [Provisioning Guide](Provisioning.md#manual-provisioning-by-creating-a-thing).
 
-### 6.2 Download Amazon Root CA
+#### 6.2 Download Amazon Root CA
 
 ```bash
 curl -o AmazonRootCA1.pem https://www.amazontrust.com/repository/AmazonRootCA1.pem
 ```
 
-## Step 7: Set up Greengrass Lite
+## Greengrass Lite Setup
 
-### 7.1 Install Dependencies
+### Step 7: Set up Greengrass Lite
+
+#### 7.1 Install Dependencies
 
 ```bash
 sudo apt update && sudo apt install build-essential pkg-config cmake git curl libssl-dev \
@@ -180,7 +193,7 @@ sudo apt update && sudo apt install build-essential pkg-config cmake git curl li
   libsystemd-dev libevent-dev liburiparser-dev cgroup-tools
 ```
 
-### 7.2 Create Users and Groups
+#### 7.2 Create Users and Groups
 
 ```bash
 sudo groupadd ggcore
@@ -189,7 +202,7 @@ sudo groupadd gg_component
 sudo useradd -Ng gg_component gg_component
 ```
 
-### 7.3 Configure User Permissions
+#### 7.3 Configure User Permissions
 
 Add the `ggcore` user to the `tss` group for TPM access:
 
@@ -197,7 +210,7 @@ Add the `ggcore` user to the `tss` group for TPM access:
 sudo usermod -a -G tss ggcore
 ```
 
-### 7.4 Set up Credentials Directory
+#### 7.4 Set up Credentials Directory
 
 ```bash
 sudo mkdir -p /var/lib/greengrass/credentials
@@ -208,7 +221,7 @@ sudo chown -R ggcore:ggcore /var/lib/greengrass
 **Note**: Since we're using persistent TPM keys, no private key file needs to be
 copied.
 
-### 7.5 Configure Greengrass
+#### 7.5 Configure Greengrass
 
 Copy and modify the configuration file:
 
@@ -235,9 +248,9 @@ sudo mkdir -p /etc/greengrass/
 sudo cp ./config.yaml /etc/greengrass/config.yaml
 ```
 
-## Step 8: Build and Run Greengrass Lite
+### Step 8: Build and Run Greengrass Lite
 
-### 8.1 Build
+#### 8.1 Build
 
 ```bash
 cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=MinSizeRel -DGGL_LOG_LEVEL=DEBUG
@@ -245,7 +258,7 @@ make -C build -j$(nproc)
 sudo make -C build install
 ```
 
-### 8.2 Run
+#### 8.2 Run
 
 ```bash
 sudo ./misc/run_nucleus
