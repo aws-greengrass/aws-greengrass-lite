@@ -5,7 +5,6 @@
 #include "cloud_request.h"
 #include "config_operations.h"
 #include "pki_ops.h"
-#include "tpm_pki.h"
 #include <fcntl.h>
 #include <fleet-provisioning.h>
 #include <gg/arena.h>
@@ -19,8 +18,8 @@
 #include <gg/vector.h>
 #include <ggl/exec.h>
 #include <limits.h>
+#include <string.h>
 #include <sys/types.h>
-#include <tss2_tpm2_types.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
 #include <stdbool.h>
@@ -63,13 +62,9 @@ static GgError change_custom_file_ownership(FleetProvArgs *args) {
 }
 
 static GgError cleanup_actions(
-    GgBuffer output_dir_path,
-    GgBuffer thing_name,
-    FleetProvArgs *args,
-    TPMI_DH_PERSISTENT handle
+    GgBuffer output_dir_path, GgBuffer thing_name, FleetProvArgs *args
 ) {
-    GgError ret
-        = ggl_update_system_config(output_dir_path, args, thing_name, handle);
+    GgError ret = ggl_update_system_config(output_dir_path, args, thing_name);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -160,59 +155,6 @@ static GgError open_file_or_default(
     return ret;
 }
 
-static GgError handle_tpm_flow(
-    GgBuffer output_dir_path, int *csr_fd_out, TPMI_DH_PERSISTENT *handle_out
-) {
-    GgError ret;
-
-    // Generate TPM persistent key
-    ret = ggl_tpm_generate_keys(handle_out);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("TPM: Failed to generate TPM keys");
-        return ret;
-    }
-
-    // Construct CSR file path
-    static uint8_t csr_path_mem[256];
-    GgByteVec csr_path = GG_BYTE_VEC(csr_path_mem);
-
-    ret = gg_byte_vec_append(&csr_path, output_dir_path);
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-
-    ret = gg_byte_vec_append(&csr_path, GG_STR("cert_req.pem"));
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-
-    ret = gg_byte_vec_push(&csr_path, '\0');
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-
-    // Generate CSR using TPM provider
-    ret = ggl_tpm_generate_csr(csr_path.buf, *handle_out);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("TPM: Failed to generate CSR");
-        return ret;
-    }
-
-    // Open CSR file for reading
-    ret = open_file_or_default(
-        (char *) csr_path.buf.data,
-        -1,
-        (GgBuffer) { 0 },
-        "Error opening CSR file.",
-        csr_fd_out
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("TPM: Failed to open CSR file for reading");
-    }
-
-    return GG_ERR_OK;
-}
-
 static GgError handle_pki_flow(
     FleetProvArgs *args, int output_dir, int *csr_fd_out
 ) {
@@ -255,6 +197,35 @@ static GgError handle_pki_flow(
 
     // Reset position for future reads
     (void) lseek(priv_key, 0, SEEK_SET);
+
+    return GG_ERR_OK;
+}
+
+static GgError handle_tpm_pki_flow(
+    FleetProvArgs *args, int output_dir, int *csr_fd_out, const char *handle_path
+) {
+    GgError ret;
+
+    // Open or create CSR file
+    ret = open_file_or_default(
+        args->csr_path,
+        output_dir,
+        GG_STR("cert_req.pem"),
+        "Error opening CSR file.",
+        csr_fd_out
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    // Generate CSR using TPM PKI
+    ret = ggl_tpm_pki_generate_csr(
+        *csr_fd_out, args->csr_common_name, handle_path
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("PKI: Failed to generate TPM CSR");
+        return ret;
+    }
 
     return GG_ERR_OK;
 }
@@ -327,10 +298,9 @@ GgError run_fleet_prov(FleetProvArgs *args) {
 
     // TPM or regular pki
     int cert_req = -1;
-    TPMI_DH_PERSISTENT new_handle = 0;
-
-    if (args->use_tpm) {
-        ret = handle_tpm_flow(output_dir_path, &cert_req, &new_handle);
+    const char *handle_path = args->key_path ? args->key_path : args->claim_key;
+    if (handle_path && strncmp(handle_path, "handle:", 7) == 0) {
+        ret = handle_tpm_pki_flow(args, output_dir, &cert_req, handle_path);
     } else {
         ret = handle_pki_flow(args, output_dir, &cert_req);
     }
@@ -380,7 +350,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
         return ret;
     }
 
-    ret = cleanup_actions(output_dir_path, thing_name, args, new_handle);
+    ret = cleanup_actions(output_dir_path, thing_name, args);
     if (ret != GG_ERR_OK) {
         return ret;
     }

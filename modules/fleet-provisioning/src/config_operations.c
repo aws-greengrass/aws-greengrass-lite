@@ -14,10 +14,11 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/exec.h>
 #include <limits.h>
-#include <tss2_tpm2_types.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define MAX_TEMPLATE_LEN 128
 #define MAX_ENDPOINT_LENGTH 128
@@ -375,10 +376,7 @@ GgError ggl_get_configuration(FleetProvArgs *args) {
 }
 
 GgError ggl_update_system_config(
-    GgBuffer output_dir_path,
-    FleetProvArgs *args,
-    GgBuffer thing_name,
-    TPMI_DH_PERSISTENT persist_handle
+    GgBuffer output_dir_path, FleetProvArgs *args, GgBuffer thing_name
 ) {
     static uint8_t path_memory[PATH_MAX] = { 0 };
     GgByteVec path_vec = GG_BYTE_VEC(path_memory);
@@ -412,25 +410,19 @@ GgError ggl_update_system_config(
     // Private key path
     const char *key_path_str;
     if (args->key_path == NULL) {
-        path_vec.buf.len = 0;
         // Set the persistent handle as the private key path if TPM is enabled
-        if (args->use_tpm && persist_handle != 0) {
-            static char handle_buf[32];
-            snprintf(
-                handle_buf, sizeof(handle_buf), "handle:0x%x", persist_handle
-            );
-            ret = gg_byte_vec_append(
-                &path_vec, gg_buffer_from_null_term((char *) handle_buf)
-            );
+        if (strncmp(args->claim_key, "handle:", 7) == 0) {
+            key_path_str = args->claim_key;
         } else {
+            path_vec.buf.len = 0;
             ret = gg_byte_vec_append(&path_vec, output_dir_path);
             gg_byte_vec_chain_append(&ret, &path_vec, GG_STR("/priv_key"));
+            gg_byte_vec_chain_push(&ret, &path_vec, '\0');
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+            key_path_str = (char *) path_vec.buf.data;
         }
-        gg_byte_vec_chain_push(&ret, &path_vec, '\0');
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-        key_path_str = (char *) path_vec.buf.data;
     } else {
         key_path_str = args->key_path;
     }
