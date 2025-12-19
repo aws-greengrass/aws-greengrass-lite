@@ -172,13 +172,16 @@ Things to note about the above config:
    - Note: The CSR file is automatically removed after successful provisioning
    - If custom paths are provided, only those specific files will be created at
      the custom locations; other files will still use the default directory
-   - Note: we currently do not support the custom persistent handle for the
-     optional key path.
+   - We also currently support specifying a custom persistent TPM handle for the
+     optional `keyPath`. e.g. `"handle:0x81000001"`
 3. The system configuration paths (`privateKeyPath`, `certificateFilePath`,
    etc.) will be automatically updated after successful provisioning to point to
    the generated certificate locations.
 4. If you enable TPM support, modify the `claimKeyPath` with a persistent
    handle, e.g. `"handle:0x81000000"`
+
+Note: if you enable the TPM support, but the optional `keyPath` is not provided,
+we will directly use the `claimKeyPath` for the permanent private key.
 
 Once you have finished editing the `config.yaml` file with your fleet
 provisioning settings, deploy it to the system and start the Greengrass
@@ -205,14 +208,6 @@ $ sudo /usr/local/bin/fleet-provisioning
 If you cannot find `fleet-provisioning` under `/usr/local/bin`, then reconfigure
 CMake with the flag `-D CMAKE_INSTALL_PREFIX=/usr/local`, rebuild, and
 reinstall.
-
-If you enable TPM support, reconfigure CMake with the flag `-D TPM_SUPPORT=ON`,
-rebuild, and then rerun the Greengrass Lite. After that, run the
-fleet-provisioning binary with the following flag:
-
-```sh
-$ sudo /usr/local/bin/fleet-provisioning --use-tpm
-```
 
 This will trigger the fleet provisioning script, which will take a few minutes
 to complete.

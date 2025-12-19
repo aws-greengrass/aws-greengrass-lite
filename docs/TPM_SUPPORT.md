@@ -67,7 +67,7 @@ You should see `/dev/tpm0` and `/dev/tpmrm0` devices.
 
 ```bash
 sudo apt update
-sudo apt install tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0 libtss2-dev
+sudo apt install tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0
 ```
 
 #### 2.2 Verify TPM Device Permissions

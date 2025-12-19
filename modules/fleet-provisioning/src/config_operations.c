@@ -17,8 +17,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 #define MAX_TEMPLATE_LEN 128
 #define MAX_ENDPOINT_LENGTH 128

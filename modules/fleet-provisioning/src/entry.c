@@ -15,7 +15,6 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/utils.h>
-#include <gg/vector.h>
 #include <ggl/exec.h>
 #include <limits.h>
 #include <string.h>
@@ -44,7 +43,7 @@ static GgError change_custom_file_ownership(FleetProvArgs *args) {
             return ret;
         }
     }
-    if (args->key_path != NULL) {
+    if (args->key_path != NULL && strncmp(args->claim_key, "handle:", 7) != 0) {
         const char *key_chown_args[]
             = { "chown", USER_GROUP, args->key_path, NULL };
         ret = ggl_exec_command(key_chown_args);
@@ -201,8 +200,11 @@ static GgError handle_pki_flow(
     return GG_ERR_OK;
 }
 
-static GgError handle_tpm_pki_flow(
-    FleetProvArgs *args, int output_dir, int *csr_fd_out, const char *handle_path
+static GgError handle_tpm_flow(
+    FleetProvArgs *args,
+    int output_dir,
+    int *csr_fd_out,
+    const char *handle_path
 ) {
     GgError ret;
 
@@ -218,12 +220,12 @@ static GgError handle_tpm_pki_flow(
         return ret;
     }
 
-    // Generate CSR using TPM PKI
+    // Generate a CSR using TPM persistent handle
     ret = ggl_tpm_pki_generate_csr(
         *csr_fd_out, args->csr_common_name, handle_path
     );
     if (ret != GG_ERR_OK) {
-        GG_LOGE("PKI: Failed to generate TPM CSR");
+        GG_LOGE("Failed to generate a CSR from a TPM persistent handle.");
         return ret;
     }
 
@@ -300,7 +302,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     int cert_req = -1;
     const char *handle_path = args->key_path ? args->key_path : args->claim_key;
     if (handle_path && strncmp(handle_path, "handle:", 7) == 0) {
-        ret = handle_tpm_pki_flow(args, output_dir, &cert_req, handle_path);
+        ret = handle_tpm_flow(args, output_dir, &cert_req, handle_path);
     } else {
         ret = handle_pki_flow(args, output_dir, &cert_req);
     }

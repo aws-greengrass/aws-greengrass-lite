@@ -118,18 +118,20 @@ GgError ggl_pki_generate_keypair(
     return GG_ERR_OK;
 }
 
-static EVP_PKEY *load_tpm_key(const char *uri) {
+static EVP_PKEY *load_tpm_key(const char *handle_path) {
     OSSL_STORE_CTX *store = NULL;
     EVP_PKEY *pkey = NULL;
 
-    store = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL);
+    store = OSSL_STORE_open(handle_path, NULL, NULL, NULL, NULL);
     if (!store) {
         return NULL;
     }
 
     while (!OSSL_STORE_eof(store)) {
         OSSL_STORE_INFO *info = OSSL_STORE_load(store);
-        if (!info) break;
+        if (!info) {
+            break;
+        }
 
         if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY) {
             pkey = OSSL_STORE_INFO_get1_PKEY(info);
@@ -160,7 +162,7 @@ GgError ggl_tpm_pki_generate_csr(
     // Load TPM-backed private key
     EVP_PKEY *tpm_key = load_tpm_key(tpm_handle_path);
     if (!tpm_key) {
-        GG_LOGE("Failed to load TPM private key: %s", tpm_handle_path);
+        GG_LOGE("Failed to load TPM private key from %s.", tpm_handle_path);
         return GG_ERR_FAILURE;
     }
     GG_CLEANUP(cleanup_evp_pkey, tpm_key);
@@ -201,21 +203,21 @@ GgError ggl_tpm_pki_generate_csr(
         return GG_ERR_FAILURE;
     }
 
-    /* Attach public key (derived from TPM key) */
+    // Attach public key
     ssl_ret = X509_REQ_set_pubkey(csr, tpm_key);
     if (ssl_ret == 0) {
         GG_LOGE("Failed to set CSR public key.");
         return GG_ERR_FAILURE;
     }
 
-    /* Sign CSR using TPM-backed key */
+    // Sign CSR using TPM-backed key
     ssl_ret = X509_REQ_sign(csr, tpm_key, EVP_sha256());
     if (ssl_ret == 0) {
         GG_LOGE("Failed to sign CSR with TPM key.");
         return GG_ERR_FAILURE;
     }
 
-    /* Write CSR to file descriptor */
+    // Write CSR to file descriptor
     BIO *out = BIO_new_fd(csr_fd, BIO_NOCLOSE);
     if (!out) {
         GG_LOGE("Failed to create BIO for CSR output.");
@@ -229,7 +231,7 @@ GgError ggl_tpm_pki_generate_csr(
         return GG_ERR_FAILURE;
     }
 
-    /* Ensure CSR is flushed to disk */
+    // Ensure CSR is flushed to disk
     ret = gg_fsync(csr_fd);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to fsync CSR.");

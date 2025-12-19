@@ -6,7 +6,6 @@
 #define FLEET_PROVISIONING_H
 
 #include <gg/error.h>
-#include <stdbool.h>
 
 typedef struct {
     char *claim_cert;

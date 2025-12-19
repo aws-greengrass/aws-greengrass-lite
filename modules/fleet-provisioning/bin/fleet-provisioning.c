@@ -9,7 +9,6 @@
 #include <gg/vector.h>
 #include <ggl/binpath.h>
 #include <ggl/nucleus/init.h>
-#include <stdbool.h>
 
 static char doc[] = "fleet-provisioning -- AWS IoT Fleet Provisioning client";
 

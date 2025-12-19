@@ -11,7 +11,6 @@ project(aws-greengrass-lite C ASM)
 
 option(BUILD_TESTING "Build tests")
 option(BUILD_EXAMPLES "Build examples")
-option(TPM_SUPPORT "Enable TPM support" OFF)
 
 option(ENABLE_WERROR "Compile warnings as errors")
 
@@ -255,10 +254,6 @@ pkg_search_module(uuid REQUIRED IMPORTED_TARGET uuid)
 pkg_search_module(libevent REQUIRED IMPORTED_TARGET libevent)
 pkg_search_module(liburiparser REQUIRED IMPORTED_TARGET liburiparser)
 pkg_search_module(libzip REQUIRED IMPORTED_TARGET libzip)
-
-if(TPM_SUPPORT)
-  pkg_search_module(tss2-esys REQUIRED IMPORTED_TARGET tss2-esys)
-endif()
 
 include(CheckCSourceCompiles)
 
