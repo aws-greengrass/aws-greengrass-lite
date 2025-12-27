@@ -157,6 +157,72 @@ static void try_enable_ktls(SSL_CTX *ssl_ctx) {
     GG_LOGD("kTLS option set on SSL context.");
 }
 
+static GgError load_cert_from_uri(SSL_CTX *ssl_ctx, const char *uri) {
+    OSSL_STORE_CTX *store_ctx = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL);
+    if (store_ctx == NULL) {
+        GG_LOGE("Failed to open cert store.");
+        return GG_ERR_NOMEM;
+    }
+
+    OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
+    if (info == NULL) {
+        GG_LOGE("Failed to load cert info.");
+        OSSL_STORE_close(store_ctx);
+        return GG_ERR_CONFIG;
+    }
+
+    X509 *cert = OSSL_STORE_INFO_get1_CERT(info);
+    OSSL_STORE_INFO_free(info);
+    OSSL_STORE_close(store_ctx);
+
+    if (cert == NULL) {
+        GG_LOGE("Failed to extract certificate.");
+        return GG_ERR_CONFIG;
+    }
+
+    if (SSL_CTX_use_certificate(ssl_ctx, cert) != 1) {
+        GG_LOGE("Failed to use certificate.");
+        X509_free(cert);
+        return GG_ERR_CONFIG;
+    }
+
+    X509_free(cert);
+    return GG_ERR_OK;
+}
+
+static GgError load_key_from_uri(SSL_CTX *ssl_ctx, const char *uri) {
+    OSSL_STORE_CTX *store_ctx = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL);
+    if (store_ctx == NULL) {
+        GG_LOGE("Failed to open key store.");
+        return GG_ERR_NOMEM;
+    }
+
+    OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
+    if (info == NULL) {
+        GG_LOGE("Failed to load key info.");
+        OSSL_STORE_close(store_ctx);
+        return GG_ERR_CONFIG;
+    }
+
+    EVP_PKEY *pkey = OSSL_STORE_INFO_get1_PKEY(info);
+    OSSL_STORE_INFO_free(info);
+    OSSL_STORE_close(store_ctx);
+
+    if (pkey == NULL) {
+        GG_LOGE("Failed to extract private key.");
+        return GG_ERR_CONFIG;
+    }
+
+    if (SSL_CTX_use_PrivateKey(ssl_ctx, pkey) != 1) {
+        GG_LOGE("Failed to use private key.");
+        EVP_PKEY_free(pkey);
+        return GG_ERR_CONFIG;
+    }
+
+    EVP_PKEY_free(pkey);
+    return GG_ERR_OK;
+}
+
 static void cleanup_ssl_ctx(SSL_CTX **ctx) {
     if (*ctx != NULL) {
         SSL_CTX_free(*ctx);
@@ -188,46 +254,30 @@ static GgError create_tls_context(
         return GG_ERR_CONFIG;
     }
 
-    if (SSL_CTX_use_certificate_file(new_ssl_ctx, args->cert, SSL_FILETYPE_PEM)
-        != 1) {
-        GG_LOGE("Failed to load client certificate.");
-        return GG_ERR_CONFIG;
+    GgBuffer cert_buf = gg_buffer_from_null_term(args->cert);
+    if (gg_buffer_has_prefix(cert_buf, GG_STR("pkcs11:"))) {
+        GgError ret = load_cert_from_uri(new_ssl_ctx, args->cert);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+    } else {
+        if (SSL_CTX_use_certificate_file(
+                new_ssl_ctx, args->cert, SSL_FILETYPE_PEM
+            )
+            != 1) {
+            GG_LOGE("Failed to load client certificate.");
+            return GG_ERR_CONFIG;
+        }
     }
 
-    // Check if the private key is a TPM handle
-    if (strncmp(args->key, "handle:", 7) == 0) {
-        OSSL_STORE_CTX *store_ctx
-            = OSSL_STORE_open(args->key, NULL, NULL, NULL, NULL);
-        if (store_ctx == NULL) {
-            GG_LOGE("Failed to open TPM key store.");
-            return GG_ERR_NOMEM;
+    GgBuffer key_buf = gg_buffer_from_null_term(args->key);
+    if (gg_buffer_has_prefix(key_buf, GG_STR("handle:"))
+        || gg_buffer_has_prefix(key_buf, GG_STR("pkcs11:"))) {
+        GgError ret = load_key_from_uri(new_ssl_ctx, args->key);
+        if (ret != GG_ERR_OK) {
+            return ret;
         }
-
-        OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
-        if (info == NULL) {
-            GG_LOGE("Failed to load TPM info.");
-            OSSL_STORE_close(store_ctx);
-            return GG_ERR_CONFIG;
-        }
-
-        EVP_PKEY *pkey = OSSL_STORE_INFO_get1_PKEY(info);
-        OSSL_STORE_INFO_free(info);
-        OSSL_STORE_close(store_ctx);
-
-        if (pkey == NULL) {
-            GG_LOGE("Failed to extract private key from TPM.");
-            return GG_ERR_CONFIG;
-        }
-
-        if (SSL_CTX_use_PrivateKey(new_ssl_ctx, pkey) != 1) {
-            GG_LOGE("Failed to use TPM private key.");
-            EVP_PKEY_free(pkey);
-            return GG_ERR_CONFIG;
-        }
-
-        EVP_PKEY_free(pkey);
     } else {
-        // Regular file-based key
         if (SSL_CTX_use_PrivateKey_file(
                 new_ssl_ctx, args->key, SSL_FILETYPE_PEM
             )
