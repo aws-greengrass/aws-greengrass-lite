@@ -30,7 +30,7 @@ jobs:
           repository:
             ${{ github.event.inputs.testing_repo ||
             'aws-greengrass/aws-greengrass-testing' }}
-          ref: ${{ github.event.inputs.testing_repo_ref || 'python_testing' }}
+          ref: ${{ github.event.inputs.testing_repo_ref || 'main' }}
           path: aws-greengrass-testing
 
       - name: List all tests
@@ -78,7 +78,7 @@ jobs:
           repository:
             ${{ github.event.inputs.testing_repo ||
             'aws-greengrass/aws-greengrass-testing' }}
-          ref: ${{ github.event.inputs.testing_repo_ref || 'python_testing' }}
+          ref: ${{ github.event.inputs.testing_repo_ref || 'main' }}
           path: aws-greengrass-testing
 
       - name: Get temporary AWS credentials
