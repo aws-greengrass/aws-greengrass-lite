@@ -49,7 +49,7 @@ jobs:
             artifact_suffix: armv7
             build_type: MinSizeRel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Qemu for arm32
         if: matrix.arch != 'aarch64' && matrix.arch != 'x86-64'
@@ -176,7 +176,7 @@ jobs:
             platform: linux/arm/v7
             os: debian:13
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
