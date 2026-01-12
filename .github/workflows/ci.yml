@@ -42,7 +42,7 @@ jobs:
     name: Check ${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           filter: "tree:0"

@@ -25,7 +25,7 @@ jobs:
       tests: ${{ steps.list.outputs.tests }}
     steps:
       - name: Checkout testing repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository:
             ${{ github.event.inputs.testing_repo ||
@@ -64,8 +64,8 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout lite repository
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -73,7 +73,7 @@ jobs:
           python-version: ">=3.12"
 
       - name: Checkout testing repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository:
             ${{ github.event.inputs.testing_repo ||
