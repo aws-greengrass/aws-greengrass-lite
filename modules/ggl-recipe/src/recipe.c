@@ -276,7 +276,11 @@ GgError fetch_script_section(
 static GgError lifecycle_selection(
     GgList selection, GgMap recipe_map, GgObject **selected_lifecycle_object
 ) {
-    assert(gg_list_type_check(selection, GG_TYPE_BUF));
+    GgError ret = gg_list_type_check(selection, GG_TYPE_BUF);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Selection is not a list of buffers");
+        return ret;
+    }
     GG_LIST_FOREACH (i, selection) {
         GgBuffer elem = gg_obj_into_buf(*i);
         if (gg_buffer_eq(elem, GG_STR("all"))
