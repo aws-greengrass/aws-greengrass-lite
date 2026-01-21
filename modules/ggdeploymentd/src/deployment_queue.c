@@ -252,6 +252,11 @@ static GgError parse_deployment_obj(
             // If no components existed in past deployments, then there is
             // nothing to remove and the list of components for local deployment
             // is just components to add.
+            if (root_component_versions_to_add == NULL) {
+                GG_LOGI("No root_component_versions_to_add provided.");
+                doc->components = local_components_kv_vec->map;
+                return GG_ERR_OK;
+            }
             GG_MAP_FOREACH (
                 component_pair, gg_obj_into_map(*root_component_versions_to_add)
             ) {
