@@ -671,9 +671,13 @@ GgError runner(const RecipeRunnerArgs *args) {
         GG_LOGE("Failed to get root CA path from config.");
         return ret;
     }
-    resp.data[resp.len] = '\0';
+    if (resp.len == 0) {
+        GG_LOGE("rootCaPath is empty.");
+        return GG_ERR_INVALID;
+    }
+    resp_mem[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    sys_ret = setenv("GG_ROOT_CA_PATH", (char *) resp.data, true);
+    sys_ret = setenv("GG_ROOT_CA_PATH", (char *) resp_mem, true);
     if (sys_ret != 0) {
         GG_LOGE("setenv failed: %d.", errno);
     }
@@ -690,14 +694,18 @@ GgError runner(const RecipeRunnerArgs *args) {
         GG_LOGE("Failed to get region from config.");
         return ret;
     }
-    resp.data[resp.len] = '\0';
+    if (resp.len == 0) {
+        GG_LOGE("awsRegion is empty.");
+        return GG_ERR_INVALID;
+    }
+    resp_mem[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    sys_ret = setenv("AWS_REGION", (char *) resp.data, true);
+    sys_ret = setenv("AWS_REGION", (char *) resp_mem, true);
     if (sys_ret != 0) {
         GG_LOGE("setenv failed: %d.", errno);
     }
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    sys_ret = setenv("AWS_DEFAULT_REGION", (char *) resp.data, true);
+    sys_ret = setenv("AWS_DEFAULT_REGION", (char *) resp_mem, true);
     if (sys_ret != 0) {
         GG_LOGE("setenv failed: %d.", errno);
     }
@@ -725,14 +733,18 @@ GgError runner(const RecipeRunnerArgs *args) {
         GG_LOGD("No network proxy set.");
         break;
     case GG_ERR_OK: {
-        resp.data[resp.len] = '\0';
+        if (resp.len == 0) {
+            GG_LOGD("Network proxy URL is empty.");
+            break;
+        }
+        resp_mem[resp.len] = '\0';
         // NOLINTBEGIN(concurrency-mt-unsafe)
-        setenv("all_proxy", (char *) resp.data, true);
-        setenv("ALL_PROXY", (char *) resp.data, true);
-        setenv("http_proxy", (char *) resp.data, true);
-        setenv("HTTP_PROXY", (char *) resp.data, true);
-        setenv("https_proxy", (char *) resp.data, true);
-        setenv("HTTPS_PROXY", (char *) resp.data, true);
+        setenv("all_proxy", (char *) resp_mem, true);
+        setenv("ALL_PROXY", (char *) resp_mem, true);
+        setenv("http_proxy", (char *) resp_mem, true);
+        setenv("HTTP_PROXY", (char *) resp_mem, true);
+        setenv("https_proxy", (char *) resp_mem, true);
+        setenv("HTTPS_PROXY", (char *) resp_mem, true);
         // NOLINTEND(concurrency-mt-unsafe)
         break;
     }
@@ -758,11 +770,15 @@ GgError runner(const RecipeRunnerArgs *args) {
         GG_LOGD("No network proxy set.");
         break;
     case GG_ERR_OK: {
-        resp.data[resp.len] = '\0';
+        if (resp.len == 0) {
+            GG_LOGD("Network proxy noProxyAddresses is empty.");
+            break;
+        }
+        resp_mem[resp.len] = '\0';
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        setenv("no_proxy", (char *) resp.data, true);
+        setenv("no_proxy", (char *) resp_mem, true);
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        setenv("NO_PROXY", (char *) resp.data, true);
+        setenv("NO_PROXY", (char *) resp_mem, true);
         break;
     }
     default:
@@ -778,9 +794,9 @@ GgError runner(const RecipeRunnerArgs *args) {
         GG_LOGE("Failed to get thing name from config.");
         return ret;
     }
-    thing_name.data[thing_name.len] = '\0';
+    thing_name_mem[thing_name.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    sys_ret = setenv("AWS_IOT_THING_NAME", (char *) thing_name.data, true);
+    sys_ret = setenv("AWS_IOT_THING_NAME", (char *) thing_name_mem, true);
     if (sys_ret != 0) {
         GG_LOGE("setenv failed: %d.", errno);
     }
