@@ -120,9 +120,10 @@ static GgError get_thing_name(char **thing_name) {
         GG_LOGW("Failed to get thing name from config.");
         return ret;
     }
-    resp.data[resp.len] = '\0';
 
-    *thing_name = (char *) resp.data;
+    resp_mem[resp.len] = '\0';
+
+    *thing_name = (char *) resp_mem;
     return GG_ERR_OK;
 }
 
@@ -168,9 +169,15 @@ static GgError get_root_ca_path(char **root_ca_path) {
         GG_LOGW("Failed to get rootCaPath from config.");
         return ret;
     }
-    resp.data[resp.len] = '\0';
 
-    *root_ca_path = (char *) resp.data;
+    if (resp.len == 0) {
+        GG_LOGW("rootCaPath is empty.");
+        return GG_ERR_INVALID;
+    }
+
+    resp_mem[resp.len] = '\0';
+
+    *root_ca_path = (char *) resp_mem;
     return GG_ERR_OK;
 }
 
@@ -196,9 +203,15 @@ static GgError get_posix_user(char **posix_user) {
         GG_LOGW("Failed to get posixUser from config.");
         return ret;
     }
-    resp.data[resp.len] = '\0';
 
-    *posix_user = (char *) resp.data;
+    if (resp.len == 0) {
+        GG_LOGW("posixUser is empty.");
+        return GG_ERR_INVALID;
+    }
+
+    resp_mem[resp.len] = '\0';
+
+    *posix_user = (char *) resp_mem;
     return GG_ERR_OK;
 }
 
