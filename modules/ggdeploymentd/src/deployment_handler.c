@@ -1922,14 +1922,17 @@ static GgError resolve_dependencies(
                 }
 
                 // If the component is aws.greengrass.Nucleus or
-                // aws.greengrass.TokenExchangeService ignore it and never add
-                // it as a dependency to check or parse.
+                // aws.greengrass.TokenExchangeService or aws.greengrass.Cli
+                // ignore it and never add it as a dependency to check or parse.
                 if (gg_buffer_eq(
                         gg_kv_key(*dependency), GG_STR("aws.greengrass.Nucleus")
                     )
                     || gg_buffer_eq(
                         gg_kv_key(*dependency),
                         GG_STR("aws.greengrass.TokenExchangeService")
+                    )
+                    || gg_buffer_eq(
+                        gg_kv_key(*dependency), GG_STR("aws.greengrass.Cli")
                     )) {
                     GG_LOGD(
                         "Skipping a dependency during resolution as it is %.*s",
