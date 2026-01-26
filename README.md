@@ -31,6 +31,11 @@ Furthermore you can visit Avnet's IOTCONNECT Greengrass repository
 SDKs and Quick Start guides that support platforms such as STM32, Renesas, NXP
 and Raspberry Pi.
 
+For Yocto/OpenEmbedded integration, check out
+[meta-aws](https://github.com/aws4embeddedlinux/meta-aws) and
+[meta-aws-demos](https://github.com/aws4embeddedlinux/meta-aws-demos) which
+provide recipes and examples for building AWS Greengrass Lite.
+
 ### ⚠️ Important Notice
 
 The git tags in this repository represent stable, fully tested releases. Please
