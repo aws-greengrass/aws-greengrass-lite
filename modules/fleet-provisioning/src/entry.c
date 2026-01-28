@@ -276,7 +276,7 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     // Output dir
     GgBuffer output_dir_path = args->output_dir
         ? gg_buffer_from_null_term(args->output_dir)
-        : GG_STR("/var/lib/greengrass/credentials/");
+        : GG_STR("/var/lib/greengrass/credentials");
 
     int output_dir;
     ret = gg_dir_open(output_dir_path, O_PATH, true, &output_dir);

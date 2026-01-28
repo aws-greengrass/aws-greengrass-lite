@@ -16,6 +16,10 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/http.h>
 #include <limits.h>
+#include <openssl/evp.h>
+#include <openssl/ssl.h>
+#include <openssl/store.h>
+#include <openssl/types.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
@@ -474,25 +478,107 @@ GgError gghttplib_add_header(
     return GG_ERR_OK;
 }
 
+static CURLcode ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *ptr) {
+    (void) curl;
+    TpmCallbackData *data = (TpmCallbackData *) ptr;
+    SSL_CTX *ctx = (SSL_CTX *) ssl_ctx;
+
+    if (SSL_CTX_use_certificate_file(ctx, data->cert_path, SSL_FILETYPE_PEM)
+        != 1) {
+        return CURLE_SSL_CERTPROBLEM;
+    }
+
+    OSSL_STORE_CTX *store_ctx
+        = OSSL_STORE_open(data->key_path, NULL, NULL, NULL, NULL);
+    if (store_ctx == NULL) {
+        return CURLE_SSL_CERTPROBLEM;
+    }
+
+    OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
+    if (info == NULL) {
+        OSSL_STORE_close(store_ctx);
+        return CURLE_SSL_CERTPROBLEM;
+    }
+
+    EVP_PKEY *pkey = OSSL_STORE_INFO_get1_PKEY(info);
+    OSSL_STORE_INFO_free(info);
+    OSSL_STORE_close(store_ctx);
+
+    if (pkey == NULL) {
+        return CURLE_SSL_CERTPROBLEM;
+    }
+
+    if (SSL_CTX_use_PrivateKey(ctx, pkey) != 1) {
+        EVP_PKEY_free(pkey);
+        return CURLE_SSL_CERTPROBLEM;
+    }
+
+    if (SSL_CTX_check_private_key(ctx) != 1) {
+        EVP_PKEY_free(pkey);
+        return CURLE_SSL_CERTPROBLEM;
+    }
+
+    EVP_PKEY_free(pkey);
+    return CURLE_OK;
+}
+
 GgError gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 ) {
     assert(curl_data != NULL);
+
+    if (strncmp(request_data.gghttplib_p_key_path, "handle:", 7) == 0) {
+        curl_data->tpm_data.key_path = request_data.gghttplib_p_key_path;
+        curl_data->tpm_data.cert_path = request_data.gghttplib_cert_path;
+
+        CURLcode err = curl_easy_setopt(
+            curl_data->curl, CURLOPT_SSL_CTX_FUNCTION, ssl_ctx_callback
+        );
+        if (err != CURLE_OK) {
+            GG_LOGE(
+                "Failed to set SSL context callback: %s",
+                curl_easy_strerror(err)
+            );
+            return translate_curl_code(err);
+        }
+
+        err = curl_easy_setopt(
+            curl_data->curl, CURLOPT_SSL_CTX_DATA, (void *) &curl_data->tpm_data
+        );
+        if (err != CURLE_OK) {
+            GG_LOGE(
+                "Failed to set SSL context data: %s", curl_easy_strerror(err)
+            );
+            return translate_curl_code(err);
+        }
+    } else {
+        CURLcode err = curl_easy_setopt(
+            curl_data->curl, CURLOPT_SSLCERT, request_data.gghttplib_cert_path
+        );
+        if (err != CURLE_OK) {
+            GG_LOGE(
+                "Failed to set CURLOPT_SSLCERT: %s", curl_easy_strerror(err)
+            );
+            return translate_curl_code(err);
+        }
+
+        err = curl_easy_setopt(
+            curl_data->curl, CURLOPT_SSLKEY, request_data.gghttplib_p_key_path
+        );
+        if (err != CURLE_OK) {
+            GG_LOGE(
+                "Failed to set CURLOPT_SSLKEY: %s", curl_easy_strerror(err)
+            );
+            return translate_curl_code(err);
+        }
+    }
+
     CURLcode err = curl_easy_setopt(
-        curl_data->curl, CURLOPT_SSLCERT, request_data.gghttplib_cert_path
-    );
-    if (err != CURLE_OK) {
-        return translate_curl_code(err);
-    }
-    err = curl_easy_setopt(
-        curl_data->curl, CURLOPT_SSLKEY, request_data.gghttplib_p_key_path
-    );
-    if (err != CURLE_OK) {
-        return translate_curl_code(err);
-    }
-    err = curl_easy_setopt(
         curl_data->curl, CURLOPT_CAINFO, request_data.gghttplib_root_ca_path
     );
+    if (err != CURLE_OK) {
+        GG_LOGE("Failed to set CURLOPT_CAINFO: %s", curl_easy_strerror(err));
+    }
     return translate_curl_code(err);
 }
 

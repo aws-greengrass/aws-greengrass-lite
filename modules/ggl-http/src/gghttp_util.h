@@ -10,9 +10,15 @@
 #include <gg/error.h>
 #include <ggl/http.h>
 
+typedef struct TpmCallbackData {
+    const char *key_path;
+    const char *cert_path;
+} TpmCallbackData;
+
 typedef struct CurlData {
     CURL *curl;
     struct curl_slist *headers_list;
+    TpmCallbackData tpm_data;
 } CurlData;
 
 /**
