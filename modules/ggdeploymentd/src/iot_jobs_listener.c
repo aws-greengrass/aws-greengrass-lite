@@ -178,8 +178,25 @@ static GgError deserialize_payload(
     return GG_ERR_OK;
 }
 
+static bool is_job_canceled(GgBuffer status) {
+    if (gg_buffer_eq(status, GG_STR("CANCELED"))) {
+        return true;
+    }
+    GgBufList terminal_statuses
+        = GG_BUF_LIST(GG_STR("SUCCEEDED"), GG_STR("FAILED"));
+    GG_BUF_LIST_FOREACH (terminal_status, terminal_statuses) {
+        if (gg_buffer_eq(*terminal_status, status)) {
+            GG_LOGW(
+                "Job was marked completed perhaps by another Greengrass device."
+            );
+            return true;
+        }
+    }
+    return false;
+}
+
 static GgError update_job(
-    GgBuffer job_id, GgBuffer job_status, _Atomic int32_t *version
+    GgBuffer job_id, GgBuffer job_status, _Atomic(int32_t) *version
 ) {
     GgBuffer topic = GG_BUF((uint8_t[256]) { 0 });
     GgError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
@@ -222,10 +239,7 @@ static GgError update_job(
             &result
         );
         if (ret == GG_ERR_OK) {
-            local_version
-                // coverity[incompatible_param]
-                = atomic_fetch_add_explicit(version, 1U, memory_order_acq_rel)
-                + 1;
+            local_version += 1;
             break;
         }
         if (ret != GG_ERR_REMOTE) {
@@ -261,34 +275,45 @@ static GgError update_job(
         if (ret != GG_ERR_OK) {
             return ret;
         }
-        if (gg_buffer_eq(job_status, GG_STR("CANCELED"))) {
-            // TODO: Cancelation?
-            GG_LOGD("Job was canceled.");
-            return GG_ERR_OK;
-        }
+
         if ((gg_obj_into_i64(*remote_version) < 0)
-            || (gg_obj_into_i64(*remote_version) > INT32_MAX)) {
+            || (gg_obj_into_i64(*remote_version) >= INT32_MAX)) {
             GG_LOGE(
                 "Invalid version %" PRIi64 " received",
                 gg_obj_into_i64(*remote_version)
             );
             return GG_ERR_FAILURE;
         }
-        if ((int32_t) gg_obj_into_i64(*remote_version) != local_version) {
-            GG_LOGD("Updating stale job status version number.");
-            atomic_store_explicit(
-                version,
-                (int32_t) gg_obj_into_i64(*remote_version),
-                memory_order_release
-            );
-            local_version = (int32_t) gg_obj_into_i64(*remote_version);
+        local_version = gg_obj_into_i64(*remote_version);
+
+        if (is_job_canceled(gg_obj_into_buf(*remote_status))) {
+            // TODO: Cancelation?
+            GG_LOGW("Job was canceled.");
+            return GG_ERR_OK;
         }
-        if (gg_buffer_eq(job_status, gg_obj_into_buf(*remote_status))) {
+        if (gg_buffer_eq(gg_obj_into_buf(*remote_status), job_status)) {
             GG_LOGD("Job is already in the desired state.");
             break;
         }
+        if ((int32_t) gg_obj_into_i64(*remote_version) == local_version) {
+            GG_LOGE("Job update failed for unknown reason");
+            return GG_ERR_FAILURE;
+        }
+
+        GG_LOGI("Updating stale job status version number and retrying.");
+        atomic_store_explicit(
+            version,
+            (int32_t) gg_obj_into_i64(*remote_version),
+            memory_order_release
+        );
+        local_version = gg_obj_into_i64(*remote_version);
+
         (void) gg_sleep(1);
     }
+
+    atomic_store_explicit(
+        version, (int32_t) local_version, memory_order_release
+    );
 
     // save jobs ID and version to config in case of bootstrap
     ret = save_iot_jobs_id(job_id);
