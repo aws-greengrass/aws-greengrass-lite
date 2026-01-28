@@ -205,7 +205,8 @@ static GgError update_job(
     }
 
     int64_t local_version = atomic_load_explicit(version, memory_order_acquire);
-    while (true) {
+    int stale_version_count = 0;
+    while (stale_version_count < 3) {
         uint8_t version_buf[16] = { 0 };
         int len = snprintf(
             (char *) version_buf, sizeof(version_buf), "%" PRIi64, local_version
@@ -307,6 +308,7 @@ static GgError update_job(
             memory_order_release
         );
         local_version = gg_obj_into_i64(*remote_version);
+        ++stale_version_count;
 
         (void) gg_sleep(1);
     }
