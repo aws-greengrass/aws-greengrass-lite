@@ -520,8 +520,10 @@ GgError cleanup_stale_versions(GgMap latest_components_map) {
     DIR *dir = fdopendir(recipe_dir_fd);
     if (dir == NULL) {
         GG_LOGE("Failed to open recipe directory.");
+        (void) gg_close(recipe_dir_fd);
         return GG_ERR_FAILURE;
     }
+    GG_CLEANUP(cleanup_closedir, dir);
 
     struct dirent *entry = NULL;
     uint8_t component_name_array[NAME_MAX];
