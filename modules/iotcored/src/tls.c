@@ -197,15 +197,22 @@ static GgError load_key_from_uri(SSL_CTX *ssl_ctx, const char *uri) {
         return GG_ERR_NOMEM;
     }
 
-    OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
-    if (info == NULL) {
-        GG_LOGE("Failed to load key info.");
-        OSSL_STORE_close(store_ctx);
-        return GG_ERR_CONFIG;
-    }
+    EVP_PKEY *pkey = NULL;
+    while (!OSSL_STORE_eof(store_ctx)) {
+        OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
+        if (info == NULL) {
+            GG_LOGE("Failed to load key info.");
+            OSSL_STORE_close(store_ctx);
+            return GG_ERR_CONFIG;
+        }
 
-    EVP_PKEY *pkey = OSSL_STORE_INFO_get1_PKEY(info);
-    OSSL_STORE_INFO_free(info);
+        if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY) {
+            pkey = OSSL_STORE_INFO_get1_PKEY(info);
+            OSSL_STORE_INFO_free(info);
+            break;
+        }
+        OSSL_STORE_INFO_free(info);
+    }
     OSSL_STORE_close(store_ctx);
 
     if (pkey == NULL) {
