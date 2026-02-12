@@ -150,6 +150,7 @@ static GgError parse_deployment_obj(
     GgObject *cloud_components;
     GgObject *deployment_id;
     GgObject *configuration_arn_obj;
+    GgObject *group_name;
 
     GgError ret = gg_map_validate(
         args,
@@ -178,6 +179,7 @@ static GgError parse_deployment_obj(
               GG_OPTIONAL,
               GG_TYPE_BUF,
               &configuration_arn_obj },
+            { GG_STR("group_name"), GG_OPTIONAL, GG_TYPE_BUF, &group_name },
         )
     );
     if (ret != GG_ERR_OK) {
@@ -231,7 +233,11 @@ static GgError parse_deployment_obj(
     }
 
     if (type == LOCAL_DEPLOYMENT) {
-        doc->thing_group = GG_STR("LOCAL_DEPLOYMENTS");
+        if (group_name != NULL && gg_obj_into_buf(*group_name).len > 0) {
+            doc->thing_group = gg_obj_into_buf(*group_name);
+        } else {
+            doc->thing_group = GG_STR("LOCAL_DEPLOYMENTS");
+        }
         doc->configuration_arn = doc->deployment_id;
 
         GgObject local_deployment_root_components_read_value;
@@ -240,7 +246,7 @@ static GgError parse_deployment_obj(
                 GG_STR("services"),
                 GG_STR("DeploymentService"),
                 GG_STR("thingGroupsToRootComponents"),
-                GG_STR("LOCAL_DEPLOYMENTS")
+                doc->thing_group
             ),
             alloc,
             &local_deployment_root_components_read_value
