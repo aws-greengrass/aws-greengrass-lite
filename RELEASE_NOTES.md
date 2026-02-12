@@ -1,3 +1,7 @@
+# Release Notes v2.3.2
+
+This release updates the version file for correct reporting.
+
 # Release Notes v2.3.1
 
 This release includes the following fixes:
