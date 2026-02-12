@@ -44,6 +44,8 @@ GgError ggl_handle_create_local_deployment(
                        gg_kv_key(*pair), GG_STR("componentToConfiguration")
                    )) {
             gg_kv_set_key(pair, GG_STR("component_to_configuration"));
+        } else if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("groupName"))) {
+            gg_kv_set_key(pair, GG_STR("group_name"));
         } else {
             GG_LOGE(
                 "Unhandled argument: %.*s",

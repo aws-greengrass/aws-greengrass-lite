@@ -30,6 +30,7 @@ typedef struct {
 char *command = NULL;
 char *recipe_dir = NULL;
 char *artifacts_dir = NULL;
+char *group_name = NULL;
 static Component components[MAX_LOCAL_DEPLOYMENT_COMPONENTS];
 int component_count = 0;
 
@@ -39,6 +40,7 @@ static struct argp_option opts[] = {
     { "recipe-dir", 'r', "path", 0, "Recipe directory to merge", 0 },
     { "artifacts-dir", 'a', "path", 0, "Artifacts directory to merge", 0 },
     { "add-component", 'c', "name=version", 0, "Component to add...", 0 },
+    { "group-name", 'g', "name", 0, "Thing group name for deployment", 0 },
     { 0 },
 };
 
@@ -50,6 +52,9 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         break;
     case 'a':
         artifacts_dir = arg;
+        break;
+    case 'g':
+        group_name = arg;
         break;
     case 'c': {
         if (component_count >= MAX_LOCAL_DEPLOYMENT_COMPONENTS) {
@@ -193,7 +198,7 @@ int main(int argc, char **argv) {
 
     ggl_nucleus_init();
 
-    GgKVVec args = GG_KV_VEC((GgKV[3]) { 0 });
+    GgKVVec args = GG_KV_VEC((GgKV[4]) { 0 });
 
     if (setup_paths(&args) != 0) {
         return 1;
@@ -202,6 +207,20 @@ int main(int argc, char **argv) {
     GgKV *pairs = setup_components(&args);
     if (component_count > 0 && pairs == NULL) {
         return 1;
+    }
+
+    if (group_name != NULL) {
+        GgError ret = gg_kv_vec_push(
+            &args,
+            gg_kv(
+                GG_STR("group_name"),
+                gg_obj_buf(gg_buffer_from_null_term(group_name))
+            )
+        );
+        if (ret != GG_ERR_OK) {
+            assert(false);
+            return 1;
+        }
     }
 
     GgError remote_err = GG_ERR_OK;

@@ -1408,6 +1408,7 @@ static GgError add_thing_groups_list_to_config(GgObject *thing_groups_list) {
 static GgError resolve_dependencies(
     GgMap root_components,
     GgBuffer thing_group_name,
+    GglDeploymentType deployment_type,
     GglDeploymentHandlerThreadArgs *args,
     GgArena *alloc,
     GgKVVec *resolved_components_kv_vec
@@ -1532,7 +1533,7 @@ static GgError resolve_dependencies(
             return ret;
         }
     } else {
-        if (!gg_buffer_eq(GG_STR("LOCAL_DEPLOYMENTS"), thing_group_name)) {
+        if (deployment_type != LOCAL_DEPLOYMENT) {
             GG_LOGE(
                 "Cloud call to list thing groups failed. Cloud deployment requires an updated thing group list."
             );
@@ -1704,7 +1705,7 @@ static GgError resolve_dependencies(
 
     // Add local components to components to resolve, if it isn't a local
     // deployment
-    if (!gg_buffer_eq(GG_STR("LOCAL_DEPLOYMENTS"), thing_group_name)) {
+    if (deployment_type != LOCAL_DEPLOYMENT) {
         GgObject local_components_read_value;
         ret = ggl_gg_config_read(
             GG_BUF_LIST(
@@ -2436,6 +2437,7 @@ static void handle_deployment(
     GgError ret = resolve_dependencies(
         deployment->components,
         deployment->thing_group,
+        deployment->type,
         args,
         &resolve_dependencies_alloc,
         &resolved_components_kv_vec

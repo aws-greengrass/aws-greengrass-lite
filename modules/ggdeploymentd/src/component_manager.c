@@ -17,8 +17,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define LOCAL_DEPLOYMENT "LOCAL_DEPLOYMENT"
-
 static GgError find_active_version(
     GgBuffer package_name, GgBuffer version_requirement, GgBuffer *version
 ) {
