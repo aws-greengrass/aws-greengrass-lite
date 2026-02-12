@@ -1,3 +1,12 @@
+# Release Notes v2.3.1
+
+This release includes the following fixes:
+
+- GG will not attempt to update deployment state for canceled jobs
+- Ensure DIR from fdopendir is closed
+- Fleet provisioning will now trigger certificate file overwrite on each run
+- Other minor bug fixes
+
 # Release Notes v2.3.0
 
 This release includes support for using TPM 2.0 for IoT Core MQTT authorization
