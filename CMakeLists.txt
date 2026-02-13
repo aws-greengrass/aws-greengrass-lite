@@ -186,6 +186,20 @@ add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>)
 
 file(READ version GGL_VERSION)
 string(STRIP "${GGL_VERSION}" GGL_VERSION)
+
+option(GGL_RELEASE "Build as release version without git hash" OFF)
+
+if(NOT GGL_RELEASE)
+  execute_process(
+    COMMAND git rev-parse --short=7 HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  if(GIT_COMMIT)
+    set(GGL_VERSION "${GGL_VERSION}-${GIT_COMMIT}")
+  endif()
+endif()
+
 add_compile_definitions("GGL_VERSION=\"${GGL_VERSION}\"")
 
 add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
