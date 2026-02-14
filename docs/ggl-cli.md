@@ -9,6 +9,25 @@ greengrass-lite nucleus.
 
 ggl-cli can queue a deployment to enable and run a locally-installed component.
 
+## Options
+
+| Option               | Short | Argument     | Description                      |
+| :------------------- | :---- | :----------- | :------------------------------- |
+| `--recipe-dir`       | `-r`  | path         | Recipe directory to merge        |
+| `--artifacts-dir`    | `-a`  | path         | Artifacts directory to merge     |
+| `--add-component`    | `-c`  | name=version | Component to add (repeatable)    |
+| `--remove-component` | `-d`  | name         | Component to remove (repeatable) |
+| `--group-name`       | `-g`  | name         | Thing group name for deployment  |
+
+When `--group-name` is provided, the deployment targets the specified thing
+group instead of the default `LOCAL_DEPLOYMENTS` group. This allows local
+deployments to simulate thing-group-targeted deployments. If the same component
+exists in another group with a different version, the deployment will fail with
+a version conflict.
+
+When `--remove-component` is provided, the specified components are removed from
+the group's component list.
+
 Consider the following directory tree for the sample python component in this
 repository:
 

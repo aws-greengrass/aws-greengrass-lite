@@ -140,10 +140,11 @@ deployment and can specify deployment parameters.
   - [ggdeploymentd-bus-createlocaldeployment-3.1] root_component_versions_to_add
     is a map that maps keys of type buffer (component names) to values of type
     buffer (component versions).
-- [ggdeploymentd-bus-createlocaldeployment-4] root_components_to_remove is an
-  optional parameter of type list of buffers.
-  - [ggdeploymentd-bus-createlocaldeployment-4.1] root_components_to_remove is a
-    list of component names to uninstall from the device.
+- [ggdeploymentd-bus-createlocaldeployment-4] root_component_versions_to_remove
+  is an optional parameter of type list of buffers.
+  - [ggdeploymentd-bus-createlocaldeployment-4.1]
+    root_component_versions_to_remove is a list of component names to uninstall
+    from the device.
 - [ggdeploymentd-bus-createlocaldeployment-5] component_to_configuration is an
   optional parameter of type map.
   - [ggdeploymentd-bus-createlocaldeployment-5.1] component_to_configuration is
@@ -151,6 +152,13 @@ deployment and can specify deployment parameters.
     buffer (configuration updates to be made).
     - [ggdeploymentd-bus-createlocaldeployment-5.2] Configuration update values
       must be in valid JSON format.
+- [ggdeploymentd-bus-createlocaldeployment-6] group_name is an optional
+  parameter of type buffer.
+  - [ggdeploymentd-bus-createlocaldeployment-6.1] When provided, the deployment
+    targets the specified thing group instead of the default LOCAL_DEPLOYMENTS
+    group.
+  - [ggdeploymentd-bus-createlocaldeployment-6.2] When empty or not provided,
+    the deployment targets the LOCAL_DEPLOYMENTS group.
 
 ## Removing Stale Components
 
