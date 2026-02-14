@@ -1703,9 +1703,9 @@ static GgError resolve_dependencies(
         }
     }
 
-    // Add local components to components to resolve, if it isn't a local
-    // deployment
-    if (deployment_type != LOCAL_DEPLOYMENT) {
+    // Add local components to components to resolve, if the deployment is not
+    // targeting LOCAL_DEPLOYMENTS
+    if (!gg_buffer_eq(GG_STR("LOCAL_DEPLOYMENTS"), thing_group_name)) {
         GgObject local_components_read_value;
         ret = ggl_gg_config_read(
             GG_BUF_LIST(
