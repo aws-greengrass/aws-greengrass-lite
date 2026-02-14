@@ -135,6 +135,187 @@ static void get_slash_and_colon_locations_from_arn(
     }
 }
 
+static bool is_in_removal_list(
+    GgBuffer component_name, GgObject *removal_list
+) {
+    if (removal_list == NULL) {
+        return false;
+    }
+    GgList list = gg_obj_into_list(*removal_list);
+    for (size_t i = 0; i < list.len; i++) {
+        if (gg_obj_type(list.items[i]) == GG_TYPE_BUF
+            && gg_buffer_eq(gg_obj_into_buf(list.items[i]), component_name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static GgError push_component_version(
+    GgKVVec *vec, GgBuffer name, GgObject version, GgArena *alloc
+) {
+    GgKV *info_mem = GG_ARENA_ALLOC(alloc, GgKV);
+    if (info_mem == NULL) {
+        GG_LOGE(
+            "No memory when allocating memory while enqueuing local deployment."
+        );
+        return GG_ERR_NOMEM;
+    }
+    *info_mem = gg_kv(GG_STR("version"), version);
+    GgMap info_map = (GgMap) { .pairs = info_mem, .len = 1 };
+    return gg_kv_vec_push(vec, gg_kv(name, gg_obj_map(info_map)));
+}
+
+static GgError parse_local_deployment_components(
+    GgObject *root_component_versions_to_add,
+    GgObject *root_component_versions_to_remove,
+    GglDeployment *doc,
+    GgArena *alloc,
+    GgKVVec *local_components_kv_vec
+) {
+    GgError ret;
+
+    GgObject local_deployment_root_components_read_value;
+    ret = ggl_gg_config_read(
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("DeploymentService"),
+            GG_STR("thingGroupsToRootComponents"),
+            doc->thing_group
+        ),
+        alloc,
+        &local_deployment_root_components_read_value
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGI(
+            "No info found in config for root components for local deployments, assuming no components have been deployed locally yet."
+        );
+        if (root_component_versions_to_add == NULL) {
+            GG_LOGI("No root_component_versions_to_add provided.");
+            doc->components = local_components_kv_vec->map;
+            return GG_ERR_OK;
+        }
+        GG_MAP_FOREACH (
+            component_pair, gg_obj_into_map(*root_component_versions_to_add)
+        ) {
+            if (gg_obj_type(*gg_kv_val(component_pair)) != GG_TYPE_BUF) {
+                GG_LOGE(
+                    "Local deployment component version read incorrectly from the deployment doc."
+                );
+                return GG_ERR_INVALID;
+            }
+            // TODO: Add configurationUpdate and runWith
+            ret = push_component_version(
+                local_components_kv_vec,
+                gg_kv_key(*component_pair),
+                *gg_kv_val(component_pair),
+                alloc
+            );
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+        }
+        doc->components = local_components_kv_vec->map;
+        return GG_ERR_OK;
+    }
+
+    if (gg_obj_type(local_deployment_root_components_read_value)
+        != GG_TYPE_MAP) {
+        GG_LOGE(
+            "Local deployment component list read incorrectly from the config."
+        );
+        return GG_ERR_INVALID;
+    }
+
+    // Pre-populate with existing components, filtering removals
+    GG_MAP_FOREACH (
+        old_component_pair,
+        gg_obj_into_map(local_deployment_root_components_read_value)
+    ) {
+        if (gg_obj_type(*gg_kv_val(old_component_pair)) != GG_TYPE_BUF) {
+            GG_LOGE(
+                "Local deployment component version read incorrectly from the config."
+            );
+            return GG_ERR_INVALID;
+        }
+
+        GG_LOGD(
+            "Found existing local component %.*s as part of local deployments group.",
+            (int) gg_kv_key(*old_component_pair).len,
+            gg_kv_key(*old_component_pair).data
+        );
+
+        if (is_in_removal_list(
+                gg_kv_key(*old_component_pair),
+                root_component_versions_to_remove
+            )) {
+            GG_LOGI(
+                "Removing component %.*s from local deployments group.",
+                (int) gg_kv_key(*old_component_pair).len,
+                gg_kv_key(*old_component_pair).data
+            );
+            continue;
+        }
+
+        ret = push_component_version(
+            local_components_kv_vec,
+            gg_kv_key(*old_component_pair),
+            *gg_kv_val(old_component_pair),
+            alloc
+        );
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+    }
+
+    // Add or update components
+    if (root_component_versions_to_add != NULL) {
+        GG_MAP_FOREACH (
+            component_pair, gg_obj_into_map(*root_component_versions_to_add)
+        ) {
+            if (gg_obj_type(*gg_kv_val(component_pair)) != GG_TYPE_BUF) {
+                GG_LOGE(
+                    "Local deployment component version read incorrectly from the deployment doc."
+                );
+                return GG_ERR_INVALID;
+            }
+
+            GgObject *existing_component_data;
+            if (!gg_map_get(
+                    local_components_kv_vec->map,
+                    gg_kv_key(*component_pair),
+                    &existing_component_data
+                )) {
+                GG_LOGD(
+                    "Locally deployed component not previously deployed, adding it to the list of local components."
+                );
+                // TODO: Add configurationUpdate and runWith
+                ret = push_component_version(
+                    local_components_kv_vec,
+                    gg_kv_key(*component_pair),
+                    *gg_kv_val(component_pair),
+                    alloc
+                );
+                if (ret != GG_ERR_OK) {
+                    return ret;
+                }
+            } else {
+                GgKV *info_mem = GG_ARENA_ALLOC(alloc, GgKV);
+                if (info_mem == NULL) {
+                    return GG_ERR_NOMEM;
+                }
+                *info_mem
+                    = gg_kv(GG_STR("version"), *gg_kv_val(component_pair));
+                GgMap info_map = (GgMap) { .pairs = info_mem, .len = 1 };
+                *existing_component_data = gg_obj_map(info_map);
+            }
+        }
+    }
+
+    doc->components = local_components_kv_vec->map;
+    return GG_ERR_OK;
+}
+
 static GgError parse_deployment_obj(
     GgMap args,
     GglDeployment *doc,
@@ -147,6 +328,7 @@ static GgError parse_deployment_obj(
     GgObject *recipe_directory_path;
     GgObject *artifacts_directory_path;
     GgObject *root_component_versions_to_add;
+    GgObject *root_component_versions_to_remove;
     GgObject *cloud_components;
     GgObject *deployment_id;
     GgObject *configuration_arn_obj;
@@ -167,6 +349,10 @@ static GgError parse_deployment_obj(
               GG_OPTIONAL,
               GG_TYPE_MAP,
               &root_component_versions_to_add },
+            { GG_STR("root_component_versions_to_remove"),
+              GG_OPTIONAL,
+              GG_TYPE_LIST,
+              &root_component_versions_to_remove },
             { GG_STR("components"),
               GG_OPTIONAL,
               GG_TYPE_MAP,
@@ -240,181 +426,13 @@ static GgError parse_deployment_obj(
         }
         doc->configuration_arn = doc->deployment_id;
 
-        GgObject local_deployment_root_components_read_value;
-        ret = ggl_gg_config_read(
-            GG_BUF_LIST(
-                GG_STR("services"),
-                GG_STR("DeploymentService"),
-                GG_STR("thingGroupsToRootComponents"),
-                doc->thing_group
-            ),
+        ret = parse_local_deployment_components(
+            root_component_versions_to_add,
+            root_component_versions_to_remove,
+            doc,
             alloc,
-            &local_deployment_root_components_read_value
+            local_components_kv_vec
         );
-        if (ret != GG_ERR_OK) {
-            GG_LOGI(
-                "No info found in config for root components for local deployments, assuming no components have been deployed locally yet."
-            );
-            // If no components existed in past deployments, then there is
-            // nothing to remove and the list of components for local deployment
-            // is just components to add.
-            if (root_component_versions_to_add == NULL) {
-                GG_LOGI("No root_component_versions_to_add provided.");
-                doc->components = local_components_kv_vec->map;
-                return GG_ERR_OK;
-            }
-            GG_MAP_FOREACH (
-                component_pair, gg_obj_into_map(*root_component_versions_to_add)
-            ) {
-                if (gg_obj_type(*gg_kv_val(component_pair)) != GG_TYPE_BUF) {
-                    GG_LOGE(
-                        "Local deployment component version read incorrectly from the deployment doc."
-                    );
-                    return GG_ERR_INVALID;
-                }
-
-                // TODO: Add configurationUpdate and runWith
-                GgKV *new_component_info_mem = GG_ARENA_ALLOC(alloc, GgKV);
-                if (new_component_info_mem == NULL) {
-                    GG_LOGE(
-                        "No memory when allocating memory while enqueuing local deployment."
-                    );
-                    return GG_ERR_NOMEM;
-                }
-                *new_component_info_mem
-                    = gg_kv(GG_STR("version"), *gg_kv_val(component_pair));
-                GgMap new_component_info_map
-                    = (GgMap) { .pairs = new_component_info_mem, .len = 1 };
-
-                ret = gg_kv_vec_push(
-                    local_components_kv_vec,
-                    gg_kv(
-                        gg_kv_key(*component_pair),
-                        gg_obj_map(new_component_info_map)
-                    )
-                );
-                if (ret != GG_ERR_OK) {
-                    return ret;
-                }
-            }
-
-            doc->components = local_components_kv_vec->map;
-        } else {
-            if (gg_obj_type(local_deployment_root_components_read_value)
-                != GG_TYPE_MAP) {
-                GG_LOGE(
-                    "Local deployment component list read incorrectly from the config."
-                );
-                return GG_ERR_INVALID;
-            }
-            // Pre-populate with all local components that already have been
-            // deployed
-            GG_MAP_FOREACH (
-                old_component_pair,
-                gg_obj_into_map(local_deployment_root_components_read_value)
-            ) {
-                if (gg_obj_type(*gg_kv_val(old_component_pair))
-                    != GG_TYPE_BUF) {
-                    GG_LOGE(
-                        "Local deployment component version read incorrectly from the config."
-                    );
-                    return GG_ERR_INVALID;
-                }
-
-                GG_LOGD(
-                    "Found existing local component %.*s as part of local deployments group.",
-                    (int) gg_kv_key(*old_component_pair).len,
-                    gg_kv_key(*old_component_pair).data
-                );
-
-                GgKV *old_component_info_mem = GG_ARENA_ALLOC(alloc, GgKV);
-                if (old_component_info_mem == NULL) {
-                    GG_LOGE(
-                        "No memory when allocating memory while enqueuing local deployment."
-                    );
-                    return GG_ERR_NOMEM;
-                }
-                *old_component_info_mem
-                    = gg_kv(GG_STR("version"), *gg_kv_val(old_component_pair));
-                GgMap old_component_info_map
-                    = (GgMap) { .pairs = old_component_info_mem, .len = 1 };
-
-                ret = gg_kv_vec_push(
-                    local_components_kv_vec,
-                    gg_kv(
-                        gg_kv_key(*old_component_pair),
-                        gg_obj_map(old_component_info_map)
-                    )
-                );
-                if (ret != GG_ERR_OK) {
-                    return ret;
-                }
-            }
-
-            // Add the component to add to the existing list of locally deployed
-            // components, or update the version if it already exists.
-            GG_MAP_FOREACH (
-                component_pair, gg_obj_into_map(*root_component_versions_to_add)
-            ) {
-                if (gg_obj_type(*gg_kv_val(component_pair)) != GG_TYPE_BUF) {
-                    GG_LOGE(
-                        "Local deployment component version read incorrectly from the deployment doc."
-                    );
-                    return GG_ERR_INVALID;
-                }
-
-                GgObject *existing_component_data;
-                // TODO: Remove component if it is in the removal list.
-                if (!gg_map_get(
-                        local_components_kv_vec->map,
-                        gg_kv_key(*component_pair),
-                        &existing_component_data
-                    )) {
-                    GG_LOGD(
-                        "Locally deployed component not previously deployed, adding it to the list of local components."
-                    );
-                    // TODO: Add configurationUpdate and runWith
-                    GgKV *new_component_info_mem = GG_ARENA_ALLOC(alloc, GgKV);
-                    if (new_component_info_mem == NULL) {
-                        GG_LOGE(
-                            "No memory when allocating memory while enqueuing local deployment."
-                        );
-                        return GG_ERR_NOMEM;
-                    }
-                    *new_component_info_mem
-                        = gg_kv(GG_STR("version"), *gg_kv_val(component_pair));
-                    GgMap new_component_info_map
-                        = (GgMap) { .pairs = new_component_info_mem, .len = 1 };
-
-                    ret = gg_kv_vec_push(
-                        local_components_kv_vec,
-                        gg_kv(
-                            gg_kv_key(*component_pair),
-                            gg_obj_map(new_component_info_map)
-                        )
-                    );
-                    if (ret != GG_ERR_OK) {
-                        return ret;
-                    }
-                } else {
-                    GgKV *new_component_info_mem = GG_ARENA_ALLOC(alloc, GgKV);
-                    if (new_component_info_mem == NULL) {
-                        GG_LOGE(
-                            "No memory when allocating memory while enqueuing local deployment."
-                        );
-                        return GG_ERR_NOMEM;
-                    }
-                    *new_component_info_mem
-                        = gg_kv(GG_STR("version"), *gg_kv_val(component_pair));
-                    GgMap new_component_info_map
-                        = (GgMap) { .pairs = new_component_info_mem, .len = 1 };
-                    *existing_component_data
-                        = gg_obj_map(new_component_info_map);
-                }
-            }
-
-            doc->components = local_components_kv_vec->map;
-        }
     }
 
     return GG_ERR_OK;
