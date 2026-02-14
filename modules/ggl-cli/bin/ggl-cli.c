@@ -33,6 +33,8 @@ char *artifacts_dir = NULL;
 char *group_name = NULL;
 static Component components[MAX_LOCAL_DEPLOYMENT_COMPONENTS];
 int component_count = 0;
+static char *remove_components[MAX_LOCAL_DEPLOYMENT_COMPONENTS];
+int remove_count = 0;
 
 static char doc[] = "ggl-cli -- Greengrass CLI for Nucleus Lite";
 
@@ -40,6 +42,7 @@ static struct argp_option opts[] = {
     { "recipe-dir", 'r', "path", 0, "Recipe directory to merge", 0 },
     { "artifacts-dir", 'a', "path", 0, "Artifacts directory to merge", 0 },
     { "add-component", 'c', "name=version", 0, "Component to add...", 0 },
+    { "remove-component", 'd', "name", 0, "Component to remove...", 0 },
     { "group-name", 'g', "name", 0, "Thing group name for deployment", 0 },
     { 0 },
 };
@@ -56,6 +59,18 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     case 'g':
         group_name = arg;
         break;
+    case 'd': {
+        if (remove_count >= MAX_LOCAL_DEPLOYMENT_COMPONENTS) {
+            GG_LOGE(
+                "Maximum of %d components allowed per local deployment",
+                MAX_LOCAL_DEPLOYMENT_COMPONENTS
+            );
+            return ARGP_ERR_UNKNOWN;
+        }
+        remove_components[remove_count] = arg;
+        remove_count++;
+        break;
+    }
     case 'c': {
         if (component_count >= MAX_LOCAL_DEPLOYMENT_COMPONENTS) {
             GG_LOGE(
@@ -198,7 +213,7 @@ int main(int argc, char **argv) {
 
     ggl_nucleus_init();
 
-    GgKVVec args = GG_KV_VEC((GgKV[4]) { 0 });
+    GgKVVec args = GG_KV_VEC((GgKV[5]) { 0 });
 
     if (setup_paths(&args) != 0) {
         return 1;
@@ -215,6 +230,26 @@ int main(int argc, char **argv) {
             gg_kv(
                 GG_STR("group_name"),
                 gg_obj_buf(gg_buffer_from_null_term(group_name))
+            )
+        );
+        if (ret != GG_ERR_OK) {
+            assert(false);
+            return 1;
+        }
+    }
+
+    static GgObject remove_items[MAX_LOCAL_DEPLOYMENT_COMPONENTS];
+    if (remove_count > 0) {
+        for (int i = 0; i < remove_count; i++) {
+            remove_items[i]
+                = gg_obj_buf(gg_buffer_from_null_term(remove_components[i]));
+        }
+        GgError ret = gg_kv_vec_push(
+            &args,
+            gg_kv(
+                GG_STR("root_component_versions_to_remove"),
+                gg_obj_list((GgList) { .items = remove_items,
+                                       .len = (size_t) remove_count })
             )
         );
         if (ret != GG_ERR_OK) {
