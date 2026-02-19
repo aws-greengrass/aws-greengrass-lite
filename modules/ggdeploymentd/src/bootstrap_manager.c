@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
+#include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/flags.h>
@@ -479,6 +480,7 @@ GgError process_bootstrap_phase(
                     component_name.data
                 );
             } else { // relevant bootstrap service file exists
+                GG_CLEANUP(cleanup_close, fd);
                 ret = disable_and_unlink_service(&component_name, BOOTSTRAP);
                 if (ret != GG_ERR_OK) {
                     return ret;
