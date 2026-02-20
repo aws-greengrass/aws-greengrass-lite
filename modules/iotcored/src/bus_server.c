@@ -155,12 +155,12 @@ static GgError rpc_subscribe(void *ctx, GgMap params, uint32_t handle) {
     uint8_t qos = 0;
     if (gg_map_get(params, GG_STR("qos"), &val)) {
         if (gg_obj_type(*val) != GG_TYPE_I64) {
-            GG_LOGE("Payload received invalid arguments.");
+            GG_LOGE("Subscribe received invalid arguments.");
             return GG_ERR_INVALID;
         }
         int64_t qos_val = gg_obj_into_i64(*val);
         if ((qos_val < 0) || (qos_val > 2)) {
-            GG_LOGE("Payload received invalid arguments.");
+            GG_LOGE("Subscribe received invalid arguments.");
             return GG_ERR_INVALID;
         }
         qos = (uint8_t) qos_val;

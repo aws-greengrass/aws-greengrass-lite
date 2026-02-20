@@ -154,7 +154,7 @@ static void try_enable_ktls(SSL_CTX *ssl_ctx) {
         GG_LOGW("Failed to enable kTLS option on SSL ctx.");
     }
 
-    GG_LOGD("kTLS option set on SSL context.");
+    GG_LOGT("kTLS option set on SSL context.");
 }
 
 static GgError load_cert_from_uri(SSL_CTX *ssl_ctx, const char *uri) {
@@ -585,7 +585,7 @@ GgError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
         return ret;
     }
 
-    GG_LOGI("Successfully connected.");
+    GG_LOGI("TLS connection established.");
     return GG_ERR_OK;
 }
 
