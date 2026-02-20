@@ -316,7 +316,7 @@ static GgError establish_connection(void *ctx) {
 
     atomic_store_explicit(&ping_pending, false, memory_order_release);
 
-    GG_LOGD("Connected to IoT core.");
+    GG_LOGI("Connected to IoT core.");
     return GG_ERR_OK;
 }
 
@@ -459,7 +459,7 @@ GgError iotcored_mqtt_connect(const IotcoredArgs *args) {
         return GG_ERR_FATAL;
     }
 
-    GG_LOGI("Successfully connected.");
+    GG_LOGI("MQTT client initialized.");
 
     return GG_ERR_OK;
 }
