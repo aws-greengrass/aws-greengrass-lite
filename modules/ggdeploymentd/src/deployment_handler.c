@@ -155,32 +155,6 @@ static GgError get_region(GgByteVec *region) {
     return ret;
 }
 
-static GgError get_root_ca_path(char **root_ca_path) {
-    static uint8_t resp_mem[129] = { 0 };
-    GgArena alloc = gg_arena_init(
-        gg_buffer_substr(GG_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
-    );
-    GgBuffer resp;
-
-    GgError ret = ggl_gg_config_read_str(
-        GG_BUF_LIST(GG_STR("system"), GG_STR("rootCaPath")), &alloc, &resp
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGW("Failed to get rootCaPath from config.");
-        return ret;
-    }
-
-    if (resp.len == 0) {
-        GG_LOGW("rootCaPath is empty.");
-        return GG_ERR_INVALID;
-    }
-
-    resp_mem[resp.len] = '\0';
-
-    *root_ca_path = (char *) resp_mem;
-    return GG_ERR_OK;
-}
-
 static GgError get_posix_user(char **posix_user) {
     static uint8_t resp_mem[129] = { 0 };
     GgArena alloc = gg_arena_init(
@@ -2453,7 +2427,7 @@ static void handle_deployment(
     GgByteVec region = GG_BYTE_VEC(config.region);
     ret = get_region(&region);
     if (ret != GG_ERR_OK) {
-        return;
+        GG_LOGW("Failed to get region from config.");
     }
     CertificateDetails iot_credentials
         = { .gghttplib_cert_path = config.cert_path,
@@ -2781,20 +2755,6 @@ static void handle_deployment(
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create recipe runner path.");
-            return;
-        }
-
-        char *thing_name = NULL;
-        ret = get_thing_name(&thing_name);
-        if (ret != GG_ERR_OK) {
-            GG_LOGE("Failed to get thing name.");
-            return;
-        }
-
-        char *root_ca_path = NULL;
-        ret = get_root_ca_path(&root_ca_path);
-        if (ret != GG_ERR_OK) {
-            GG_LOGE("Failed to get rootCaPath.");
             return;
         }
 

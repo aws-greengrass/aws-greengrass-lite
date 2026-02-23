@@ -667,13 +667,9 @@ GgError runner(const RecipeRunnerArgs *args) {
     GgBuffer resp = GG_BUF(resp_mem);
     resp.len -= 1;
     ret = get_system_config(GG_STR("rootCaPath"), &resp);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to get root CA path from config.");
-        return ret;
-    }
-    if (resp.len == 0) {
-        GG_LOGE("rootCaPath is empty.");
-        return GG_ERR_INVALID;
+    if (ret != GG_ERR_OK || resp.len == 0) {
+        GG_LOGW("rootCaPath not available; GG_ROOT_CA_PATH will be empty.");
+        resp.len = 0;
     }
     resp_mem[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -690,13 +686,9 @@ GgError runner(const RecipeRunnerArgs *args) {
         &resp
     );
 
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to get region from config.");
-        return ret;
-    }
-    if (resp.len == 0) {
-        GG_LOGE("awsRegion is empty.");
-        return GG_ERR_INVALID;
+    if (ret != GG_ERR_OK || resp.len == 0) {
+        GG_LOGW("awsRegion not available; AWS_REGION will be empty.");
+        resp.len = 0;
     }
     resp_mem[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -791,8 +783,8 @@ GgError runner(const RecipeRunnerArgs *args) {
     thing_name.len -= 1;
     ret = get_system_config(GG_STR("thingName"), &thing_name);
     if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to get thing name from config.");
-        return ret;
+        GG_LOGW("thingName not available; AWS_IOT_THING_NAME will be empty.");
+        thing_name.len = 0;
     }
     thing_name_mem[thing_name.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
