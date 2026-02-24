@@ -2378,6 +2378,188 @@ static GgError wait_for_deployment_status(GgMap resolved_components) {
     return GG_ERR_OK;
 }
 
+static GgError validate_iot_endpoint(
+    GgBuffer endpoint, GgBuffer name, GgBuffer device_region
+) {
+    if (endpoint.len == 0) {
+        GG_LOGE("%.*s is empty.", (int) name.len, name.data);
+        return GG_ERR_INVALID;
+    }
+
+    // Check region consistency for AWS endpoints
+    if ((gg_buffer_contains(endpoint, GG_STR(".amazonaws."), NULL))
+        && (!gg_buffer_contains(endpoint, device_region, NULL))) {
+        GG_LOGE(
+            "%.*s region does not match device region %.*s.",
+            (int) name.len,
+            name.data,
+            (int) device_region.len,
+            device_region.data
+        );
+        return GG_ERR_INVALID;
+    }
+
+    return GG_ERR_OK;
+}
+
+/// Read a NucleusLite config string. Returns empty buffer on failure.
+static GgBuffer read_nucleus_config_str(GgBuffer key, GgArena *alloc) {
+    GgBuffer val = { 0 };
+    GgError ret = ggl_gg_config_read_str(
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.NucleusLite"),
+            GG_STR("configuration"),
+            key
+        ),
+        alloc,
+        &val
+    );
+    if (ret != GG_ERR_OK) {
+        return (GgBuffer) { 0 };
+    }
+    return val;
+}
+
+/// Get the NucleusLite configurationUpdate merge map from a deployment's
+/// components. Returns GG_ERR_OK with *merge set to NULL if not present.
+/// Returns GG_ERR_INVALID if present but malformed.
+static GgError get_nucleus_merge_map(
+    GgMap components, GgMap *merge, bool *found
+) {
+    *found = false;
+
+    GgObject *nucleus_info = NULL;
+    if (!gg_map_get(
+            components, GG_STR("aws.greengrass.NucleusLite"), &nucleus_info
+        )) {
+        return GG_ERR_OK;
+    }
+    if (gg_obj_type(*nucleus_info) != GG_TYPE_MAP) {
+        GG_LOGE("NucleusLite component info is not a map.");
+        return GG_ERR_INVALID;
+    }
+
+    GgObject *config_update = NULL;
+    if (!gg_map_get(
+            gg_obj_into_map(*nucleus_info),
+            GG_STR("configurationUpdate"),
+            &config_update
+        )) {
+        return GG_ERR_OK;
+    }
+    if (gg_obj_type(*config_update) != GG_TYPE_MAP) {
+        GG_LOGE("configurationUpdate is not a map.");
+        return GG_ERR_INVALID;
+    }
+
+    GgObject *merge_obj = NULL;
+    if (!gg_map_get(
+            gg_obj_into_map(*config_update), GG_STR("merge"), &merge_obj
+        )) {
+        return GG_ERR_OK;
+    }
+    if (gg_obj_type(*merge_obj) != GG_TYPE_MAP) {
+        GG_LOGE("configurationUpdate merge is not a map.");
+        return GG_ERR_INVALID;
+    }
+
+    *merge = gg_obj_into_map(*merge_obj);
+    *found = true;
+    return GG_ERR_OK;
+}
+
+static GgError validate_endpoint_switch_deployment(GgMap components) {
+    GgMap merge = { 0 };
+    bool found = false;
+    GgError ret = get_nucleus_merge_map(components, &merge, &found);
+    if ((ret != GG_ERR_OK) || !found) {
+        return ret;
+    }
+
+    GgObject *region_obj = NULL;
+    GgObject *data_ep_obj = NULL;
+    GgObject *cred_ep_obj = NULL;
+    gg_map_get(merge, GG_STR("awsRegion"), &region_obj);
+    gg_map_get(merge, GG_STR("iotDataEndpoint"), &data_ep_obj);
+    gg_map_get(merge, GG_STR("iotCredEndpoint"), &cred_ep_obj);
+
+    // Only validate if endpoint or region is being changed
+    if ((region_obj == NULL) && (data_ep_obj == NULL)
+        && (cred_ep_obj == NULL)) {
+        return GG_ERR_OK;
+    }
+
+    // Determine effective values: deployment value if present, else config
+    GgBuffer effective_region;
+    static uint8_t region_buf[24] = { 0 };
+    GgArena region_alloc = gg_arena_init(GG_BUF(region_buf));
+    if (region_obj != NULL) {
+        if (gg_obj_type(*region_obj) != GG_TYPE_BUF) {
+            GG_LOGE("awsRegion is not a string.");
+            return GG_ERR_INVALID;
+        }
+        effective_region = gg_obj_into_buf(*region_obj);
+    } else {
+        effective_region
+            = read_nucleus_config_str(GG_STR("awsRegion"), &region_alloc);
+    }
+    if (effective_region.len == 0) {
+        GG_LOGE("Cannot validate endpoints: failed to read device region.");
+        return GG_ERR_FAILURE;
+    }
+
+    GgBuffer effective_data_ep;
+    static uint8_t data_ep_buf[128] = { 0 };
+    GgArena data_ep_alloc = gg_arena_init(GG_BUF(data_ep_buf));
+    if (data_ep_obj != NULL) {
+        if (gg_obj_type(*data_ep_obj) != GG_TYPE_BUF) {
+            GG_LOGE("iotDataEndpoint is not a string.");
+            return GG_ERR_INVALID;
+        }
+        effective_data_ep = gg_obj_into_buf(*data_ep_obj);
+    } else {
+        effective_data_ep = read_nucleus_config_str(
+            GG_STR("iotDataEndpoint"), &data_ep_alloc
+        );
+    }
+
+    GgBuffer effective_cred_ep;
+    static uint8_t cred_ep_buf[128] = { 0 };
+    GgArena cred_ep_alloc = gg_arena_init(GG_BUF(cred_ep_buf));
+    if (cred_ep_obj != NULL) {
+        if (gg_obj_type(*cred_ep_obj) != GG_TYPE_BUF) {
+            GG_LOGE("iotCredEndpoint is not a string.");
+            return GG_ERR_INVALID;
+        }
+        effective_cred_ep = gg_obj_into_buf(*cred_ep_obj);
+    } else {
+        effective_cred_ep = read_nucleus_config_str(
+            GG_STR("iotCredEndpoint"), &cred_ep_alloc
+        );
+    }
+
+    if (effective_data_ep.len > 0) {
+        ret = validate_iot_endpoint(
+            effective_data_ep, GG_STR("iotDataEndpoint"), effective_region
+        );
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+    }
+
+    if (effective_cred_ep.len > 0) {
+        ret = validate_iot_endpoint(
+            effective_cred_ep, GG_STR("iotCredEndpoint"), effective_region
+        );
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+    }
+
+    return GG_ERR_OK;
+}
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static void handle_deployment(
     GglDeployment *deployment,
@@ -2385,8 +2567,16 @@ static void handle_deployment(
     bool *deployment_succeeded
 ) {
     int root_path_fd = args->root_path_fd;
+
+    // Validate IoT endpoint deployment before any state changes
+    GgError ret = validate_endpoint_switch_deployment(deployment->components);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Deployment rejected: IoT endpoint validation failed.");
+        return;
+    }
+
     if (deployment->recipe_directory_path.len != 0) {
-        GgError ret = merge_dir_to(
+        ret = merge_dir_to(
             deployment->recipe_directory_path, "packages/recipes/"
         );
         if (ret != GG_ERR_OK) {
@@ -2396,7 +2586,7 @@ static void handle_deployment(
     }
 
     if (deployment->artifacts_directory_path.len != 0) {
-        GgError ret = merge_dir_to(
+        ret = merge_dir_to(
             deployment->artifacts_directory_path, "packages/artifacts/"
         );
         if (ret != GG_ERR_OK) {
@@ -2409,7 +2599,7 @@ static void handle_deployment(
     static uint8_t resolve_dependencies_mem[8192] = { 0 };
     GgArena resolve_dependencies_alloc
         = gg_arena_init(GG_BUF(resolve_dependencies_mem));
-    GgError ret = resolve_dependencies(
+    ret = resolve_dependencies(
         deployment->components,
         deployment->thing_group,
         deployment->type,
