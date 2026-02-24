@@ -22,14 +22,11 @@
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
-#include <inttypes.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdnoreturn.h>
 
 #define MAX_THING_NAME_LEN 128
@@ -68,7 +65,6 @@ static uint8_t current_job_id_buf[64];
 static GgByteVec current_job_id;
 static uint8_t current_deployment_id_buf[64];
 static GgByteVec current_deployment_id;
-static _Atomic int32_t current_job_version;
 
 static pthread_mutex_t listener_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t listener_cond = PTHREAD_COND_INITIALIZER;
@@ -124,9 +120,7 @@ static GgError create_next_job_execution_changed_topic(
     return err;
 }
 
-static GgError update_job(
-    GgBuffer job_id, GgBuffer job_status, _Atomic int32_t *version
-);
+static GgError update_job(GgBuffer job_id, GgBuffer job_status);
 
 static GgError process_job_execution(GgMap job_execution);
 
@@ -178,155 +172,40 @@ static GgError deserialize_payload(
     return GG_ERR_OK;
 }
 
-static bool is_job_canceled(GgBuffer status) {
-    if (gg_buffer_eq(status, GG_STR("CANCELED"))) {
-        return true;
-    }
-    GgBufList terminal_statuses
-        = GG_BUF_LIST(GG_STR("SUCCEEDED"), GG_STR("FAILED"));
-    GG_BUF_LIST_FOREACH (terminal_status, terminal_statuses) {
-        if (gg_buffer_eq(*terminal_status, status)) {
-            GG_LOGW(
-                "Job was marked completed perhaps by another Greengrass device."
-            );
-            return true;
-        }
-    }
-    return false;
-}
-
-static GgError update_job(
-    GgBuffer job_id, GgBuffer job_status, _Atomic(int32_t) *version
-) {
+static GgError update_job(GgBuffer job_id, GgBuffer job_status) {
     GgBuffer topic = GG_BUF((uint8_t[256]) { 0 });
     GgError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
     if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    int64_t local_version = atomic_load_explicit(version, memory_order_acquire);
-    int stale_version_count = 0;
-    while (stale_version_count < 3) {
-        uint8_t version_buf[16] = { 0 };
-        int len = snprintf(
-            (char *) version_buf, sizeof(version_buf), "%" PRIi64, local_version
-        );
-        if (len <= 0) {
-            GG_LOGE("Version too big");
-            return GG_ERR_RANGE;
-        }
-        // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-        GgObject payload_object = gg_obj_map(GG_MAP(
-            gg_kv(GG_STR("status"), gg_obj_buf(job_status)),
-            gg_kv(
-                GG_STR("expectedVersion"),
-                gg_obj_buf((GgBuffer) { .data = version_buf,
-                                        .len = (size_t) len })
-            ),
-            gg_kv(
-                GG_STR("clientToken"), gg_obj_buf(GG_STR("jobs-nucleus-lite"))
-            )
-        ));
+    // expectedVersion omitted to avoid VersionMismatch errors on MQTT
+    // reconnect races; only one ggdeploymentd updates a given job.
+    GgObject payload_object = gg_obj_map(GG_MAP(
+        gg_kv(GG_STR("status"), gg_obj_buf(job_status)),
+        gg_kv(GG_STR("clientToken"), gg_obj_buf(GG_STR("jobs-nucleus-lite")))
+    ));
 
-        static uint8_t response_scratch[512];
-        GgArena call_alloc = gg_arena_init(GG_BUF(response_scratch));
-        GgObject result = { 0 };
-        ret = ggl_aws_iot_call(
-            GG_STR("aws_iot_mqtt"),
-            topic,
-            payload_object,
-            false,
-            &call_alloc,
-            &result
-        );
-        if (ret == GG_ERR_OK) {
-            local_version += 1;
-            break;
-        }
-        if (ret != GG_ERR_REMOTE) {
-            GG_LOGE("Failed to publish on update job topic.");
-            return GG_ERR_FAILURE;
-        }
-        if (gg_obj_type(result) != GG_TYPE_MAP) {
-            GG_LOGD("Unknown job update rejected response received.");
-            return GG_ERR_PARSE;
-        }
-        GgObject *execution_state = NULL;
-        if (!gg_map_get(
-                gg_obj_into_map(result),
-                GG_STR("executionState"),
-                &execution_state
-            )) {
-            GG_LOGW("Unknown job update rejected response received.");
-            return GG_ERR_PARSE;
-        }
-
-        GgObject *remote_status = NULL;
-        GgObject *remote_version = NULL;
-        ret = gg_map_validate(
-            gg_obj_into_map(*execution_state),
-            GG_MAP_SCHEMA(
-                { GG_STR("status"), GG_REQUIRED, GG_TYPE_BUF, &remote_status },
-                { GG_STR("versionNumber"),
-                  GG_REQUIRED,
-                  GG_TYPE_I64,
-                  &remote_version }
-            )
-        );
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-
-        if ((gg_obj_into_i64(*remote_version) < 0)
-            || (gg_obj_into_i64(*remote_version) >= INT32_MAX)) {
-            GG_LOGE(
-                "Invalid version %" PRIi64 " received",
-                gg_obj_into_i64(*remote_version)
-            );
-            return GG_ERR_FAILURE;
-        }
-        local_version = gg_obj_into_i64(*remote_version);
-
-        if (is_job_canceled(gg_obj_into_buf(*remote_status))) {
-            // TODO: Cancelation?
-            GG_LOGW("Job was canceled.");
-            return GG_ERR_OK;
-        }
-        if (gg_buffer_eq(gg_obj_into_buf(*remote_status), job_status)) {
-            GG_LOGD("Job is already in the desired state.");
-            break;
-        }
-        if ((int32_t) gg_obj_into_i64(*remote_version) == local_version) {
-            GG_LOGE("Job update failed for unknown reason");
-            return GG_ERR_FAILURE;
-        }
-
-        GG_LOGI("Updating stale job status version number and retrying.");
-        atomic_store_explicit(
-            version,
-            (int32_t) gg_obj_into_i64(*remote_version),
-            memory_order_release
-        );
-        local_version = gg_obj_into_i64(*remote_version);
-        ++stale_version_count;
-
-        (void) gg_sleep(1);
+    static uint8_t response_scratch[512];
+    GgArena call_alloc = gg_arena_init(GG_BUF(response_scratch));
+    GgObject result = { 0 };
+    ret = ggl_aws_iot_call(
+        GG_STR("aws_iot_mqtt"),
+        topic,
+        payload_object,
+        false,
+        &call_alloc,
+        &result
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to publish on update job topic.");
+        return GG_ERR_FAILURE;
     }
 
-    atomic_store_explicit(
-        version, (int32_t) local_version, memory_order_release
-    );
-
-    // save jobs ID and version to config in case of bootstrap
+    // save jobs ID to config in case of bootstrap
     ret = save_iot_jobs_id(job_id);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to save job ID to config.");
-        return ret;
-    }
-
-    ret = save_iot_jobs_version(local_version);
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to save job version to config.");
         return ret;
     }
 
@@ -399,7 +278,6 @@ static GgError enqueue_job(GgMap deployment_doc, GgBuffer job_id) {
             return GG_ERR_OK;
         }
 
-        current_job_version = 1;
         current_job_id = GG_BYTE_VEC(current_job_id_buf);
         ret = gg_byte_vec_append(&current_job_id, job_id);
         if (ret != GG_ERR_OK) {
@@ -424,7 +302,7 @@ static GgError enqueue_job(GgMap deployment_doc, GgBuffer job_id) {
     }
 
     if (ret != GG_ERR_OK) {
-        (void) update_job(job_id, GG_STR("FAILURE"), &current_job_version);
+        (void) update_job(job_id, GG_STR("FAILURE"));
     }
 
     return ret;
@@ -631,15 +509,12 @@ GgError update_current_jobs_deployment(
         job_id.len = current_deployment_id.buf.len;
     }
 
-    return update_job(job_id, status, &current_job_version);
+    return update_job(job_id, status);
 }
 
 GgError set_jobs_deployment_for_bootstrap(
-    GgBuffer job_id, GgBuffer deployment_id, int64_t version
+    GgBuffer job_id, GgBuffer deployment_id
 ) {
-    if ((version < 0) || (version > INT32_MAX)) {
-        return GG_ERR_INVALID;
-    }
     GG_MTX_SCOPE_GUARD(&current_job_id_mutex);
     if (!gg_buffer_eq(job_id, current_job_id.buf)) {
         if (current_job_id.buf.len != 0) {
@@ -659,8 +534,5 @@ GgError set_jobs_deployment_for_bootstrap(
             return ret;
         }
     }
-    atomic_store_explicit(
-        &current_job_version, (int32_t) version, memory_order_release
-    );
     return GG_ERR_OK;
 }

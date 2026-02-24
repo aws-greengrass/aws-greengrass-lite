@@ -11,7 +11,6 @@
 #include <gg/object.h>
 #include <gg/vector.h>
 #include <stdbool.h>
-#include <stdint.h>
 
 /*
   deployment info will be saved to config in the following format:
@@ -27,7 +26,6 @@
           deploymentType: local/IoT Jobs
           deploymentDoc:
           jobsID:
-          jobsVersion:
 */
 
 bool component_bootstrap_phase_completed(GgBuffer component_name);
@@ -40,10 +38,9 @@ GgError save_component_info(
 );
 
 GgError save_iot_jobs_id(GgBuffer jobs_id);
-GgError save_iot_jobs_version(int64_t jobs_version);
 GgError save_deployment_info(GglDeployment *deployment);
 GgError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GgBuffer *jobs_id, int64_t *jobs_version
+    GglDeployment *deployment, GgBuffer *jobs_id
 );
 GgError delete_saved_deployment_from_config(void);
 GgError process_bootstrap_phase(

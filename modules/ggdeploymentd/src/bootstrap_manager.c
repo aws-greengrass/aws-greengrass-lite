@@ -19,7 +19,6 @@
 #include <gg/object.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/gg_config.h>
-#include <inttypes.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
@@ -141,29 +140,6 @@ GgError save_iot_jobs_id(GgBuffer jobs_id) {
     return GG_ERR_OK;
 }
 
-GgError save_iot_jobs_version(int64_t jobs_version) {
-    GG_LOGD(
-        "Saving IoT Jobs version %" PRIi64 " in case of bootstrap.",
-        jobs_version
-    );
-
-    GgError ret = ggl_gg_config_write(
-        GG_BUF_LIST(
-            GG_STR("services"),
-            GG_STR("DeploymentService"),
-            GG_STR("deploymentState"),
-            GG_STR("jobsVersion")
-        ),
-        gg_obj_i64(jobs_version),
-        &(int64_t) { 3 }
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to write IoT Jobs Version to config.");
-        return ret;
-    }
-    return GG_ERR_OK;
-}
-
 GgError save_deployment_info(GglDeployment *deployment) {
     GG_LOGD(
         "Encountered component requiring bootstrap. Saving deployment state to config."
@@ -231,7 +207,7 @@ GgError save_deployment_info(GglDeployment *deployment) {
 }
 
 GgError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GgBuffer *jobs_id, int64_t *jobs_version
+    GglDeployment *deployment, GgBuffer *jobs_id
 ) {
     GG_LOGD("Searching config for any in progress deployment.");
 
@@ -275,19 +251,6 @@ GgError retrieve_in_progress_deployment(
         gg_obj_into_buf(*jobs_id_obj).data,
         gg_obj_into_buf(*jobs_id_obj).len
     );
-
-    GgObject *jobs_version_obj;
-    ret = gg_map_validate(
-        gg_obj_into_map(deployment_config),
-        GG_MAP_SCHEMA({ GG_STR("jobsVersion"),
-                        GG_REQUIRED,
-                        GG_TYPE_I64,
-                        &jobs_version_obj })
-    );
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    *jobs_version = gg_obj_into_i64(*jobs_version_obj);
 
     GgObject *deployment_type;
     ret = gg_map_validate(

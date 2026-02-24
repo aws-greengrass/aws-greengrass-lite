@@ -7,13 +7,12 @@
 
 #include <gg/buffer.h>
 #include <gg/error.h>
-#include <stdint.h>
 
 void *job_listener_thread(void *ctx);
 
 GgError update_current_jobs_deployment(GgBuffer deployment_id, GgBuffer status);
 GgError set_jobs_deployment_for_bootstrap(
-    GgBuffer job_id, GgBuffer deployment_id, int64_t version
+    GgBuffer job_id, GgBuffer deployment_id
 );
 
 #endif

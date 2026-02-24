@@ -3478,11 +3478,9 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     GglDeployment bootstrap_deployment = { 0 };
     uint8_t jobs_id_resp_mem[64] = { 0 };
     GgBuffer jobs_id = GG_BUF(jobs_id_resp_mem);
-    int64_t jobs_version = 0;
 
-    GgError ret = retrieve_in_progress_deployment(
-        &bootstrap_deployment, &jobs_id, &jobs_version
-    );
+    GgError ret
+        = retrieve_in_progress_deployment(&bootstrap_deployment, &jobs_id);
     if (ret != GG_ERR_OK) {
         GG_LOGD("No deployments previously in progress detected.");
     } else {
@@ -3495,7 +3493,7 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         bool send_deployment_update
             = (GG_ERR_OK
                == set_jobs_deployment_for_bootstrap(
-                   jobs_id, bootstrap_deployment.deployment_id, jobs_version
+                   jobs_id, bootstrap_deployment.deployment_id
                ));
 
         bool bootstrap_deployment_succeeded = false;
