@@ -3047,12 +3047,15 @@ static void handle_deployment(
                         return;
                     }
 
-                    // initiate start command for 'install'
+                    // initiate start command for 'install' (non-blocking to
+                    // allow wait_for_phase_status to handle retries via
+                    // gghealthd)
                     static uint8_t start_command_buf[PATH_MAX];
                     GgByteVec start_command_vec
                         = GG_BYTE_VEC(start_command_buf);
                     ret = gg_byte_vec_append(
-                        &start_command_vec, GG_STR("systemctl start ")
+                        &start_command_vec,
+                        GG_STR("systemctl start --no-block ")
                     );
                     gg_byte_vec_chain_append(
                         &ret, &start_command_vec, GG_STR("ggl.")
@@ -3083,19 +3086,19 @@ static void handle_deployment(
                     if (WIFEXITED(system_ret)) {
                         if (WEXITSTATUS(system_ret) != 0) {
                             GG_LOGE(
-                                "systemctl start failed for%.*s",
+                                "systemctl start --no-block failed for %.*s",
                                 (int) install_service_file_path_vec.buf.len,
                                 install_service_file_path_vec.buf.data
                             );
                             return;
                         }
                         GG_LOGI(
-                            "systemctl start exited with child status %d\n",
+                            "systemctl start --no-block exited with child status %d\n",
                             WEXITSTATUS(system_ret)
                         );
                     } else {
                         GG_LOGE(
-                            "systemctl start did not exit normally for %.*s",
+                            "systemctl start --no-block did not exit normally for %.*s",
                             (int) install_service_file_path_vec.buf.len,
                             install_service_file_path_vec.buf.data
                         );
