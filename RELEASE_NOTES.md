@@ -1,3 +1,14 @@
+# Release Notes v2.3.3
+
+This release fixes some bugs and has minor improvements:
+
+- Fixes leak of fds when creating components during deployment
+- Fixes issue where deployment job status report may be rejected, resulting in
+  current deployment status not being reported
+- Allows component install phases to retry up to 3 times before failing
+  deployment instead of after first fail
+- Increases socket timeouts to be more generous
+
 # Release Notes v2.3.0
 
 This release includes support for using TPM 2.0 for IoT Core MQTT authorization
