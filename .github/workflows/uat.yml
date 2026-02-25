@@ -25,6 +25,9 @@ jobs:
     outputs:
       tests: ${{ steps.list.outputs.tests }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
       - name: Checkout testing repository
         uses: actions/checkout@v6
         with:
