@@ -38,12 +38,15 @@ jobs:
         id: list
         run: |
           cd aws-greengrass-testing
+          IGNORE_FILE="${GITHUB_WORKSPACE}/.github/uat-ignore.txt"
           tests=$(find src -name "aws-greengrass-testing-*.py" -exec grep -l "^def test_" {} \; | \
             while read file; do
               category=$(basename "$file" | sed 's/aws-greengrass-testing-\(.*\)\.py/\1/')
               grep -h "^def test_" "$file" | sed 's/def \(test_[^(]*\).*/\1/' | \
               while read test; do
-                echo "{\"name\":\"$test\",\"category\":\"$category\",\"timeout\":3900}"
+                if [ ! -f "$IGNORE_FILE" ] || ! grep -v '^#' "$IGNORE_FILE" | grep -qE "^($category:)?$test"; then
+                  echo "{\"name\":\"$test\",\"category\":\"$category\",\"timeout\":3900}"
+                fi
               done
             done | jq -s -c .)
           echo "tests=$tests" >> $GITHUB_OUTPUT

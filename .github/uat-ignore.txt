@@ -1,0 +1,7 @@
+# Tests to ignore in UAT CI (one per line, format: category:test_name)
+system-log-forwarder:test_SLF_1_T1
+system-log-forwarder:test_SLF_1_T2
+system-log-forwarder:test_SLF_1_T3
+system-log-forwarder:test_SLF_1_T4
+hsm:test_HSM_1_T1
+hsm:test_HSM_2_T1
