@@ -207,7 +207,7 @@ make -C build uninstall
 
 The following configuration flags may be set with cmake (with `-D`):
 
-- `GGL_LOG_LEVEL`
+- `GG_LOG_LEVEL`
 
   This can be set to `NONE`, `ERROR`, `WARN`, `INFO`, `DEBUG`, or `TRACE` to set
   the logging level.
