@@ -24,7 +24,6 @@ RUN mkdir -p /etc/greengrass/config.d && mkdir -p /var/lib/greengrass \
 COPY misc/container/01defaults.yaml /etc/greengrass/config.d/01defaults.yaml
 
 RUN --mount=type=bind,target=/tmp/aws-greengrass-lite \
-  --mount=type=cache,sharing=locked,target=/tmp/build \
   cd /tmp/aws-greengrass-lite \
   && cmake -B /tmp/build -D CMAKE_INSTALL_PREFIX=/usr -D GG_LOG_LEVEL=DEBUG \
   && make -j -C /tmp/build install
