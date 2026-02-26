@@ -9,6 +9,7 @@
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
+#include "iotcored_instance.h"
 #include "priv_io.h"
 #include "stale_component.h"
 #include <assert.h>
@@ -55,6 +56,7 @@
 #define MAX_DECODE_BUF_LEN 4096
 #define DEPLOYMENT_TARGET_NAME_MAX_CHARS 128
 #define MAX_DEPLOYMENT_TARGETS 100
+#define MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS 60
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -2378,7 +2380,7 @@ static GgError wait_for_deployment_status(GgMap resolved_components) {
     return GG_ERR_OK;
 }
 
-static GgError validate_iot_endpoint(
+static GgError validate_iot_endpoint_format(
     GgBuffer endpoint, GgBuffer name, GgBuffer device_region
 ) {
     if (endpoint.len == 0) {
@@ -2469,7 +2471,59 @@ static GgError get_nucleus_merge_map(
     return GG_ERR_OK;
 }
 
-static GgError validate_endpoint_switch_deployment(GgMap components) {
+/// Verify MQTT connectivity to the target endpoint by spawning a separate
+/// iotcored process, since the running iotcored is connected to the current
+/// endpoint.
+static GgError check_mqtt_connectivity(
+    GgBuffer target_endpoint, const char *bin_path
+) {
+    static char iotcored_path_buf[PATH_MAX];
+    GgByteVec iotcored_path = GG_BYTE_VEC(iotcored_path_buf);
+    GgError ret = gg_byte_vec_append(
+        &iotcored_path, gg_buffer_from_null_term((char *) bin_path)
+    );
+    gg_byte_vec_chain_append(&ret, &iotcored_path, GG_STR("iotcored"));
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to resolve iotcored path.");
+        return ret;
+    }
+
+    GG_LOGI(
+        "Checking MQTT connectivity to %.*s (timeout=%us).",
+        (int) target_endpoint.len,
+        target_endpoint.data,
+        MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS
+    );
+
+    IotcoredInstance instance;
+    ret = iotcored_instance_start(
+        &instance, iotcored_path.buf, target_endpoint
+    );
+    GG_CLEANUP(iotcored_instance_stop, instance);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ret = iotcored_await_connection(MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "MQTT connectivity check failed for %.*s.",
+            (int) target_endpoint.len,
+            target_endpoint.data
+        );
+    } else {
+        GG_LOGI(
+            "MQTT connectivity check passed for %.*s.",
+            (int) target_endpoint.len,
+            target_endpoint.data
+        );
+    }
+    return ret;
+}
+
+static GgError validate_endpoint_switch_deployment(
+    GgMap components, const char *bin_path
+) {
     GgMap merge = { 0 };
     bool found = false;
     GgError ret = get_nucleus_merge_map(components, &merge, &found);
@@ -2539,19 +2593,22 @@ static GgError validate_endpoint_switch_deployment(GgMap components) {
         );
     }
 
-    if (effective_data_ep.len > 0) {
-        ret = validate_iot_endpoint(
-            effective_data_ep, GG_STR("iotDataEndpoint"), effective_region
-        );
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
+    ret = validate_iot_endpoint_format(
+        effective_data_ep, GG_STR("iotDataEndpoint"), effective_region
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    if (effective_cred_ep.len > 0) {
-        ret = validate_iot_endpoint(
-            effective_cred_ep, GG_STR("iotCredEndpoint"), effective_region
-        );
+    ret = validate_iot_endpoint_format(
+        effective_cred_ep, GG_STR("iotCredEndpoint"), effective_region
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    if (data_ep_obj != NULL) {
+        ret = check_mqtt_connectivity(effective_data_ep, bin_path);
         if (ret != GG_ERR_OK) {
             return ret;
         }
@@ -2569,7 +2626,9 @@ static void handle_deployment(
     int root_path_fd = args->root_path_fd;
 
     // Validate IoT endpoint deployment before any state changes
-    GgError ret = validate_endpoint_switch_deployment(deployment->components);
+    GgError ret = validate_endpoint_switch_deployment(
+        deployment->components, args->bin_path
+    );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Deployment rejected: IoT endpoint validation failed.");
         return;
