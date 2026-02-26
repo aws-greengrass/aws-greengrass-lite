@@ -13,6 +13,7 @@
 #include <gg/file.h>
 #include <gg/log.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/recipe.h>
 #include <ggl/recipe2unit.h>

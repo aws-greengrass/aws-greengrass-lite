@@ -7,8 +7,8 @@
 
 //! Event driven server listening on a unix socket
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <ggl/socket_handle.h>
 #include <sys/types.h>
 #include <stdint.h>

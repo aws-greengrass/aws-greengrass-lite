@@ -5,8 +5,8 @@
 #ifndef GGHEALTHD_HEALTH_H
 #define GGHEALTHD_HEALTH_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 GgError gghealthd_init(void);
 

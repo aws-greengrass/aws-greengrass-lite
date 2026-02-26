@@ -6,8 +6,8 @@
 #ifndef GGL_DOCKER_CLIENT_H
 #define GGL_DOCKER_CLIENT_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <ggl/http.h>
 #include <ggl/uri.h>
 #include <stdbool.h>

@@ -5,8 +5,8 @@
 #ifndef GGHEALTHD_SUBSCRIPTIONS_H
 #define GGHEALTHD_SUBSCRIPTIONS_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <stdint.h>
 
 GgError gghealthd_register_lifecycle_subscription(

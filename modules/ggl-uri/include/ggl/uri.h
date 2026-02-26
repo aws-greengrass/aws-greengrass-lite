@@ -2,8 +2,8 @@
 #define GGHTTPLIB_URI_H
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 typedef struct GglUriInfo {
     GgBuffer scheme;

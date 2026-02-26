@@ -7,9 +7,8 @@
 
 #include <gg/arena.h>
 #include <gg/attr.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdbool.h>
 
 /// use ggconfigd to verify a component's existence

@@ -11,6 +11,7 @@
 #include <gg/file.h>
 #include <gg/log.h>
 #include <gg/socket_epoll.h>
+#include <gg/types.h>
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
 #include <limits.h>

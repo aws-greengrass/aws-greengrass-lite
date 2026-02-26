@@ -8,9 +8,8 @@
 //! YAML decoding
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 /// Reads a YAML doc from a buffer as a GgObject.
 /// Result obj will contain pointers into both arena and buf.

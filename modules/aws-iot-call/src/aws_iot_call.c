@@ -13,6 +13,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/aws_iot_call.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>

@@ -12,8 +12,8 @@
 #include <gg/eventstream/decode.h>
 #include <gg/file.h>
 #include <gg/log.h>
-#include <gg/object.h>
 #include <gg/socket.h>
+#include <gg/types.h>
 #include <ggl/core_bus/client.h>
 #include <stddef.h>
 

@@ -6,7 +6,7 @@
 #define GGL_IPC_ERROR_H
 
 #include <gg/attr.h>
-#include <gg/buffer.h>
+#include <gg/types.h>
 
 typedef enum {
     GGL_IPC_ERR_SERVICE_ERROR = 0,

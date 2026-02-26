@@ -2,8 +2,8 @@
 #define GGHEALTHD_SD_BUS_H
 
 #include <gg/attr.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <ggl/nucleus/constants.h>
 #include <systemd/sd-bus.h>
 

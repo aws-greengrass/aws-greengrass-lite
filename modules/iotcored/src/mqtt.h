@@ -5,8 +5,8 @@
 #ifndef IOTCORED_MQTT_H
 #define IOTCORED_MQTT_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <iotcored.h>
 #include <stdbool.h>
 #include <stddef.h>

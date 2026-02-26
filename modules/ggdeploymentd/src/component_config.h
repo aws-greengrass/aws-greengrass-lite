@@ -6,8 +6,8 @@
 #define GGDEPLOYMENTD_COMPONENT_CONFIG_H
 
 #include "deployment_model.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 GgError apply_configurations(
     GglDeployment *deployment, GgBuffer component_name, GgBuffer operation

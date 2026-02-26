@@ -16,6 +16,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/recipe.h>
 #include <ggl/yaml_decode.h>

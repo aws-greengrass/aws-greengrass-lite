@@ -5,8 +5,8 @@
 #ifndef GGDEPLOYMENTD_IOT_JOBS_LISTENER_H
 #define GGDEPLOYMENTD_IOT_JOBS_LISTENER_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 void *job_listener_thread(void *ctx);
 

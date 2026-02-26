@@ -7,8 +7,8 @@
 
 //! Zip file functionality
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <sys/types.h>
 
 /// Unarchive all entries from the zip file in a directory to the destination

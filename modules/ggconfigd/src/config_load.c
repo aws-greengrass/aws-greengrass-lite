@@ -12,6 +12,7 @@
 #include <gg/file.h>
 #include <gg/log.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggconfigd.h>
 #include <ggl/yaml_decode.h>

@@ -13,6 +13,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/core_bus/client.h>
 #include <stddef.h>
 #include <stdint.h>

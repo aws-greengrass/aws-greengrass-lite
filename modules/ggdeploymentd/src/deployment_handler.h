@@ -5,7 +5,7 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 #define GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 
-#include <gg/buffer.h>
+#include <gg/types.h>
 
 typedef struct {
     int root_path_fd;

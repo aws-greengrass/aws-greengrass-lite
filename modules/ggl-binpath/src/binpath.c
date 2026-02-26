@@ -4,6 +4,7 @@
 
 #include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/binpath.h>
 #include <stddef.h>

@@ -8,7 +8,7 @@
 #include "deployment_model.h"
 #include <gg/arena.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 
 /// Attempts to add a deployment into the queue.

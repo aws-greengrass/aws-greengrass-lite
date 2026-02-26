@@ -6,9 +6,8 @@
 #define RECIPE_2_UNIT_H
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <limits.h>
 #include <stdbool.h>
 

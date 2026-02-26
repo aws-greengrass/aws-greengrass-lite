@@ -6,6 +6,7 @@
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggipc/auth.h>
 #include <string.h>
 #include <sys/types.h>

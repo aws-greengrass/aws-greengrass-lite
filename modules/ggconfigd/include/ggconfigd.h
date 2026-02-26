@@ -5,9 +5,8 @@
 #ifndef GGCONFIGD_H
 #define GGCONFIGD_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <stdint.h>
 

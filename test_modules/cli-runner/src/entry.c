@@ -10,6 +10,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/exec.h>
 #include <stdbool.h>
 #include <stddef.h>

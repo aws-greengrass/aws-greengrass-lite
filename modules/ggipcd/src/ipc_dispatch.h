@@ -6,9 +6,8 @@
 #define GGL_IPC_DISPATCH_H
 
 #include "ipc_error.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdint.h>
 
 GgError ggl_ipc_handle_operation(

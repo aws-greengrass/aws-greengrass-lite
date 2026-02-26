@@ -7,6 +7,7 @@
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggl/uri.h>
 #include <uriparse-test.h>
 #include <stddef.h>

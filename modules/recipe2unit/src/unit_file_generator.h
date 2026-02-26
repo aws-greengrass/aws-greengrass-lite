@@ -5,9 +5,8 @@
 #ifndef UNIT_FILE_GENERATOR_H
 #define UNIT_FILE_GENERATOR_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/recipe2unit.h>
 
 typedef enum {

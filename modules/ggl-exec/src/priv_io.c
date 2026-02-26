@@ -1,8 +1,8 @@
 #include "priv_io.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/io.h>
+#include <gg/types.h>
 #include <stddef.h>
 
 static GgError priv_file_write(void *ctx, GgBuffer buf) {

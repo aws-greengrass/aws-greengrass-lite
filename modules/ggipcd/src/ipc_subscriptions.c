@@ -6,6 +6,7 @@
 #include "ipc_server.h"
 #include <assert.h>
 #include <gg/arena.h>
+#include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/log.h>

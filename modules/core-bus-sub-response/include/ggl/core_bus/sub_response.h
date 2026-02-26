@@ -7,9 +7,8 @@
 
 //! core-bus-sub-response core-bus interface wrapper
 
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdint.h>
 
 typedef GgError (*GglSubResponseCallback)(void *ctx, GgObject data);

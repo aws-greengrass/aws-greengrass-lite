@@ -7,6 +7,7 @@
 #include <gg/error.h>
 #include <gg/log.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/json_pointer.h>
 #include <stddef.h>

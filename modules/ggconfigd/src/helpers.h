@@ -5,7 +5,7 @@
 #ifndef GGCONFIGD_HELPERS_H
 #define GGCONFIGD_HELPERS_H
 
-#include <gg/object.h>
+#include <gg/types.h>
 
 char *print_key_path(GgList *key_path);
 

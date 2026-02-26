@@ -6,6 +6,7 @@
 #include "../../ipc_authz.h"
 #include "../../ipc_service.h"
 #include <gg/buffer.h>
+#include <gg/types.h>
 #include <stdbool.h>
 #include <stddef.h>
 

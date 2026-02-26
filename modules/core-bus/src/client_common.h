@@ -6,11 +6,10 @@
 #define CORE_BUS_CLIENT_COMMON_H
 
 #include "types.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/eventstream/decode.h>
 #include <gg/io.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/core_bus/constants.h>
 #include <sys/types.h>
 #include <stdint.h>

@@ -5,6 +5,7 @@
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/api_ecr.h>
 #include <ggl/http.h>

@@ -6,9 +6,8 @@
 #define GGL_IPC_SUBSCRIPTIONS_H
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdint.h>
 
 /// Callback for whenever a subscription is closed.

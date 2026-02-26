@@ -1,8 +1,8 @@
 #ifndef GGL_HTTP_API_ECR_H
 #define GGL_HTTP_API_ECR_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <ggl/http.h>
 #include <stdint.h>
 

@@ -4,11 +4,10 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/log.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/sub_response.h>
 #include <inttypes.h>

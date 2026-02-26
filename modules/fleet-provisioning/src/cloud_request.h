@@ -5,9 +5,8 @@
 #ifndef GGL_FLEETPROV_CLOUD_REQUEST_H
 #define GGL_FLEETPROV_CLOUD_REQUEST_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 GgError ggl_get_certificate_from_aws(
     GgBuffer csr_as_ggl_buffer,

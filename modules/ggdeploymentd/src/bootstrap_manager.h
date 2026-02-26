@@ -6,9 +6,8 @@
 #define GGDEPLOYMENTD_BOOTSTRAP_MANAGER_H
 
 #include "deployment_model.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <stdbool.h>
 

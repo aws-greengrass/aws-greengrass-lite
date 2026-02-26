@@ -8,6 +8,7 @@
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggl/zip.h>
 #include <inttypes.h>
 #include <sys/types.h>

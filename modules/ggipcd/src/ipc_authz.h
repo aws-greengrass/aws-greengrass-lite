@@ -6,8 +6,8 @@
 #define GGL_IPC_AUTHZ_H
 
 #include "ipc_service.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <stdbool.h>
 
 typedef bool GglIpcPolicyResourceMatcher(

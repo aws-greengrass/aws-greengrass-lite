@@ -12,6 +12,7 @@
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggdeploymentd.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/proxy/environment.h>

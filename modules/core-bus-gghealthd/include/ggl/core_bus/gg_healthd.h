@@ -8,8 +8,8 @@
 //! gghealthd core-bus interface wrapper
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 GgError ggl_gghealthd_retrieve_component_status(
     GgBuffer component, GgArena *alloc, GgBuffer *component_status

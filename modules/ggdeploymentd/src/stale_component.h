@@ -2,9 +2,8 @@
 #define GGL_STALE_COMPONENT_H
 
 #include "deployment_model.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 GgError disable_and_unlink_service(
     GgBuffer *component_name, PhaseSelection phase

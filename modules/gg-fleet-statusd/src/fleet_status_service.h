@@ -5,9 +5,8 @@
 #ifndef GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 #define GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 #define MAX_THING_NAME_LEN 128
 

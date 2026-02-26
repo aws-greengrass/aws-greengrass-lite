@@ -9,6 +9,7 @@
 #include <gg/error.h>
 #include <gg/log.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/server.h>
 #include <stdbool.h>

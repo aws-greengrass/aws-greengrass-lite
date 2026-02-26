@@ -6,8 +6,8 @@
 #define GGHTTPLIB_UTIL_H
 
 #include <curl/curl.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <ggl/http.h>
 
 typedef struct TpmCallbackData {

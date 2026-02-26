@@ -6,6 +6,7 @@
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/semver.h>
 #include <limits.h>

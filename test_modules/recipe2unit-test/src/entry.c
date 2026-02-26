@@ -8,7 +8,7 @@
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/log.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/recipe2unit.h>
 #include <recipe2unit-test.h>
 #include <string.h>

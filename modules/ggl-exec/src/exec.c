@@ -13,6 +13,7 @@
 #include <gg/json_encode.h>
 #include <gg/log.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/exec.h>
 #include <signal.h>
 #include <spawn.h>

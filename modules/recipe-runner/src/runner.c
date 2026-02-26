@@ -20,6 +20,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/json_pointer.h>
 #include <ggl/nucleus/constants.h>
@@ -72,9 +73,10 @@ static GgError insert_config_value(int out_fd, GgBuffer json_ptr) {
 
     static uint8_t config_value[10000];
     static uint8_t copy_config_value[10000];
-    GgArena alloc = gg_arena_init(GG_BUF(config_value));
     GgObject result = { 0 };
-    ret = ggipc_get_config(key_path.buf_list, NULL, &alloc, &result);
+    ret = ggipc_get_config(
+        key_path.buf_list, NULL, GG_BUF(config_value), &result
+    );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to get config value for substitution.");
         return ret;

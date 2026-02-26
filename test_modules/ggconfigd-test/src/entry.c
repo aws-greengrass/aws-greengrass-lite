@@ -6,6 +6,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <gg/utils.h>
 #include <gg/vector.h>
 #include <ggconfigd-test.h>

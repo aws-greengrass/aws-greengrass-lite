@@ -7,9 +7,8 @@
 
 #include <fleet-provisioning.h>
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdbool.h>
 
 GgError ggl_update_iot_endpoints(FleetProvArgs *args);

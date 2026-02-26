@@ -5,8 +5,8 @@
 #ifndef GGL_IPC_COMPONENTS_H
 #define GGL_IPC_COMPONENTS_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <ggl/nucleus/constants.h>
 #include <stdint.h>
 

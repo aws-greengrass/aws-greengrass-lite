@@ -8,9 +8,8 @@
 //! Core Bus client interface
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdint.h>
 
 /// Maximum number of core-bus connections.

@@ -5,8 +5,8 @@
 #ifndef GGHTTPLIB_DIGEST_H
 #define GGHTTPLIB_DIGEST_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <openssl/types.h>
 
 typedef struct GglDigest {

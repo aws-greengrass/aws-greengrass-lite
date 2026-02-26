@@ -5,8 +5,8 @@
 #ifndef IOTCORED_TLS_H
 #define IOTCORED_TLS_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <iotcored.h>
 
 typedef struct IotcoredTlsCtx IotcoredTlsCtx;

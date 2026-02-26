@@ -7,9 +7,9 @@
 
 //! Common library for managing unix sockets
 
-#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/io.h>
+#include <gg/types.h>
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>

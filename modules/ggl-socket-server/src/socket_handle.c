@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <assert.h>
-#include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/io.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggl/socket_handle.h>
 #include <pthread.h>
 #include <sys/socket.h>

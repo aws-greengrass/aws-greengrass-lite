@@ -8,9 +8,8 @@
 //! Helper for calling AWS IoT Core APIs
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <stdbool.h>
 
 /// Make a call to an AWS IoT MQTT API.

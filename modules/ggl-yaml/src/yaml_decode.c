@@ -4,12 +4,12 @@
 
 #include <assert.h>
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/yaml_decode.h>
 #include <pthread.h>
 #include <string.h>

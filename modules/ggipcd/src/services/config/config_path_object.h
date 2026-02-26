@@ -5,9 +5,8 @@
 #ifndef MAKE_CONFIG_PATH_OBJECT_H
 #define MAKE_CONFIG_PATH_OBJECT_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 /// Combine the component name and key path and returns a new configuration path
 /// result uses static memory owned by this function which is valid until the

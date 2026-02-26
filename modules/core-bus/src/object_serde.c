@@ -5,7 +5,6 @@
 #include "object_serde.h"
 #include <assert.h>
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/io.h>
 #include <gg/log.h>
@@ -89,6 +88,7 @@ static GgError read_bool(GgBuffer *buf, GgObject *obj) {
 static GgError write_i64(GgArena *alloc, int64_t i64) {
     assert(alloc != NULL);
 
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     uint8_t *buf = GG_ARENA_ALLOCN(alloc, uint8_t, sizeof(int64_t));
     if (buf == NULL) {
         GG_LOGE("Insufficient memory to encode packet.");
@@ -114,6 +114,7 @@ static GgError read_i64(GgBuffer *buf, GgObject *obj) {
 static GgError write_f64(GgArena *alloc, double f64) {
     assert(alloc != NULL);
 
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     uint8_t *buf = GG_ARENA_ALLOCN(alloc, uint8_t, sizeof(double));
     if (buf == NULL) {
         GG_LOGE("Insufficient memory to encode packet.");
@@ -193,6 +194,7 @@ static GgError write_list(GgArena *alloc, NestingState *state, GgList list) {
     }
     uint32_t len = (uint32_t) list.len;
 
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     uint8_t *buf = GG_ARENA_ALLOCN(alloc, uint8_t, sizeof(len));
     if (buf == NULL) {
         GG_LOGE("Insufficient memory to encode packet.");
@@ -267,6 +269,7 @@ static GgError write_map(GgArena *alloc, NestingState *state, GgMap map) {
     }
     uint32_t len = (uint32_t) map.len;
 
+    // NOLINTNEXTLINE(bugprone-sizeof-expression)
     uint8_t *buf = GG_ARENA_ALLOCN(alloc, uint8_t, sizeof(len));
     if (buf == NULL) {
         GG_LOGE("Insufficient memory to encode packet.");

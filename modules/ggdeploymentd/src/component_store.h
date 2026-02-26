@@ -6,8 +6,8 @@
 #define GGDEPLOYMENTD_COMPONENT_STORE_H
 
 #include <dirent.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 GgError get_recipe_dir_fd(int *recipe_fd);
 

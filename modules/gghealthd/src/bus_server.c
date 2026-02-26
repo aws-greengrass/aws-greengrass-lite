@@ -11,6 +11,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/nucleus/constants.h>
 #include <stdbool.h>

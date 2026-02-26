@@ -15,6 +15,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

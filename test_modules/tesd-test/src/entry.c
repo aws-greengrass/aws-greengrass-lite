@@ -8,6 +8,7 @@
 #include <gg/flags.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/core_bus/client.h>
 #include <tesd-test.h>
 #include <stdint.h>

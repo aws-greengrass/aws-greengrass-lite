@@ -9,6 +9,7 @@
 #include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/proxy/environment.h>
 #include <stdbool.h>

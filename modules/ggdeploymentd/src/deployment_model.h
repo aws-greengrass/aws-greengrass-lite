@@ -5,8 +5,7 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 #define GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 
-#include <gg/buffer.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 #define MAX_COMP_NAME_BUF_SIZE 10000
 

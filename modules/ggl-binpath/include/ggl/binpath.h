@@ -5,8 +5,8 @@
 #ifndef GGL_BINPATH_H
 #define GGL_BINPATH_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 
 /// Extract directory path from argv[0]

@@ -8,9 +8,8 @@
 //! gg_config core-bus interface wrapper
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <ggl/core_bus/client.h>
 #include <stdint.h>
 

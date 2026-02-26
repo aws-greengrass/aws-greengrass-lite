@@ -8,7 +8,7 @@
 
 #include <gg/error.h>
 #include <gg/io.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <sys/types.h>
 
 GgError ggl_exec_command(const char *const args[static 1]);

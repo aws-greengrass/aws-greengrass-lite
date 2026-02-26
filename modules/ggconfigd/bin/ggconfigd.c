@@ -4,6 +4,7 @@
 
 #include <argp.h>
 #include <gg/buffer.h>
+#include <gg/types.h>
 #include <ggconfigd.h>
 #include <ggl/nucleus/init.h>
 #include <stdlib.h>

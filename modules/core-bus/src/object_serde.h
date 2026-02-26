@@ -8,10 +8,9 @@
 //! Serialization/Deserialization for GGL objects.
 
 #include <gg/arena.h>
-#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/io.h>
-#include <gg/object.h>
+#include <gg/types.h>
 
 // TODO: serialize should take writer, deserialize should take reader
 

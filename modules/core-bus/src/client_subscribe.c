@@ -14,9 +14,9 @@
 #include <gg/eventstream/types.h>
 #include <gg/file.h>
 #include <gg/log.h>
-#include <gg/object.h>
 #include <gg/socket.h>
 #include <gg/socket_epoll.h>
+#include <gg/types.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/constants.h>
 #include <ggl/socket_handle.h>

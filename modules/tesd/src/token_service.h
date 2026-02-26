@@ -5,8 +5,8 @@
 #ifndef TOKEN_SERVICE_H
 #define TOKEN_SERVICE_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 
 GgError initiate_request(
     GgBuffer root_ca,

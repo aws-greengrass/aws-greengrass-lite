@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "priv_io.h"
-#include <gg/buffer.h>
 #include <gg/error.h>
 #include <gg/io.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 #include <stddef.h>
 

@@ -5,8 +5,8 @@
 #ifndef GGL_JSON_POINTER_H
 #define GGL_JSON_POINTER_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <gg/vector.h>
 
 // Parse a json pointer buffer into a list of keys

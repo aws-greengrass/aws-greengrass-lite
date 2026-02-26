@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <gg/arena.h>
 #include <gg/backoff.h>
+#include <gg/buffer.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/file.h>

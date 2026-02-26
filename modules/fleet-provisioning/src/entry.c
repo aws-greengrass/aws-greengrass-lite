@@ -13,7 +13,7 @@
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/log.h>
-#include <gg/object.h>
+#include <gg/types.h>
 #include <gg/utils.h>
 #include <ggl/exec.h>
 #include <limits.h>

@@ -5,8 +5,8 @@
 #ifndef GGHTTPLIB_H
 #define GGHTTPLIB_H
 
-#include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/types.h>
 #include <stdint.h>
 
 typedef struct CertificateDetails {
