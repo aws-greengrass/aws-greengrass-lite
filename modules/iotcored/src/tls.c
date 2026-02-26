@@ -5,6 +5,7 @@
 #include "tls.h"
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/cleanup.h>
@@ -22,7 +23,10 @@
 #include <openssl/store.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
+#include <poll.h>
+#include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -41,6 +45,42 @@ struct IotcoredTlsCtx {
 };
 
 IotcoredTlsCtx conn;
+
+static pthread_mutex_t ssl_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+static GgError make_nonblocking(BIO *bio) {
+    int fd = -1;
+    BIO_get_fd(bio, &fd);
+    if (fd < 0) {
+        GG_LOGE("Failed to get socket fd from BIO.");
+        return GG_ERR_FAILURE;
+    }
+    int flags = fcntl(fd, F_GETFL, 0);
+    if ((flags == -1) || (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)) {
+        GG_LOGE("Failed to set socket non-blocking: %m.");
+        return GG_ERR_FAILURE;
+    }
+    return GG_ERR_OK;
+}
+
+int iotcored_tls_get_fd(IotcoredTlsCtx *ctx) {
+    if ((ctx == NULL) || !ctx->connected) {
+        return -1;
+    }
+    int fd = -1;
+    BIO_get_fd(ctx->bio, &fd);
+    return fd;
+}
+
+bool iotcored_tls_read_ready(IotcoredTlsCtx *ctx) {
+    if ((ctx == NULL) || !ctx->connected) {
+        return false;
+    }
+    SSL *ssl = NULL;
+    BIO_get_ssl(ctx->bio, &ssl);
+    GG_MTX_SCOPE_GUARD(&ssl_mtx);
+    return (ssl != NULL) && (SSL_has_pending(ssl) != 0);
+}
 
 static int ssl_error_callback(const char *str, size_t len, void *user) {
     (void) user;
@@ -254,7 +294,6 @@ static GgError create_tls_context(
     GG_CLEANUP_ID(ctx_cleanup, cleanup_ssl_ctx, new_ssl_ctx);
 
     SSL_CTX_set_verify(new_ssl_ctx, SSL_VERIFY_PEER, NULL);
-    SSL_CTX_set_mode(new_ssl_ctx, SSL_MODE_AUTO_RETRY);
 
     if (SSL_CTX_load_verify_file(new_ssl_ctx, args->rootca) != 1) {
         GG_LOGE("Failed to load root CA.");
@@ -370,6 +409,11 @@ static GgError iotcored_tls_connect_no_proxy(
     BIO_get_ssl(bio, &ssl);
     check_ktls_status(ssl);
 
+    ret = make_nonblocking(bio);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
     // Since connection is established, cancel the cleanup.
     ctx_cleanup = NULL;
     bio_cleanup = NULL;
@@ -476,6 +520,11 @@ static GgError iotcored_tls_connect_https_proxy(
     mtls_bio_cleanup = NULL;
     mqtt_bio_cleanup = NULL;
 
+    ret = make_nonblocking(mqtt_proxy_chain);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = mqtt_proxy_chain, .connected = true };
     *ctx = &conn;
@@ -550,6 +599,11 @@ static GgError iotcored_tls_connect_http_proxy(
     mqtt_bio_cleanup = NULL;
     proxy_bio_cleanup = NULL;
 
+    ret = make_nonblocking(mqtt_proxy_chain);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = mqtt_proxy_chain, .connected = true };
     *ctx = &conn;
@@ -601,15 +655,26 @@ GgError iotcored_tls_read(IotcoredTlsCtx *ctx, GgBuffer *buf) {
     BIO_get_ssl(ctx->bio, &ssl);
 
     size_t read_bytes = 0;
-    int ret = SSL_read_ex(ssl, buf->data, buf->len, &read_bytes);
+    int ret;
+    int error_code;
+    int err;
+    {
+        GG_MTX_SCOPE_GUARD(&ssl_mtx);
+        ret = SSL_read_ex(ssl, buf->data, buf->len, &read_bytes);
+        error_code = (ret != 1) ? SSL_get_error(ssl, ret) : 0;
+        err = errno;
+    }
 
     if (ret != 1) {
-        int error_code = SSL_get_error(ssl, ret);
-        int err = errno;
-        ERR_print_errors_cb(ssl_error_callback, NULL);
         switch (error_code) {
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            // No data available on non-blocking socket.
+            buf->len = 0;
+            return GG_ERR_OK;
         case SSL_ERROR_SSL:
         case SSL_ERROR_SYSCALL:
+            ERR_print_errors_cb(ssl_error_callback, NULL);
             errno = err;
             GG_LOGE("OpenSSL system error: %m.");
             ctx->connected = false;
@@ -620,7 +685,7 @@ GgError iotcored_tls_read(IotcoredTlsCtx *ctx, GgBuffer *buf) {
             buf->len = 0;
             return GG_ERR_FAILURE;
         default:
-            // All other error codes are related to non-blocking sockets
+            ERR_print_errors_cb(ssl_error_callback, NULL);
             GG_LOGE("Unexpected SSL_read_ex error.");
             return GG_ERR_FAILURE;
         }
@@ -629,7 +694,9 @@ GgError iotcored_tls_read(IotcoredTlsCtx *ctx, GgBuffer *buf) {
     return GG_ERR_OK;
 }
 
-GgError iotcored_tls_write(IotcoredTlsCtx *ctx, GgBuffer buf) {
+GgError iotcored_tls_write(
+    IotcoredTlsCtx *ctx, GgBuffer buf, bool *has_pending
+) {
     assert(ctx != NULL);
 
     if (!ctx->connected) {
@@ -640,10 +707,33 @@ GgError iotcored_tls_write(IotcoredTlsCtx *ctx, GgBuffer buf) {
     BIO_get_ssl(ctx->bio, &ssl);
 
     size_t written;
-    int ret = SSL_write_ex(ssl, buf.data, buf.len, &written);
+    int ret;
+    int fd = -1;
+    BIO_get_fd(ctx->bio, &fd);
 
-    if (ret != 1) {
+    // Hold mutex for entire write — OpenSSL does not allow SSL_read
+    // to interleave with a partial SSL_write.
+    GG_MTX_SCOPE_GUARD(&ssl_mtx);
+    do {
+        ret = SSL_write_ex(ssl, buf.data, buf.len, &written);
+        if (ret == 1) {
+            *has_pending = SSL_has_pending(ssl);
+            return GG_ERR_OK;
+        }
         int error_code = SSL_get_error(ssl, ret);
+        if ((error_code == SSL_ERROR_WANT_WRITE)
+            || (error_code == SSL_ERROR_WANT_READ)) {
+            // Wait for socket to become ready.
+            // Must hold mutex — can't let SSL_read interleave
+            // with a partial SSL_write.
+            struct pollfd pfd = {
+                .fd = fd,
+                .events
+                = (error_code == SSL_ERROR_WANT_WRITE) ? POLLOUT : POLLIN,
+            };
+            poll(&pfd, 1, -1);
+            continue;
+        }
         ERR_print_errors_cb(ssl_error_callback, NULL);
         switch (error_code) {
         case SSL_ERROR_SSL:
@@ -652,14 +742,10 @@ GgError iotcored_tls_write(IotcoredTlsCtx *ctx, GgBuffer buf) {
             ctx->connected = false;
             return GG_ERR_FATAL;
         default:
-            // All other error codes are related to non-blocking sockets
-            // or cannot occur from a socket write.
-            GG_LOGW("Unexpected non-blocking socket error.");
-            break;
+            GG_LOGW("Unexpected SSL_write_ex error.");
+            return GG_ERR_FAILURE;
         }
-    }
-
-    return GG_ERR_OK;
+    } while (true);
 }
 
 void iotcored_tls_cleanup(IotcoredTlsCtx *ctx) {

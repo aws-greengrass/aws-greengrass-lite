@@ -9,20 +9,26 @@
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
 #include <core_mqtt_serializer.h>
+#include <errno.h>
 #include <gg/backoff.h>
 #include <gg/error.h>
+#include <gg/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
 #include <gg/log.h>
 #include <gg/object.h>
-#include <gg/utils.h>
 #include <iotcored.h>
+#include <poll.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/eventfd.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 #include <sys/types.h>
+#include <time.h>
 #include <transport_interface.h>
-#include <stdatomic.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdnoreturn.h>
 
 #ifndef IOTCORED_KEEP_ALIVE_PERIOD
@@ -61,9 +67,10 @@ typedef struct {
 } StoredPublish;
 
 static pthread_t recv_thread;
-static pthread_t keepalive_thread;
 
-static atomic_bool ping_pending;
+static int write_event_fd = -1;
+
+static bool ping_pending;
 
 static NetworkContext_t net_ctx;
 
@@ -314,13 +321,22 @@ static GgError establish_connection(void *ctx) {
         return GG_ERR_FAILURE;
     }
 
-    atomic_store_explicit(&ping_pending, false, memory_order_release);
+    ping_pending = false;
 
     GG_LOGI("Connected to IoT core.");
     return GG_ERR_OK;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
+    MQTTContext_t *ctx = arg;
+
+    int keepalive_tfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+    if (keepalive_tfd < 0) {
+        GG_LOGE("Failed to create timerfd: %m.");
+        _Exit(1);
+    }
+
     // coverity[infinite_loop]
     while (true) {
         // Connect to IoT core with backoff between 5s->5m.
@@ -331,13 +347,90 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
 
         iotcored_re_register_all_subs();
 
-        MQTTStatus_t mqtt_ret;
-        MQTTContext_t *ctx = arg;
-        do {
-            mqtt_ret = MQTT_ReceiveLoop(ctx);
-        } while ((mqtt_ret == MQTTSuccess) || (mqtt_ret == MQTTNeedMoreBytes));
+        struct itimerspec ts = {
+            .it_interval = { .tv_sec = IOTCORED_KEEP_ALIVE_PERIOD },
+            .it_value = { .tv_sec = IOTCORED_KEEP_ALIVE_PERIOD },
+        };
+        timerfd_settime(keepalive_tfd, 0, &ts, NULL);
 
-        GG_LOGE("Error in receive loop, closing connection.");
+        int sock_fd = iotcored_tls_get_fd(net_ctx.tls_ctx);
+
+        // Drain any stale signals from previous connection.
+        if (write_event_fd >= 0) {
+            // Best-effort drain
+            uint64_t val;
+            while ((read(write_event_fd, &val, sizeof(val)) < 0)
+                   && (errno == EINTR)) { }
+        }
+
+        struct pollfd fds[3] = {
+            { .fd = sock_fd, .events = POLLIN },
+            { .fd = keepalive_tfd, .events = POLLIN },
+            { .fd = write_event_fd, .events = POLLIN },
+        };
+
+        while (true) {
+            if (!iotcored_tls_read_ready(net_ctx.tls_ctx)) {
+                int ret;
+                do {
+                    // 10s timeout is a failsafe against missed wakeups.
+                    // Set to -1 when debugging to expose poll notification
+                    // bugs.
+                    ret = poll(fds, 3, 10000);
+                } while ((ret < 0) && (errno == EINTR));
+                if (ret < 0) {
+                    GG_LOGE("poll failed: %m.");
+                    break;
+                }
+            }
+
+            if (fds[1].revents & POLLIN) {
+                // Keepalive timer fired.
+                // Consume timer expiration count; error is non-fatal.
+                uint64_t expirations;
+                while ((read(keepalive_tfd, &expirations, sizeof(expirations))
+                        < 0)
+                       && (errno == EINTR)) { }
+
+                if (ping_pending) {
+                    GG_LOGE(
+                        "Server did not respond to ping within Keep Alive period."
+                    );
+                    break;
+                }
+                GG_LOGD("Sending pingreq.");
+                ping_pending = true;
+                MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
+                if (mqtt_ret != MQTTSuccess) {
+                    GG_LOGE("Sending pingreq failed.");
+                    break;
+                }
+            }
+
+            if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+                GG_LOGE("Socket error detected.");
+                break;
+            }
+
+            // Drain the write-notification eventfd.
+            if (fds[2].revents & POLLIN) {
+                uint64_t val;
+                while ((read(write_event_fd, &val, sizeof(val)) < 0)
+                       && (errno == EINTR)) { }
+            }
+
+            MQTTStatus_t mqtt_ret;
+            do {
+                mqtt_ret = MQTT_ReceiveLoop(ctx);
+            } while (mqtt_ret == MQTTSuccess
+                     && (iotcored_tls_read_ready(net_ctx.tls_ctx)
+                         || ctx->index > 0));
+
+            if ((mqtt_ret != MQTTSuccess) && (mqtt_ret != MQTTNeedMoreBytes)) {
+                GG_LOGE("Error in receive loop, closing connection.");
+                break;
+            }
+        }
 
         (void) MQTT_Disconnect(ctx);
         iotcored_tls_cleanup(ctx->transportInterface.pNetworkContext->tls_ctx);
@@ -345,43 +438,8 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         // Send status update to indicate mqtt disconnection.
         iotcored_mqtt_status_update_send(gg_obj_bool(false));
     }
-}
 
-noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
-    MQTTContext_t *ctx = arg;
-
-    while (true) {
-        GgError err;
-        do {
-            err = gg_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
-        } while (MQTT_CheckConnectStatus(ctx) == MQTTStatusNotConnected);
-
-        if (err != GG_ERR_OK) {
-            GG_LOGE("Failed a call to gg_sleep.");
-            break;
-        }
-
-        if (atomic_load_explicit(&ping_pending, memory_order_acquire)) {
-            GG_LOGE("Server did not respond to ping within Keep Alive period.");
-            // We do not care about the value returned by the following call.
-            (void) MQTT_Disconnect(ctx);
-        } else {
-            GG_LOGD("Sending pingreq.");
-            atomic_store_explicit(&ping_pending, true, memory_order_release);
-            MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
-
-            if (mqtt_ret != MQTTSuccess) {
-                GG_LOGE("Sending pingreq failed.");
-
-                // We do not care about the value returned by the following
-                // call.
-                (void) MQTT_Disconnect(ctx);
-            }
-        }
-    }
-
-    GG_LOGE("Exiting the MQTT Keep Alive thread.");
-
+    GG_LOGE("Exiting the MQTT thread.");
     pthread_exit(NULL);
 }
 
@@ -402,10 +460,20 @@ static int32_t transport_send(
 ) {
     size_t bytes = bytes_to_send < INT32_MAX ? bytes_to_send : INT32_MAX;
 
+    bool has_pending = false;
     GgError ret = iotcored_tls_write(
         network_context->tls_ctx,
-        (GgBuffer) { .data = (void *) buffer, .len = bytes }
+        (GgBuffer) { .data = (void *) buffer, .len = bytes },
+        &has_pending
     );
+
+    // Best-effort wakeup; failure means recv thread will catch it
+    // on next poll timeout.
+    if (has_pending) {
+        uint64_t val = 1;
+        while ((write(write_event_fd, &val, sizeof(val)) < 0)
+               && (errno == EINTR)) { }
+    }
 
     return (ret == GG_ERR_OK) ? (int32_t) bytes : -1;
 }
@@ -444,18 +512,12 @@ GgError iotcored_mqtt_connect(const IotcoredArgs *args) {
     // Store a global variable copy.
     iot_cored_args = args;
 
+    write_event_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+
     int thread_ret
         = pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
     if (thread_ret != 0) {
         GG_LOGE("Could not create the MQTT receive thread: %d.", thread_ret);
-        return GG_ERR_FATAL;
-    }
-
-    thread_ret = pthread_create(
-        &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
-    );
-    if (thread_ret != 0) {
-        GG_LOGE("Could not create the MQTT keep-alive thread: %d.", thread_ret);
         return GG_ERR_FATAL;
     }
 
@@ -653,7 +715,7 @@ static void event_callback(
             break;
         case MQTT_PACKET_TYPE_PINGRESP:
             GG_LOGD("Received pingresp.");
-            atomic_store_explicit(&ping_pending, false, memory_order_release);
+            ping_pending = false;
             break;
         default:
             GG_LOGE("Received unknown packet type %02x.", packet_info->type);
