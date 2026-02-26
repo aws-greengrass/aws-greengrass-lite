@@ -14,7 +14,13 @@ option(BUILD_EXAMPLES "Build examples")
 
 option(ENABLE_WERROR "Compile warnings as errors")
 
-set(GGL_LOG_LEVEL CACHE STRING "GGL log level")
+set(GG_LOG_LEVEL CACHE STRING "GG log level")
+# Backwards compat
+if(GGL_LOG_LEVEL AND NOT GG_LOG_LEVEL)
+  set(GG_LOG_LEVEL
+      "${GGL_LOG_LEVEL}"
+      CACHE STRING "" FORCE)
+endif()
 
 option(GGL_SYSTEMD_SERVICE_BUILD "Install GGL as a set of systemd services"
        TRUE)

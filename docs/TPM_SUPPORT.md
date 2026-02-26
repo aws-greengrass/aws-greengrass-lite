@@ -253,7 +253,7 @@ sudo cp ./config.yaml /etc/greengrass/config.yaml
 #### 8.1 Build
 
 ```bash
-cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=MinSizeRel -DGGL_LOG_LEVEL=DEBUG
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=MinSizeRel -DGG_LOG_LEVEL=DEBUG
 make -C build -j$(nproc)
 sudo make -C build install
 ```

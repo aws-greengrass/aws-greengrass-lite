@@ -14,12 +14,11 @@ implementation of the interface logs to stderr.
 
 ## Compilation Macros
 
-### `GGL_LOG_LEVEL`
+### `GG_LOG_LEVEL`
 
-- [logging-macros-1] `GGL_LOG_LEVEL` can be set to one of the logging level
-  macro names in order to control the compile time maximum logging level. This
-  ensures log messages for other logging levels can be optimized out by the
-  compiler.
+- [logging-macros-1] `GG_LOG_LEVEL` can be set to one of the logging level macro
+  names in order to control the compile time maximum logging level. This ensures
+  log messages for other logging levels can be optimized out by the compiler.
 
 ## Environment Variables
 
