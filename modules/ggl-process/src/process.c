@@ -64,7 +64,7 @@ static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
 
 #endif
 
-GgError ggl_process_spawn(const char *const argv[], int *handle) {
+GgError ggl_process_spawn(const char *const argv[], GglProcessHandle *handle) {
     assert(argv[0] != NULL);
     assert(handle != NULL);
 
@@ -83,14 +83,14 @@ GgError ggl_process_spawn(const char *const argv[], int *handle) {
         return GG_ERR_FAILURE;
     }
 
-    *handle = pid;
+    *handle = (GglProcessHandle) { .val = pid };
     return GG_ERR_OK;
 }
 
-GgError ggl_process_wait(int handle, bool *exit_status) {
+GgError ggl_process_wait(GglProcessHandle handle, bool *exit_status) {
     while (true) {
         siginfo_t info = { 0 };
-        int ret = waitid(P_PID, (id_t) handle, &info, WEXITED);
+        int ret = waitid(P_PID, (id_t) handle.val, &info, WEXITED);
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;
@@ -116,9 +116,9 @@ GgError ggl_process_wait(int handle, bool *exit_status) {
     }
 }
 
-GgError ggl_process_kill(int handle, uint32_t term_timeout) {
+GgError ggl_process_kill(GglProcessHandle handle, uint32_t term_timeout) {
     if (term_timeout == 0) {
-        kill(handle, SIGKILL);
+        kill(handle.val, SIGKILL);
         return ggl_process_wait(handle, NULL);
     }
 
@@ -128,7 +128,7 @@ GgError ggl_process_kill(int handle, uint32_t term_timeout) {
 
     sigset_t old_set;
 
-    kill(handle, SIGTERM);
+    kill(handle.val, SIGTERM);
 
     // Prevent multiple threads from unblocking SIGALRM
     static pthread_mutex_t sigalrm_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -144,7 +144,7 @@ GgError ggl_process_kill(int handle, uint32_t term_timeout) {
         alarm(term_timeout);
 
         siginfo_t info = { 0 };
-        waitid_ret = waitid(P_PID, (id_t) handle, &info, WEXITED);
+        waitid_ret = waitid(P_PID, (id_t) handle.val, &info, WEXITED);
         waitid_err = errno;
 
         alarm(0);
@@ -161,13 +161,13 @@ GgError ggl_process_kill(int handle, uint32_t term_timeout) {
         return GG_ERR_FAILURE;
     }
 
-    kill(handle, SIGKILL);
+    kill(handle.val, SIGKILL);
 
     return ggl_process_wait(handle, NULL);
 }
 
 GgError ggl_process_call(const char *const argv[]) {
-    int handle;
+    GglProcessHandle handle = { 0 };
     GgError ret = ggl_process_spawn(argv, &handle);
     if (ret != GG_ERR_OK) {
         return ret;
