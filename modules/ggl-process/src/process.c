@@ -64,14 +64,34 @@ static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
 
 #endif
 
-GgError ggl_process_spawn(const char *const argv[], GglProcessHandle *handle) {
+void ggl_close_fds_from(unsigned int first) {
+    sys_close_range(first, UINT_MAX, CLOSE_RANGE_UNSHARE);
+}
+
+GgError ggl_process_spawn(
+    const char *const argv[],
+    const GglProcessSpawnConfig *config,
+    GglProcessHandle handle[static 1]
+) {
     assert(argv[0] != NULL);
-    assert(handle != NULL);
+
+    GglProcessSpawnConfig cfg = { 0 };
+    if (config != NULL) {
+        cfg = *config;
+    }
 
     pid_t pid = fork();
 
     if (pid == 0) {
-        sys_close_range(3, UINT_MAX, CLOSE_RANGE_UNSHARE);
+        if (cfg.child_setup != NULL) {
+            if (cfg.child_setup(cfg.child_setup_ctx) != GG_ERR_OK) {
+                _Exit(1);
+            }
+        }
+
+        if (!cfg.keep_fds) {
+            ggl_close_fds_from(3);
+        }
 
         execvp(argv[0], (char **) argv);
 
@@ -168,7 +188,7 @@ GgError ggl_process_kill(GglProcessHandle handle, uint32_t term_timeout) {
 
 GgError ggl_process_call(const char *const argv[]) {
     GglProcessHandle handle = { 0 };
-    GgError ret = ggl_process_spawn(argv, &handle);
+    GgError ret = ggl_process_spawn(argv, NULL, &handle);
     if (ret != GG_ERR_OK) {
         return ret;
     }
