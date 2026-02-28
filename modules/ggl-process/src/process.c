@@ -4,9 +4,12 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
+#include <gg/file.h>
 #include <gg/log.h>
+#include <gg/types.h>
 #include <ggl/process.h>
 #include <limits.h>
 #include <pthread.h>
@@ -80,11 +83,23 @@ GgError ggl_process_spawn(
         cfg = *config;
     }
 
+    int err_pipe[2];
+    if (pipe2(err_pipe, O_CLOEXEC) < 0) {
+        GG_LOGE("Err %d when calling pipe2.", errno);
+        return GG_ERR_FATAL;
+    }
+    GG_CLEANUP(cleanup_close, err_pipe[0])
+
     pid_t pid = fork();
 
     if (pid == 0) {
         if (cfg.child_setup != NULL) {
-            if (cfg.child_setup(cfg.child_setup_ctx) != GG_ERR_OK) {
+            GgError child_err = cfg.child_setup(cfg.child_setup_ctx);
+            if (child_err != GG_ERR_OK) {
+                (void) gg_file_write(
+                    err_pipe[1],
+                    (GgBuffer) { (uint8_t *) &child_err, sizeof(child_err) }
+                );
                 _Exit(1);
             }
         }
@@ -95,12 +110,36 @@ GgError ggl_process_spawn(
 
         execvp(argv[0], (char **) argv);
 
+        GG_LOGE("Err %d when calling execve.", errno);
+        GgError child_err = GG_ERR_FAILURE;
+        (void) gg_file_write(
+            err_pipe[1],
+            (GgBuffer) { (uint8_t *) &child_err, sizeof(child_err) }
+        );
         _Exit(1);
     }
+
+    (void) gg_close(err_pipe[1]);
 
     if (pid < 0) {
         GG_LOGE("Err %d when calling fork.", errno);
         return GG_ERR_FAILURE;
+    }
+
+    GgError child_err;
+    GgBuffer err_buf = { (uint8_t *) &child_err, sizeof(child_err) };
+    GgError ret = gg_file_read(err_pipe[0], &err_buf);
+    if (ret != GG_ERR_OK) {
+        kill(pid, SIGKILL);
+        waitpid(pid, NULL, 0);
+        return ret;
+    }
+
+    if (err_buf.len != 0) {
+        assert(err_buf.len == sizeof(child_err));
+        // Child failed before exec; reap it.
+        waitpid(pid, NULL, 0);
+        return child_err;
     }
 
     *handle = (GglProcessHandle) { .val = pid };
