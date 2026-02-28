@@ -47,17 +47,21 @@ static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
     return (int) syscall(SYS_close_range, first, last, flags);
 }
 #else
+
+#define CLOSE_RANGE_UNSHARE 2
+
 static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
-    (void) flags;
-    int max_fd = (int) sysconf(_SC_OPEN_MAX);
+    if (flags & CLOSE_RANGE_UNSHARE) {
+        unshare(CLONE_FILES);
+    }
+    int max_fd = (int) sysconf(_SC_OPEN_MAX) - 1;
     int range_last = (last < (unsigned) max_fd) ? (int) last : max_fd;
-    for (int i = (int) first; i < range_last; i++) {
+    for (int i = (int) first; i <= range_last; i++) {
         close(i);
     }
     return 0;
 }
 
-#define CLOSE_RANGE_UNSHARE 2
 #endif
 
 GgError ggl_process_spawn(const char *const argv[], int *handle) {
