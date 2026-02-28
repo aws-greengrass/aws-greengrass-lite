@@ -11,7 +11,6 @@
 #include <gg/log.h>
 #include <gg/types.h>
 #include <ggl/nucleus/init.h>
-#include <netdb.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -31,10 +30,11 @@
 #include <stdlib.h>
 
 #define CONTROL_SOCKET_FD 3
+#define TRANSPORT_FD 4
 #define FORWARD_BUF_SIZE 16384
 
 typedef struct {
-    char *endpoint;
+    const char *hostname;
     const char *private_key;
     const char *certificate;
     const char *root_ca;
@@ -43,18 +43,19 @@ typedef struct {
 static char doc[] = "ggl-tls-helper -- TLS helper for Greengrass Lite";
 
 static struct argp_option opts[] = {
-    { "endpoint", 'e', "HOST", 0, "Endpoint to connect to with TLS", 0 },
+    { "hostname", 'h', "HOST", 0, "Hostname for SNI", 0 },
     { "private-key", 'k', "PATH", 0, "Private key path or URI", 0 },
     { "certificate", 'c', "PATH", 0, "Certificate path or URI", 0 },
     { "root-ca", 'r', "PATH", 0, "Root CA path", 0 },
     { 0 },
 };
 
+// NOLINTNEXTLINE(readability-non-const-parameter)
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     TlsHelperArgs *args = state->input;
     switch (key) {
-    case 'e':
-        args->endpoint = arg;
+    case 'h':
+        args->hostname = arg;
         break;
     case 'k':
         args->private_key = arg;
@@ -66,7 +67,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         args->root_ca = arg;
         break;
     case ARGP_KEY_END:
-        if ((args->endpoint == NULL) || (args->private_key == NULL)
+        if ((args->hostname == NULL) || (args->private_key == NULL)
             || (args->certificate == NULL) || (args->root_ca == NULL)) {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             argp_usage(state);
@@ -110,47 +111,6 @@ static void cleanup_ssl(SSL **s) {
     if (*s != NULL) {
         SSL_free(*s);
     }
-}
-
-static GgError tcp_connect(const char *endpoint, int *out_fd) {
-    // Parse host:port. Mutate endpoint in place — null-terminate at last ':'.
-    char *colon = strrchr(endpoint, ':');
-    if (colon == NULL) {
-        GG_LOGE("Endpoint must be host:port.");
-        return GG_ERR_CONFIG;
-    }
-    *colon = '\0';
-    const char *host = endpoint;
-    const char *port = colon + 1;
-
-    struct addrinfo hints = { .ai_socktype = SOCK_STREAM };
-    struct addrinfo *res = NULL;
-    if (getaddrinfo(host, port, &hints, &res) != 0) {
-        GG_LOGE("Failed to resolve %s:%s.", host, port);
-        return GG_ERR_FAILURE;
-    }
-
-    int fd = -1;
-    for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
-        fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-        if (fd < 0) {
-            continue;
-        }
-        if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0) {
-            break;
-        }
-        close(fd);
-        fd = -1;
-    }
-    freeaddrinfo(res);
-
-    if (fd < 0) {
-        GG_LOGE("Failed to connect to %s:%s.", host, port);
-        return GG_ERR_FAILURE;
-    }
-
-    *out_fd = fd;
-    return GG_ERR_OK;
 }
 
 static GgError load_certificate(SSL_CTX *ssl_ctx, const char *uri) {
@@ -222,7 +182,10 @@ static GgError load_private_key(SSL_CTX *ssl_ctx, const char *uri) {
 }
 
 static GgError tls_setup(
-    const TlsHelperArgs *args, int tcp_fd, SSL **out_ssl, SSL_CTX **out_ctx
+    const TlsHelperArgs *args,
+    int transport_fd,
+    SSL **out_ssl,
+    SSL_CTX **out_ctx
 ) {
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_client_method());
     if (ssl_ctx == NULL) {
@@ -257,9 +220,6 @@ static GgError tls_setup(
         return GG_ERR_CONFIG;
     }
 
-    // hostname for SNI — endpoint was already split by tcp_connect
-    const char *host = args->endpoint;
-
     SSL *ssl = SSL_new(ssl_ctx);
     if (ssl == NULL) {
         GG_LOGE("Failed to create SSL.");
@@ -267,9 +227,9 @@ static GgError tls_setup(
     }
     GG_CLEANUP_ID(ssl_cleanup, cleanup_ssl, ssl);
 
-    SSL_set_fd(ssl, tcp_fd);
+    SSL_set_fd(ssl, transport_fd);
 
-    if (SSL_set_tlsext_host_name(ssl, host) != 1) {
+    if (SSL_set_tlsext_host_name(ssl, args->hostname) != 1) {
         GG_LOGE("Failed to set SNI.");
         return GG_ERR_FAILURE;
     }
@@ -337,7 +297,7 @@ static GgError make_nonblocking(int fd) {
     return GG_ERR_OK;
 }
 
-static GgError ssl_write_all(SSL *ssl, int tcp_fd, GgBuffer data) {
+static GgError ssl_write_all(SSL *ssl, int transport_fd, GgBuffer data) {
     size_t written = 0;
     for (;;) {
         int ssl_ret = SSL_write_ex(ssl, data.data, data.len, &written);
@@ -347,7 +307,7 @@ static GgError ssl_write_all(SSL *ssl, int tcp_fd, GgBuffer data) {
         int err = SSL_get_error(ssl, ssl_ret);
         if ((err == SSL_ERROR_WANT_READ) || (err == SSL_ERROR_WANT_WRITE)) {
             struct pollfd pfd = {
-                .fd = tcp_fd,
+                .fd = transport_fd,
                 .events
                 = (short) ((err == SSL_ERROR_WANT_WRITE) ? POLLOUT : POLLIN),
             };
@@ -361,12 +321,12 @@ static GgError ssl_write_all(SSL *ssl, int tcp_fd, GgBuffer data) {
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GgError forward_loop(SSL *ssl, int pair_fd, int tcp_fd) {
+static GgError forward_loop(SSL *ssl, int pair_fd, int transport_fd) {
     GgError ret = make_nonblocking(pair_fd);
     if (ret != GG_ERR_OK) {
         return ret;
     }
-    ret = make_nonblocking(tcp_fd);
+    ret = make_nonblocking(transport_fd);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -379,7 +339,7 @@ static GgError forward_loop(SSL *ssl, int pair_fd, int tcp_fd) {
         // SSL_has_pending: skip poll if OpenSSL has buffered data
         if (!SSL_has_pending(ssl)) {
             struct pollfd fds[2] = {
-                { .fd = tcp_fd,
+                { .fd = transport_fd,
                   .events = (short) (!eof_from_tls ? POLLIN : 0) },
                 { .fd = pair_fd,
                   .events = (short) (!eof_from_parent ? POLLIN : 0) },
@@ -403,7 +363,7 @@ static GgError forward_loop(SSL *ssl, int pair_fd, int tcp_fd) {
             if (fds[1].revents & (POLLERR | POLLHUP | POLLNVAL)) {
                 if (!eof_from_parent) {
                     eof_from_parent = true;
-                    shutdown(tcp_fd, SHUT_WR);
+                    shutdown(transport_fd, SHUT_WR);
                 }
             }
         }
@@ -439,7 +399,9 @@ static GgError forward_loop(SSL *ssl, int pair_fd, int tcp_fd) {
             ssize_t n = read(pair_fd, buf, sizeof(buf));
             if (n > 0) {
                 ret = ssl_write_all(
-                    ssl, tcp_fd, (GgBuffer) { .data = buf, .len = (size_t) n }
+                    ssl,
+                    transport_fd,
+                    (GgBuffer) { .data = buf, .len = (size_t) n }
                 );
                 if (ret != GG_ERR_OK) {
                     return ret;
@@ -469,14 +431,7 @@ int main(int argc, char **argv) {
 
     SSL *ssl = NULL;
     SSL_CTX *ssl_ctx = NULL;
-    int tcp_fd = -1;
-    GgError ret = tcp_connect(args.endpoint, &tcp_fd);
-    if (ret != GG_ERR_OK) {
-        return 1;
-    }
-    GG_CLEANUP(cleanup_close, tcp_fd);
-
-    ret = tls_setup(&args, tcp_fd, &ssl, &ssl_ctx);
+    GgError ret = tls_setup(&args, TRANSPORT_FD, &ssl, &ssl_ctx);
     if (ret != GG_ERR_OK) {
         return 1;
     }
@@ -496,7 +451,7 @@ int main(int argc, char **argv) {
             return 1;
         }
         GG_LOGI("kTLS active on both TX and RX; sending raw TCP fd.");
-        ret = send_fd_on_control_socket(tcp_fd);
+        ret = send_fd_on_control_socket(TRANSPORT_FD);
         SSL_set_quiet_shutdown(ssl, 1);
         return ret != GG_ERR_OK;
     }
@@ -520,6 +475,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    ret = forward_loop(ssl, sv[0], tcp_fd);
+    ret = forward_loop(ssl, sv[0], TRANSPORT_FD);
     return ret != GG_ERR_OK;
 }
