@@ -123,7 +123,7 @@ GgError ggl_process_spawn(
 
     if (pid < 0) {
         GG_LOGE("Err %d when calling fork.", errno);
-        return GG_ERR_FAILURE;
+        return GG_ERR_FATAL;
     }
 
     GgError child_err;
@@ -155,7 +155,7 @@ GgError ggl_process_wait(GglProcessHandle handle, bool *exit_status) {
                 continue;
             }
             GG_LOGE("Err %d when calling waitid.", errno);
-            return GG_ERR_FAILURE;
+            return GG_ERR_FATAL;
         }
 
         switch (info.si_code) {
@@ -217,7 +217,7 @@ GgError ggl_process_kill(GglProcessHandle handle, uint32_t term_timeout) {
 
     if (waitid_err != EINTR) {
         GG_LOGE("Err %d when calling waitid.", waitid_err);
-        return GG_ERR_FAILURE;
+        return GG_ERR_FATAL;
     }
 
     kill(handle.val, SIGKILL);
