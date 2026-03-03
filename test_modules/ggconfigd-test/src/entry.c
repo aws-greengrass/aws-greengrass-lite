@@ -25,6 +25,64 @@ static const char *component_version = "1.0.0";
 const char *component_name_test = "ggconfigd-test";
 
 GgError run_ggconfigd_test(void) {
+    // Backup/restore round-trip test
+    GgError ret = ggl_gg_config_write(
+        GG_BUF_LIST(GG_STR("test"), GG_STR("backup_key")),
+        gg_obj_buf(GG_STR("original")),
+        NULL
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("backup test: write original failed");
+        return ret;
+    }
+
+    ret = ggl_gg_config_backup();
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("backup test: backup failed");
+        return ret;
+    }
+
+    ret = ggl_gg_config_write(
+        GG_BUF_LIST(GG_STR("test"), GG_STR("backup_key")),
+        gg_obj_buf(GG_STR("modified")),
+        NULL
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("backup test: write modified failed");
+        return ret;
+    }
+
+    ret = ggl_gg_config_restore();
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("backup test: restore failed");
+        return ret;
+    }
+
+    static uint8_t backup_read_mem[256];
+    GgArena backup_alloc = gg_arena_init(GG_BUF(backup_read_mem));
+    GgBuffer backup_result;
+    ret = ggl_gg_config_read_str(
+        GG_BUF_LIST(GG_STR("test"), GG_STR("backup_key")),
+        &backup_alloc,
+        &backup_result
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("backup test: read after restore failed");
+        return ret;
+    }
+
+    if (!gg_buffer_eq(backup_result, GG_STR("original"))) {
+        GG_LOGE(
+            "backup test: expected \"original\", got \"%.*s\"",
+            (int) backup_result.len,
+            backup_result.data
+        );
+        return GG_ERR_FAILURE;
+    }
+
+    GG_LOGI("backup/restore test passed");
+
+    // Existing deployment test
     static uint8_t recipe_dir_mem[PATH_MAX] = { 0 };
     GgByteVec recipe_dir = GG_BYTE_VEC(recipe_dir_mem);
 
@@ -35,7 +93,7 @@ GgError run_ggconfigd_test(void) {
     }
     recipe_dir.buf.len = strlen((char *) recipe_dir.buf.data);
 
-    GgError ret = gg_byte_vec_append(
+    ret = gg_byte_vec_append(
         &recipe_dir, GG_STR("/ggconfigd-test/sample-recipe")
     );
     if (ret != GG_ERR_OK) {

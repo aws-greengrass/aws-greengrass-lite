@@ -18,6 +18,33 @@ import/export and basic read/write access to the key/value store.
 - [ggconfigd-7] `ggconfigd` shall provide a mechanism to upgrade the datastore
   to newer versions.
 
+## Core Bus API: `backup`
+
+Create a backup of the current configuration database using SQLite's backup API.
+The backup is stored as `config.db.backup` alongside the live database. Only one
+backup is maintained; calling `backup` overwrites any previous backup.
+
+- Takes no parameters.
+- Returns `GGL_ERR_OK` on success, `GGL_ERR_FAILURE` if the database is not
+  initialized or the backup operation fails.
+
+## Core Bus API: `restore`
+
+Restore the configuration database from a previously created backup. After
+restoring:
+
+1. Stale subscriptions (referencing key IDs that no longer exist in the restored
+   database) are removed.
+2. All remaining active subscribers are notified so that daemons detect the
+   reverted configuration values.
+
+- Takes no parameters.
+- Returns `GGL_ERR_OK` on success, `GGL_ERR_FAILURE` if the database is not
+  initialized, the backup file does not exist, or the restore operation fails.
+- Note: Subscriber notifications are best-effort. All subscribers are notified
+  regardless of whether their key's value actually changed. A future improvement
+  could suppress notifications for unchanged values.
+
 ## Data Model
 
 The greengrass datamodel is a hierarchical key/value store. Keys are in the form
@@ -27,20 +54,6 @@ may be stored internally with case).
 Any data is permitted in a value. The data that goes in, is returned when read.
 
 ## Future Core Bus APIs
-
-### snapshot
-
-Create a snapshot of the current configuration and store it with the current
-date.
-
-> NOTE: The snapshot, restore, snapshot_history api may be simplified to a
-> simple api such as create_snapshot and restore with no parameters
-
-### restore
-
-Restore a previous snapshot. If no date is provided, it will restore the
-previous snapshot. If a date is provided then it must exactly match a previous
-snapshot.
 
 ### snapshot_history
 
