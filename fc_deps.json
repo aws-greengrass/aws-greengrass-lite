@@ -1,8 +1,8 @@
 {
   "core_mqtt": {
     "url": "https://github.com/FreeRTOS/coreMQTT.git",
-    "rev": "f1827d8b46703f1c5ff05d21b34692d3122c9a04",
-    "hash": "sha256-gXmv6zabWLUyQ2TVyzHNGaoqR8ISuKGZd13nI7DFIYM="
+    "rev": "1c8b7efdb56c8239115cce6fc23a354889c920e1",
+    "hash": "sha256-yzike3sC9CJxnyzjDeGAQRsZ2Abcr+R+yHiv7+m5hBA="
   },
   "aws_sigv4": {
     "url": "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git",
