@@ -69,6 +69,7 @@ typedef struct {
 static pthread_t recv_thread;
 
 static int write_event_fd = -1;
+static int reconnect_event_fd = -1;
 
 static bool ping_pending;
 
@@ -284,7 +285,10 @@ static GgError establish_connection(void *ctx) {
     (void) ctx;
     MQTTStatus_t mqtt_ret;
 
-    GG_LOGD("Trying to establish connection to IoT core.");
+    GG_LOGD(
+        "Trying to establish connection to IoT core at %s.",
+        iot_cored_args->endpoint
+    );
 
     GgError ret = iotcored_tls_connect(iot_cored_args, &net_ctx.tls_ctx);
     if (ret != 0) {
@@ -323,7 +327,7 @@ static GgError establish_connection(void *ctx) {
 
     ping_pending = false;
 
-    GG_LOGI("Connected to IoT core.");
+    GG_LOGI("Connected to IoT core at %s.", iot_cored_args->endpoint);
     return GG_ERR_OK;
 }
 
@@ -362,11 +366,17 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
             while ((read(write_event_fd, &val, sizeof(val)) < 0)
                    && (errno == EINTR)) { }
         }
+        if (reconnect_event_fd >= 0) {
+            uint64_t val;
+            while ((read(reconnect_event_fd, &val, sizeof(val)) < 0)
+                   && (errno == EINTR)) { }
+        }
 
-        struct pollfd fds[3] = {
+        struct pollfd fds[4] = {
             { .fd = sock_fd, .events = POLLIN },
             { .fd = keepalive_tfd, .events = POLLIN },
             { .fd = write_event_fd, .events = POLLIN },
+            { .fd = reconnect_event_fd, .events = POLLIN },
         };
 
         while (true) {
@@ -376,7 +386,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
                     // 10s timeout is a failsafe against missed wakeups.
                     // Set to -1 when debugging to expose poll notification
                     // bugs.
-                    ret = poll(fds, 3, 10000);
+                    ret = poll(fds, 4, 10000);
                 } while ((ret < 0) && (errno == EINTR));
                 if (ret < 0) {
                     GG_LOGE("poll failed: %m.");
@@ -417,6 +427,14 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
                 uint64_t val;
                 while ((read(write_event_fd, &val, sizeof(val)) < 0)
                        && (errno == EINTR)) { }
+            }
+
+            // Reconnect requested via iotcored_mqtt_disconnect().
+            if (fds[3].revents & POLLIN) {
+                GG_LOGI(
+                    "Reconnect requested, disconnecting from current endpoint."
+                );
+                break;
             }
 
             MQTTStatus_t mqtt_ret;
@@ -513,6 +531,7 @@ GgError iotcored_mqtt_connect(const IotcoredArgs *args) {
     iot_cored_args = args;
 
     write_event_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    reconnect_event_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 
     int thread_ret
         = pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
@@ -532,6 +551,14 @@ bool iotcored_mqtt_connection_status(void) {
         connected = true;
     }
     return connected;
+}
+
+void iotcored_mqtt_disconnect(void) {
+    if (reconnect_event_fd >= 0) {
+        uint64_t val = 1;
+        while ((write(reconnect_event_fd, &val, sizeof(val)) < 0)
+               && (errno == EINTR)) { }
+    }
 }
 
 GgError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {

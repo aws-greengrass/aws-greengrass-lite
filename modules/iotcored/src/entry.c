@@ -6,19 +6,73 @@
 #include "mqtt.h"
 #include <gg/arena.h>
 #include <gg/buffer.h>
+#include <gg/cleanup.h>
 #include <gg/error.h>
 #include <gg/log.h>
 #include <gg/types.h>
 #include <ggl/core_bus/gg_config.h>
 #include <iotcored.h>
 #include <limits.h>
+#include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #define MAX_ENDPOINT_LEN 128
 #define MAX_THINGNAME_LEN 128
+
+static uint8_t endpoint_mem[MAX_ENDPOINT_LEN + 1] = { 0 };
+static pthread_mutex_t endpoint_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+static GgError endpoint_change_callback(
+    void *ctx, uint32_t handle, GgObject data
+) {
+    (void) ctx;
+    (void) handle;
+    (void) data;
+
+    GG_MTX_SCOPE_GUARD(&endpoint_mtx);
+
+    char old_endpoint[MAX_ENDPOINT_LEN + 1];
+    memcpy(old_endpoint, endpoint_mem, sizeof(old_endpoint));
+
+    GgArena alloc = gg_arena_init(
+        gg_buffer_substr(GG_BUF(endpoint_mem), 0, sizeof(endpoint_mem) - 1)
+    );
+    GgBuffer new_endpoint;
+    GgError ret = ggl_gg_config_read_str(
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.NucleusLite"),
+            GG_STR("configuration"),
+            GG_STR("iotDataEndpoint")
+        ),
+        &alloc,
+        &new_endpoint
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGW("Failed to read updated iotDataEndpoint: %d.", ret);
+        return GG_ERR_OK;
+    }
+
+    endpoint_mem[new_endpoint.len] = '\0';
+
+    if (strncmp(old_endpoint, (char *) endpoint_mem, MAX_ENDPOINT_LEN) == 0) {
+        return GG_ERR_OK;
+    }
+
+    GG_LOGI(
+        "iotDataEndpoint updated from %s to %.*s",
+        old_endpoint,
+        (int) new_endpoint.len,
+        new_endpoint.data
+    );
+
+    iotcored_mqtt_disconnect();
+    return GG_ERR_OK;
+}
 
 static bool get_proxy_variable(GgBufList aliases, GgBuffer *destination) {
     for (size_t i = 0; i < aliases.len; ++i) {
@@ -133,14 +187,34 @@ GgError run_iotcored(IotcoredArgs *args) {
         args->cert = (char *) cert_mem;
     }
 
-    if (args->endpoint == NULL) {
-        static uint8_t endpoint_mem[MAX_ENDPOINT_LEN + 1] = { 0 };
+    bool endpoint_from_config = !args->endpoint;
+
+    if (endpoint_from_config) {
+        GgError ret = ggl_gg_config_subscribe(
+            GG_BUF_LIST(
+                GG_STR("services"),
+                GG_STR("aws.greengrass.NucleusLite"),
+                GG_STR("configuration"),
+                GG_STR("iotDataEndpoint")
+            ),
+            endpoint_change_callback,
+            NULL,
+            NULL,
+            NULL
+        );
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to subscribe to iotDataEndpoint changes: %d.", ret);
+            return ret;
+        }
+
+        GG_MTX_SCOPE_GUARD(&endpoint_mtx);
+
         GgArena alloc = gg_arena_init(
             gg_buffer_substr(GG_BUF(endpoint_mem), 0, sizeof(endpoint_mem) - 1)
         );
         GgBuffer endpoint;
 
-        GgError ret = ggl_gg_config_read_str(
+        ret = ggl_gg_config_read_str(
             GG_BUF_LIST(
                 GG_STR("services"),
                 GG_STR("aws.greengrass.NucleusLite"),

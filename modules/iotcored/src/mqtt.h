@@ -22,6 +22,9 @@ typedef struct {
 
 GgError iotcored_mqtt_connect(const IotcoredArgs *args);
 
+/// Signal the MQTT recv thread to disconnect and reconnect.
+void iotcored_mqtt_disconnect(void);
+
 bool iotcored_mqtt_connection_status(void);
 
 GgError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos);
