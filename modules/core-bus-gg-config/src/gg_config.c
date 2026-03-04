@@ -229,3 +229,35 @@ GgError ggl_gg_config_subscribe(
 
     return err;
 }
+
+GgError ggl_gg_config_backup(void) {
+    GgMap args = GG_MAP(gg_kv(GG_STR(""), GG_OBJ_NULL));
+    args.len = 0;
+
+    GgError remote_err = GG_ERR_OK;
+    GgError err = ggl_call(
+        GG_STR("gg_config"), GG_STR("backup"), args, &remote_err, NULL, NULL
+    );
+
+    if ((err == GG_ERR_REMOTE) && (remote_err != GG_ERR_OK)) {
+        err = remote_err;
+    }
+
+    return err;
+}
+
+GgError ggl_gg_config_restore(void) {
+    GgMap args = GG_MAP(gg_kv(GG_STR(""), GG_OBJ_NULL));
+    args.len = 0;
+
+    GgError remote_err = GG_ERR_OK;
+    GgError err = ggl_call(
+        GG_STR("gg_config"), GG_STR("restore"), args, &remote_err, NULL, NULL
+    );
+
+    if ((err == GG_ERR_REMOTE) && (remote_err != GG_ERR_OK)) {
+        err = remote_err;
+    }
+
+    return err;
+}

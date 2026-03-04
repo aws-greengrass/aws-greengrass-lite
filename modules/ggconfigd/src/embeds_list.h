@@ -28,6 +28,8 @@
     EMBED_FILE(sql/delete_relations.sql, GGL_SQL_DELETE_RELATIONS) \
     EMBED_FILE(sql/delete_subscribers.sql, GGL_SQL_DELETE_SUBSCRIBERS) \
     EMBED_FILE(sql/delete_value.sql, GGL_SQL_DELETE_VALUE) \
-    EMBED_FILE(sql/get_descendants.sql, GGL_SQL_GET_DESCENDANTS)
+    EMBED_FILE(sql/get_descendants.sql, GGL_SQL_GET_DESCENDANTS) \
+    EMBED_FILE(sql/get_all_subscribers.sql, GGL_SQL_GET_ALL_SUBSCRIBERS) \
+    EMBED_FILE(sql/delete_stale_subscriptions.sql, GGL_SQL_DELETE_STALE_SUBSCRIPTIONS)
 
 #endif

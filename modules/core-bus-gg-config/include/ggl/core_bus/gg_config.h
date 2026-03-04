@@ -46,4 +46,10 @@ GgError ggl_gg_config_subscribe(
     uint32_t *handle
 );
 
+/// Wrapper for core-bus `gg_config` `backup`
+GgError ggl_gg_config_backup(void);
+
+/// Wrapper for core-bus `gg_config` `restore`
+GgError ggl_gg_config_restore(void);
+
 #endif

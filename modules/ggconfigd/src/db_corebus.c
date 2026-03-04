@@ -329,13 +329,41 @@ static GgError rpc_write(void *ctx, GgMap params, uint32_t handle) {
     return GG_ERR_OK;
 }
 
+static GgError rpc_backup(void *ctx, GgMap params, uint32_t handle) {
+    (void) ctx;
+    (void) params;
+
+    GgError ret = ggconfig_backup();
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ggl_respond(handle, GG_OBJ_NULL);
+    return GG_ERR_OK;
+}
+
+static GgError rpc_restore(void *ctx, GgMap params, uint32_t handle) {
+    (void) ctx;
+    (void) params;
+
+    GgError ret = ggconfig_restore();
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    ggl_respond(handle, GG_OBJ_NULL);
+    return GG_ERR_OK;
+}
+
 void ggconfigd_start_server(void) {
     GglRpcMethodDesc handlers[]
         = { { GG_STR("read"), false, rpc_read, NULL },
             { GG_STR("list"), false, rpc_list, NULL },
             { GG_STR("write"), false, rpc_write, NULL },
             { GG_STR("delete"), false, rpc_delete, NULL },
-            { GG_STR("subscribe"), true, rpc_subscribe, NULL } };
+            { GG_STR("subscribe"), true, rpc_subscribe, NULL },
+            { GG_STR("backup"), false, rpc_backup, NULL },
+            { GG_STR("restore"), false, rpc_restore, NULL } };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     GG_LOGI("Starting listening for requests");

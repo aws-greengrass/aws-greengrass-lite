@@ -209,6 +209,11 @@ event. Removing notifications for these events helps prevent unnecessary
 notifications and reactions to unnecessary notifications. Currently we don't
 have this suppression functionality, but it could be added in the future.
 
+This also applies to the `restore` operation, which currently notifies all
+active subscribers regardless of whether their key's value actually changed
+during the restore. A future improvement could compare pre- and post-restore
+values to suppress unnecessary notifications.
+
 ### Subscription behavior for keys which become deleted
 
 In GG Classic, if a key is deleted (e.g. via reset config paths during

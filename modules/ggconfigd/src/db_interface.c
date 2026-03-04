@@ -39,6 +39,7 @@ static inline void cleanup_sqlite3_finalize(sqlite3_stmt **p) {
 static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
+static const char *config_backup_name = "config.db.backup";
 
 static void sqlite_logger(void *ctx, int err_code, const char *str) {
     (void) ctx;
@@ -1403,4 +1404,216 @@ GgError ggconfig_get_key_notification(GgList *key_path, uint32_t handle) {
     }
 
     return return_err;
+}
+
+static GgError run_sqlite_backup(
+    sqlite3 *dst_db, sqlite3 *src_db, const char *label
+) {
+    sqlite3_backup *backup
+        = sqlite3_backup_init(dst_db, "main", src_db, "main");
+    if (backup == NULL) {
+        GG_LOGE("%s: backup init failed: %s", label, sqlite3_errmsg(dst_db));
+        return GG_ERR_FAILURE;
+    }
+    sqlite3_backup_step(backup, -1);
+    int rc = sqlite3_backup_finish(backup);
+    if (rc != SQLITE_OK) {
+        GG_LOGE("%s: backup failed: %s", label, sqlite3_errstr(rc));
+        return GG_ERR_FAILURE;
+    }
+    return GG_ERR_OK;
+}
+
+GgError ggconfig_backup(void) {
+    if (!config_initialized) {
+        GG_LOGE("Database not initialized.");
+        return GG_ERR_FAILURE;
+    }
+
+    sqlite3 *backup_db = NULL;
+    int rc = sqlite3_open(config_backup_name, &backup_db);
+    if (rc != SQLITE_OK) {
+        GG_LOGE("Failed to open backup db: %s", sqlite3_errmsg(backup_db));
+        sqlite3_close(backup_db);
+        return GG_ERR_FAILURE;
+    }
+
+    GgError err = run_sqlite_backup(backup_db, config_database, "backup");
+    sqlite3_close(backup_db);
+    if (err != GG_ERR_OK) {
+        return err;
+    }
+
+    GG_LOGI("Configuration backup created.");
+    return GG_ERR_OK;
+}
+
+/// Resolve a keyid to its full key path by walking relationTable upward.
+/// Populates key_path with buffer objects (root first).
+static GgError resolve_key_path(int64_t keyid, GgList *key_path) {
+    GgObject path_items_rev[GG_MAX_OBJECT_DEPTH];
+    uint8_t path_buf[GG_MAX_OBJECT_DEPTH * 128];
+    size_t buf_offset = 0;
+    size_t depth = 0;
+    int64_t current = keyid;
+
+    sqlite3_stmt *key_stmt = NULL;
+    int rc = sqlite3_prepare_v2(
+        config_database,
+        "SELECT keyvalue FROM keyTable WHERE keyid = ?",
+        -1,
+        &key_stmt,
+        NULL
+    );
+    if (rc != SQLITE_OK) {
+        GG_LOGE(
+            "Failed to prepare key lookup: %s", sqlite3_errmsg(config_database)
+        );
+        return GG_ERR_FAILURE;
+    }
+    GG_CLEANUP(cleanup_sqlite3_finalize, key_stmt);
+
+    sqlite3_stmt *parent_stmt = NULL;
+    rc = sqlite3_prepare_v2(
+        config_database,
+        "SELECT parentid FROM relationTable WHERE keyid = ?",
+        -1,
+        &parent_stmt,
+        NULL
+    );
+    if (rc != SQLITE_OK) {
+        GG_LOGE(
+            "Failed to prepare parent lookup: %s",
+            sqlite3_errmsg(config_database)
+        );
+        return GG_ERR_FAILURE;
+    }
+    GG_CLEANUP(cleanup_sqlite3_finalize, parent_stmt);
+
+    while (depth < GG_MAX_OBJECT_DEPTH) {
+        sqlite3_reset(key_stmt);
+        sqlite3_bind_int64(key_stmt, 1, current);
+        if (sqlite3_step(key_stmt) != SQLITE_ROW) {
+            GG_LOGE("Failed to resolve keyid %" PRId64, current);
+            return GG_ERR_FAILURE;
+        }
+        const char *val = (const char *) sqlite3_column_text(key_stmt, 0);
+        int val_len = sqlite3_column_bytes(key_stmt, 0);
+        if (buf_offset + (size_t) val_len > sizeof(path_buf)) {
+            GG_LOGE("Path buffer overflow resolving keyid %" PRId64, keyid);
+            return GG_ERR_NOMEM;
+        }
+        memcpy(&path_buf[buf_offset], val, (size_t) val_len);
+        path_items_rev[depth] = gg_obj_buf((GgBuffer
+        ) { .data = &path_buf[buf_offset], .len = (size_t) val_len });
+        buf_offset += (size_t) val_len;
+        depth++;
+
+        sqlite3_reset(parent_stmt);
+        sqlite3_bind_int64(parent_stmt, 1, current);
+        if (sqlite3_step(parent_stmt) != SQLITE_ROW) {
+            break;
+        }
+        current = sqlite3_column_int64(parent_stmt, 0);
+    }
+
+    for (size_t i = 0; i < depth; i++) {
+        key_path->items[i] = path_items_rev[depth - 1 - i];
+    }
+    key_path->len = depth;
+    return GG_ERR_OK;
+}
+
+/// Remove subscriptions referencing key IDs that no longer exist after restore.
+static void cleanup_stale_subscriptions(void) {
+    int rc = sqlite3_exec(
+        config_database, GGL_SQL_DELETE_STALE_SUBSCRIPTIONS, NULL, NULL, NULL
+    );
+    if (rc != SQLITE_OK) {
+        GG_LOGW(
+            "Failed to clean up stale subscriptions: %s",
+            sqlite3_errmsg(config_database)
+        );
+    }
+}
+
+/// Notify all active subscribers after a restore operation.
+/// Note: This notifies all subscribers regardless of whether their key's value
+/// actually changed. A future improvement could compare pre- and post-restore
+/// values to suppress unnecessary notifications.
+static GgError notify_all_subscribers(void) {
+    sqlite3_stmt *stmt = NULL;
+    int rc = sqlite3_prepare_v2(
+        config_database, GGL_SQL_GET_ALL_SUBSCRIBERS, -1, &stmt, NULL
+    );
+    if (rc != SQLITE_OK) {
+        GG_LOGE(
+            "Failed to prepare subscriber query: %s",
+            sqlite3_errmsg(config_database)
+        );
+        return GG_ERR_FAILURE;
+    }
+    GG_CLEANUP(cleanup_sqlite3_finalize, stmt);
+
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        int64_t keyid = sqlite3_column_int64(stmt, 0);
+        uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 1);
+
+        GgObject path_items[GG_MAX_OBJECT_DEPTH];
+        GgList key_path = { .items = path_items, .len = 0 };
+        GgError err = resolve_key_path(keyid, &key_path);
+        if (err != GG_ERR_OK) {
+            GG_LOGW(
+                "Failed to resolve key path for keyid %" PRId64
+                ", skipping notification.",
+                keyid
+            );
+            continue;
+        }
+
+        ggl_sub_respond(handle, gg_obj_list(key_path));
+    }
+
+    if (rc != SQLITE_DONE) {
+        GG_LOGE(
+            "Error iterating subscribers: %s", sqlite3_errmsg(config_database)
+        );
+        return GG_ERR_FAILURE;
+    }
+
+    return GG_ERR_OK;
+}
+
+GgError ggconfig_restore(void) {
+    if (!config_initialized) {
+        GG_LOGE("Database not initialized.");
+        return GG_ERR_FAILURE;
+    }
+
+    sqlite3 *backup_db = NULL;
+    int rc = sqlite3_open_v2(
+        config_backup_name, &backup_db, SQLITE_OPEN_READONLY, NULL
+    );
+    if (rc != SQLITE_OK) {
+        GG_LOGE("Failed to open backup db: %s", sqlite3_errmsg(backup_db));
+        sqlite3_close(backup_db);
+        return GG_ERR_FAILURE;
+    }
+
+    GgError err = run_sqlite_backup(config_database, backup_db, "restore");
+    sqlite3_close(backup_db);
+    if (err != GG_ERR_OK) {
+        return err;
+    }
+
+    GG_LOGI("Configuration restored from backup.");
+
+    cleanup_stale_subscriptions();
+
+    GgError notify_err = notify_all_subscribers();
+    if (notify_err != GG_ERR_OK) {
+        GG_LOGW("Some subscriber notifications failed after restore.");
+    }
+
+    return GG_ERR_OK;
 }

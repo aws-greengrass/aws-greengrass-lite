@@ -25,6 +25,8 @@ GgError ggconfig_list_subkeys(GgList *key_path, GgList *subkeys);
 GgError ggconfig_get_key_notification(GgList *key_path, uint32_t handle);
 GgError ggconfig_open(void);
 GgError ggconfig_close(void);
+GgError ggconfig_backup(void);
+GgError ggconfig_restore(void);
 
 void ggconfigd_start_server(void);
 
