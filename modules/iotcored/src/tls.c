@@ -204,15 +204,19 @@ static GgError load_cert_from_uri(SSL_CTX *ssl_ctx, const char *uri) {
         return GG_ERR_NOMEM;
     }
 
-    OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
-    if (info == NULL) {
-        GG_LOGE("Failed to load cert info.");
-        OSSL_STORE_close(store_ctx);
-        return GG_ERR_CONFIG;
+    X509 *cert = NULL;
+    while (!OSSL_STORE_eof(store_ctx)) {
+        OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
+        if (info == NULL) {
+            break;
+        }
+        if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_CERT) {
+            cert = OSSL_STORE_INFO_get1_CERT(info);
+            OSSL_STORE_INFO_free(info);
+            break;
+        }
+        OSSL_STORE_INFO_free(info);
     }
-
-    X509 *cert = OSSL_STORE_INFO_get1_CERT(info);
-    OSSL_STORE_INFO_free(info);
     OSSL_STORE_close(store_ctx);
 
     if (cert == NULL) {
@@ -300,37 +304,14 @@ static GgError create_tls_context(
         return GG_ERR_CONFIG;
     }
 
-    GgBuffer cert_buf = gg_buffer_from_null_term(args->cert);
-    if (gg_buffer_has_prefix(cert_buf, GG_STR("pkcs11:"))) {
-        GgError ret = load_cert_from_uri(new_ssl_ctx, args->cert);
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-    } else {
-        if (SSL_CTX_use_certificate_file(
-                new_ssl_ctx, args->cert, SSL_FILETYPE_PEM
-            )
-            != 1) {
-            GG_LOGE("Failed to load client certificate.");
-            return GG_ERR_CONFIG;
-        }
+    GgError ret = load_cert_from_uri(new_ssl_ctx, args->cert);
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
-    GgBuffer key_buf = gg_buffer_from_null_term(args->key);
-    if (gg_buffer_has_prefix(key_buf, GG_STR("handle:"))
-        || gg_buffer_has_prefix(key_buf, GG_STR("pkcs11:"))) {
-        GgError ret = load_key_from_uri(new_ssl_ctx, args->key);
-        if (ret != GG_ERR_OK) {
-            return ret;
-        }
-    } else {
-        if (SSL_CTX_use_PrivateKey_file(
-                new_ssl_ctx, args->key, SSL_FILETYPE_PEM
-            )
-            != 1) {
-            GG_LOGE("Failed to load client private key.");
-            return GG_ERR_CONFIG;
-        }
+    ret = load_key_from_uri(new_ssl_ctx, args->key);
+    if (ret != GG_ERR_OK) {
+        return ret;
     }
 
     if (SSL_CTX_check_private_key(new_ssl_ctx) != 1) {
