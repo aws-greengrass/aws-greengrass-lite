@@ -6,6 +6,7 @@
 #define GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 
 #include <gg/types.h>
+#include <stdbool.h>
 
 #define MAX_COMP_NAME_BUF_SIZE 10000
 
@@ -37,5 +38,12 @@ typedef struct {
     GgMap components;
     GglDeploymentType type;
 } GglDeployment;
+
+/// Local runtime state for a deployment, separate from the cloud deployment
+/// document. Populated by the deployment handler and read by the caller.
+typedef struct {
+    bool is_bootstrap;
+    GgBuffer source_iot_data_endpoint;
+} DeploymentContext;
 
 #endif

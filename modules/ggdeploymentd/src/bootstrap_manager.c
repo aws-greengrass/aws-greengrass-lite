@@ -140,10 +140,10 @@ GgError save_iot_jobs_id(GgBuffer jobs_id) {
     return GG_ERR_OK;
 }
 
-GgError save_deployment_info(GglDeployment *deployment) {
-    GG_LOGD(
-        "Encountered component requiring bootstrap. Saving deployment state to config."
-    );
+GgError save_deployment_info(
+    GglDeployment *deployment, GgBuffer source_iot_data_endpoint
+) {
+    GG_LOGD("Saving deployment state to config.");
 
     GgObject deployment_doc = gg_obj_map(GG_MAP(
         gg_kv(GG_STR("deployment_id"), gg_obj_buf(deployment->deployment_id)),
@@ -203,11 +203,28 @@ GgError save_deployment_info(GglDeployment *deployment) {
         return ret;
     }
 
+    if (source_iot_data_endpoint.len > 0) {
+        ret = ggl_gg_config_write(
+            GG_BUF_LIST(
+                GG_STR("services"),
+                GG_STR("DeploymentService"),
+                GG_STR("deploymentState"),
+                GG_STR("sourceIotDataEndpoint")
+            ),
+            gg_obj_buf(source_iot_data_endpoint),
+            &(int64_t) { 3 }
+        );
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to write source IoT data endpoint to config.");
+            return ret;
+        }
+    }
+
     return GG_ERR_OK;
 }
 
 GgError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GgBuffer *jobs_id
+    GglDeployment *deployment, GgBuffer *jobs_id, DeploymentContext *ctx
 ) {
     GG_LOGD("Searching config for any in progress deployment.");
 
@@ -364,12 +381,39 @@ GgError retrieve_in_progress_deployment(
     }
     deployment->components = gg_obj_into_map(*components);
 
+    // Read optional sourceIotDataEndpoint for endpoint switch deployments
+    GgObject *source_ep_obj = NULL;
+    (void) gg_map_validate(
+        gg_obj_into_map(deployment_config),
+        GG_MAP_SCHEMA({ GG_STR("sourceIotDataEndpoint"),
+                        GG_OPTIONAL,
+                        GG_TYPE_BUF,
+                        &source_ep_obj })
+    );
+    if (source_ep_obj != NULL) {
+        ctx->source_iot_data_endpoint = gg_obj_into_buf(*source_ep_obj);
+    }
+    ctx->is_bootstrap = true;
+
     static uint8_t deployment_deep_copy_mem[5000] = { 0 };
     GgArena deployment_balloc = gg_arena_init(GG_BUF(deployment_deep_copy_mem));
     ret = deep_copy_deployment(deployment, &deployment_balloc);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to deep copy deployment.");
         return ret;
+    }
+
+    // Deep-copy source endpoint into static buffer so it survives beyond
+    // the config read arena's lifetime.
+    static uint8_t source_ep_buf[128] = { 0 };
+    if (ctx->source_iot_data_endpoint.len > 0
+        && ctx->source_iot_data_endpoint.len <= sizeof(source_ep_buf)) {
+        memcpy(
+            source_ep_buf,
+            ctx->source_iot_data_endpoint.data,
+            ctx->source_iot_data_endpoint.len
+        );
+        ctx->source_iot_data_endpoint.data = source_ep_buf;
     }
 
     return GG_ERR_OK;
@@ -588,7 +632,7 @@ GgError process_bootstrap_phase(
 
     if (bootstrap_component_count > 0) {
         // save deployment state and restart
-        GgError ret = save_deployment_info(deployment);
+        GgError ret = save_deployment_info(deployment, (GgBuffer) { 0 });
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to save deployment state for bootstrap.");
             return ret;

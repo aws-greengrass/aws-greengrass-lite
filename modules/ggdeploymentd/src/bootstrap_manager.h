@@ -37,9 +37,11 @@ GgError save_component_info(
 );
 
 GgError save_iot_jobs_id(GgBuffer jobs_id);
-GgError save_deployment_info(GglDeployment *deployment);
+GgError save_deployment_info(
+    GglDeployment *deployment, GgBuffer source_iot_data_endpoint
+);
 GgError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GgBuffer *jobs_id
+    GglDeployment *deployment, GgBuffer *jobs_id, DeploymentContext *ctx
 );
 GgError delete_saved_deployment_from_config(void);
 GgError process_bootstrap_phase(

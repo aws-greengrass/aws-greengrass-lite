@@ -2522,7 +2522,10 @@ static GgError check_mqtt_connectivity(
 }
 
 static GgError validate_endpoint_switch_deployment(
-    GgMap components, const char *bin_path
+    GgMap components,
+    const char *bin_path,
+    bool *is_endpoint_switch,
+    GgBuffer *current_iot_data_ep
 ) {
     GgMap merge = { 0 };
     bool found = false;
@@ -2608,9 +2611,18 @@ static GgError validate_endpoint_switch_deployment(
     }
 
     if (data_ep_obj != NULL) {
-        ret = check_mqtt_connectivity(effective_data_ep, bin_path);
-        if (ret != GG_ERR_OK) {
-            return ret;
+        // Read current endpoint once — also used by caller for rollback state
+        static uint8_t current_ep_buf[128] = { 0 };
+        GgArena current_ep_alloc = gg_arena_init(GG_BUF(current_ep_buf));
+        *current_iot_data_ep = read_nucleus_config_str(
+            GG_STR("iotDataEndpoint"), &current_ep_alloc
+        );
+        if (!gg_buffer_eq(effective_data_ep, *current_iot_data_ep)) {
+            *is_endpoint_switch = true;
+            ret = check_mqtt_connectivity(effective_data_ep, bin_path);
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
         }
     }
 
@@ -2621,17 +2633,67 @@ static GgError validate_endpoint_switch_deployment(
 static void handle_deployment(
     GglDeployment *deployment,
     GglDeploymentHandlerThreadArgs *args,
+    DeploymentContext *ctx,
     bool *deployment_succeeded
 ) {
     int root_path_fd = args->root_path_fd;
 
     // Validate IoT endpoint deployment before any state changes
+    bool is_endpoint_switch = false;
+    GgBuffer current_iot_data_ep = { 0 };
     GgError ret = validate_endpoint_switch_deployment(
-        deployment->components, args->bin_path
+        deployment->components,
+        args->bin_path,
+        &is_endpoint_switch,
+        &current_iot_data_ep
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Deployment rejected: IoT endpoint validation failed.");
         return;
+    }
+    // On bootstrap resume the config already has the new endpoint, so
+    // validation won't detect a change. Use persisted source endpoint
+    // to identify an in-flight endpoint switch.
+    if (ctx->source_iot_data_endpoint.len > 0) {
+        is_endpoint_switch = true;
+    }
+
+    // Take config backup before any modifications. On bootstrap resume the
+    // backup from the original run is already on disk — do not overwrite it.
+    // TODO: Make backup required for all deployments when full rollback is
+    // implemented.
+    if (!ctx->is_bootstrap) {
+        ret = ggl_gg_config_backup();
+        if (ret != GG_ERR_OK) {
+            if (is_endpoint_switch) {
+                GG_LOGE("Config backup failed; aborting endpoint switch.");
+                return;
+            }
+            GG_LOGW("Config backup failed; continuing deployment.");
+        }
+    } else {
+        GG_LOGI("Bootstrap resume: skipping config backup.");
+    }
+
+    // For endpoint switch: persist deployment info before the config merge.
+    // Unlike bootstrap deployments (where process_bootstrap_phase saves state
+    // before a nucleus restart), endpoint switches apply config inline without
+    // a restart. If the device crashes after the merge, the saved state lets
+    // bootstrap resume detect the in-flight switch and either complete it or
+    // roll back to the source endpoint.
+    if (is_endpoint_switch && !ctx->is_bootstrap) {
+        if (current_iot_data_ep.len == 0) {
+            GG_LOGE("Failed to read current iotDataEndpoint for rollback.");
+            return;
+        }
+        ctx->source_iot_data_endpoint = current_iot_data_ep;
+
+        ret = save_deployment_info(deployment, ctx->source_iot_data_endpoint);
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("Failed to save deployment info for endpoint switch.");
+            return;
+        }
+        GG_LOGI("Endpoint switch: rollback state persisted.");
     }
 
     if (deployment->recipe_directory_path.len != 0) {
@@ -3532,14 +3594,39 @@ static void handle_deployment(
     *deployment_succeeded = true;
 }
 
+/// Restore the config snapshot taken before deployment modifications.
+static void rollback_config(GgBuffer deployment_id) {
+    GG_LOGW(
+        "Deployment %.*s failed; restoring config snapshot.",
+        (int) deployment_id.len,
+        deployment_id.data
+    );
+    GgError ret = ggl_gg_config_restore();
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Config restore failed for deployment %.*s.",
+            (int) deployment_id.len,
+            deployment_id.data
+        );
+    } else {
+        GG_LOGI(
+            "Config snapshot restored for deployment %.*s.",
+            (int) deployment_id.len,
+            deployment_id.data
+        );
+    }
+}
+
 static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     // check for in progress deployment in case of bootstrap
     GglDeployment bootstrap_deployment = { 0 };
     uint8_t jobs_id_resp_mem[64] = { 0 };
     GgBuffer jobs_id = GG_BUF(jobs_id_resp_mem);
+    DeploymentContext bootstrap_ctx = { 0 };
 
-    GgError ret
-        = retrieve_in_progress_deployment(&bootstrap_deployment, &jobs_id);
+    GgError ret = retrieve_in_progress_deployment(
+        &bootstrap_deployment, &jobs_id, &bootstrap_ctx
+    );
     if (ret != GG_ERR_OK) {
         GG_LOGD("No deployments previously in progress detected.");
     } else {
@@ -3557,8 +3644,16 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         bool bootstrap_deployment_succeeded = false;
         handle_deployment(
-            &bootstrap_deployment, args, &bootstrap_deployment_succeeded
+            &bootstrap_deployment,
+            args,
+            &bootstrap_ctx,
+            &bootstrap_deployment_succeeded
         );
+
+        if (bootstrap_ctx.source_iot_data_endpoint.len > 0
+            && !bootstrap_deployment_succeeded) {
+            rollback_config(bootstrap_deployment.deployment_id);
+        }
 
         (void) send_fss_update(
             &bootstrap_deployment, bootstrap_deployment_succeeded
@@ -3581,6 +3676,7 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         } else {
             GG_LOGI("Completed deployment, but job was canceled.");
         }
+
         // clear any potential saved deployment info for next deployment
         ret = delete_saved_deployment_from_config();
         if (ret != GG_ERR_OK) {
@@ -3606,7 +3702,12 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         );
 
         bool deployment_succeeded = false;
-        handle_deployment(deployment, args, &deployment_succeeded);
+        DeploymentContext ctx = { 0 };
+        handle_deployment(deployment, args, &ctx, &deployment_succeeded);
+
+        if (ctx.source_iot_data_endpoint.len > 0 && !deployment_succeeded) {
+            rollback_config(deployment->deployment_id);
+        }
 
         (void) send_fss_update(deployment, deployment_succeeded);
 
