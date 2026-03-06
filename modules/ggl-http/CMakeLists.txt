@@ -2,12 +2,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(
-  ggl-http
-  LIBS gg-sdk
-       aws_sigv4
-       core-bus
-       core-bus-gg-config
-       PkgConfig::openssl
-       PkgConfig::liburiparser
-       PkgConfig::libcurl)
+ggl_init_module(ggl-http LIBS gg-sdk aws_sigv4 core-bus core-bus-gg-config
+                              PkgConfig::openssl PkgConfig::libcurl)

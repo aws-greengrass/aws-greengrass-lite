@@ -190,7 +190,7 @@ curl -o AmazonRootCA1.pem https://www.amazontrust.com/repository/AmazonRootCA1.p
 ```bash
 sudo apt update && sudo apt install build-essential pkg-config cmake git curl libssl-dev \
   libcurl4-openssl-dev uuid-dev libzip-dev libsqlite3-dev libyaml-dev \
-  libsystemd-dev libevent-dev liburiparser-dev cgroup-tools
+  libsystemd-dev libevent-dev cgroup-tools
 ```
 
 #### 7.2 Create Users and Groups
