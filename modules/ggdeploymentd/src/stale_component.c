@@ -551,6 +551,14 @@ GgError cleanup_stale_versions(GgMap latest_components_map) {
             return ret;
         }
 
+        // NucleusLite has no deployed systemd unit — skip stale cleanup.
+        if (gg_buffer_has_prefix(
+                component_name_buffer_iterator,
+                GG_STR("aws.greengrass.NucleusLite")
+            )) {
+            continue;
+        }
+
         // Try to find this component in the map.
         GgObject *component_version = NULL;
         if (gg_map_get(

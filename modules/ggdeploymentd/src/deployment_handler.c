@@ -2352,6 +2352,11 @@ static GgError wait_for_deployment_status(GgMap resolved_components) {
     (void) gg_sleep(5);
 
     GG_MAP_FOREACH (component, resolved_components) {
+        if (gg_buffer_eq(
+                gg_kv_key(*component), GG_STR("aws.greengrass.NucleusLite")
+            )) {
+            continue;
+        }
         GG_LOGD(
             "Waiting for %.*s to finish",
             (int) gg_kv_key(*component).len,
@@ -2504,7 +2509,9 @@ static GgError check_mqtt_connectivity(
         return ret;
     }
 
-    ret = iotcored_await_connection(MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS);
+    ret = iotcored_await_connection(
+        GG_STR("iotcoreddeploy"), MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS
+    );
     if (ret != GG_ERR_OK) {
         GG_LOGE(
             "MQTT connectivity check failed for %.*s.",
@@ -2717,6 +2724,9 @@ static void handle_deployment(
     }
 
     GgKVVec resolved_components_kv_vec = GG_KV_VEC((GgKV[64]) { 0 });
+    // TODO: Filter NucleusLite out of resolved_components after config merge
+    // instead of skipping it in each downstream consumer (wait_for_deployment_
+    // status, component processing loop, cleanup_stale_versions).
     static uint8_t resolve_dependencies_mem[8192] = { 0 };
     GgArena resolve_dependencies_alloc
         = gg_arena_init(GG_BUF(resolve_dependencies_mem));
@@ -3053,6 +3063,15 @@ static void handle_deployment(
                 gg_kv_key(*pair).data
             );
             return;
+        }
+
+        // NucleusLite is the runtime itself — config merge is all it needs.
+        // Skip systemd unit creation and component lifecycle processing.
+        if (gg_buffer_eq(
+                gg_kv_key(*pair), GG_STR("aws.greengrass.NucleusLite")
+            )) {
+            GG_LOGD("Skipping component processing for NucleusLite.");
+            continue;
         }
 
         static uint8_t recipe_runner_path_buf[PATH_MAX];
@@ -3589,6 +3608,19 @@ static void handle_deployment(
     ret = cleanup_stale_versions(resolved_components_kv_vec.map);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Error while cleaning up stale components after deployment.");
+    }
+
+    if (is_endpoint_switch) {
+        GG_LOGD("Verifying MQTT reconnection after config merge.");
+        ret = iotcored_await_connection(
+            GG_STR("aws_iot_mqtt"), MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS
+        );
+        if (ret != GG_ERR_OK) {
+            GG_LOGE("MQTT reconnection to new IoT data endpoint failed "
+                    "after config merge; rolling back.");
+            return;
+        }
+        GG_LOGD("MQTT reconnected to new IoT data endpoint.");
     }
 
     *deployment_succeeded = true;

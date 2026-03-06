@@ -21,9 +21,10 @@ GgError iotcored_instance_start(
     IotcoredInstance *ctx, GgBuffer iotcored_path, GgBuffer endpoint
 );
 
-/// Block until the spawned iotcored reports connected=true or timeout expires.
-/// Operates on the module-level instance — only one instance at a time.
-GgError iotcored_await_connection(uint32_t timeout_s);
+/// Block until the named iotcored instance reports connected=true or timeout
+/// expires. Retries the subscribe call to handle instances that haven't
+/// started their Core Bus server yet.
+GgError iotcored_await_connection(GgBuffer socket_name, uint32_t timeout_s);
 
 /// Kill the spawned iotcored process. Can be used directly with GG_CLEANUP.
 void iotcored_instance_stop(IotcoredInstance *ctx);

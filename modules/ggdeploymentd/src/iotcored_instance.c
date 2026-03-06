@@ -140,7 +140,7 @@ static void cleanup_pthread_cond(pthread_cond_t **cond) {
     }
 }
 
-GgError iotcored_await_connection(uint32_t timeout_s) {
+GgError iotcored_await_connection(GgBuffer socket_name, uint32_t timeout_s) {
     pthread_condattr_t attr;
     pthread_condattr_init(&attr);
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
@@ -174,11 +174,7 @@ GgError iotcored_await_connection(uint32_t timeout_s) {
         }
 
         GgError ret = ggl_aws_iot_mqtt_connection_status(
-            GG_STR(IOTCORED_INSTANCE_NAME),
-            connection_status_callback,
-            NULL,
-            &ctx,
-            &sub_handle
+            socket_name, connection_status_callback, NULL, &ctx, &sub_handle
         );
         if (ret == GG_ERR_OK) {
             break;
