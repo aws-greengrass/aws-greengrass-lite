@@ -14,7 +14,12 @@ GgError initiate_request(
     GgBuffer key_path,
     GgBuffer thing_name,
     GgBuffer role_alias,
-    GgBuffer cred_endpoint
+    GgBuffer cred_endpoint,
+    GgBuffer interface_name
 );
+
+/// Update the credential URL at runtime. Thread-safe.
+/// Re-reads both endpoint and role_alias from ggconfigd under a mutex.
+void tes_update_cred_url(void);
 
 #endif

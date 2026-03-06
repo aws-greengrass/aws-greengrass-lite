@@ -7,6 +7,12 @@
 
 #include <gg/error.h>
 
-GgError run_tesd(void);
+typedef struct {
+    char *interface_name;
+    char *cred_endpoint;
+    char *role_alias;
+} TesdArgs;
+
+GgError run_tesd(TesdArgs *args);
 
 #endif
