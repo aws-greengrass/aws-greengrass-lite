@@ -2528,6 +2528,100 @@ static GgError check_mqtt_connectivity(
     return ret;
 }
 
+typedef struct {
+    GgBuffer deployment_id;
+} PublishToSourceCtx;
+
+static GgError report_success_to_source(void *ctx) {
+    PublishToSourceCtx *pub_ctx = ctx;
+    return update_current_jobs_deployment_to(
+        pub_ctx->deployment_id, GG_STR("SUCCEEDED"), GG_STR("iotcoreddeploy")
+    );
+}
+
+/// Report endpoint switch deployment status to the source account via a
+/// temporary iotcored. Non-fatal: logs a warning on failure.
+static void report_endpoint_switch_status_to_source(
+    GgBuffer deployment_id,
+    GgBuffer source_iot_data_endpoint,
+    const char *bin_path
+) {
+    // Resolve iotcored binary path
+    static char iotcored_path_buf[PATH_MAX];
+    GgByteVec iotcored_path = GG_BYTE_VEC(iotcored_path_buf);
+    GgError ret = gg_byte_vec_append(
+        &iotcored_path, gg_buffer_from_null_term((char *) bin_path)
+    );
+    gg_byte_vec_chain_append(&ret, &iotcored_path, GG_STR("iotcored"));
+    if (ret != GG_ERR_OK) {
+        GG_LOGW("Failed to resolve iotcored path for source status report.");
+        return;
+    }
+
+    // Spawn temporary iotcored pointed at source endpoint
+    IotcoredInstance instance;
+    ret = iotcored_instance_start(
+        &instance, iotcored_path.buf, source_iot_data_endpoint
+    );
+    GG_CLEANUP(iotcored_instance_stop, instance);
+    if (ret != GG_ERR_OK) {
+        GG_LOGW("Failed to start iotcored for source status report.");
+        return;
+    }
+
+    ret = iotcored_await_connection(
+        GG_STR("iotcoreddeploy"), MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS
+    );
+    if (ret != GG_ERR_OK) {
+        GG_LOGW("Temporary iotcored failed to connect to source endpoint.");
+        return;
+    }
+
+    // Retry publish: 8 attempts, 1s base, 60s max backoff.
+    // Device is already healthy on the new endpoint during retries.
+    PublishToSourceCtx pub_ctx = { .deployment_id = deployment_id };
+    ret = gg_backoff(1000, 60000, 8, report_success_to_source, &pub_ctx);
+    if (ret != GG_ERR_OK) {
+        GG_LOGW("Failed to report SUCCEEDED to source account; "
+                "source IoT Job will time out.");
+    } else {
+        GG_LOGI("Reported SUCCEEDED to source account.");
+    }
+}
+
+/// Report terminal deployment status to the appropriate account.
+/// For endpoint switch deployments that succeeded, reports to the source
+/// account via a temporary iotcored. All other cases use the primary iotcored.
+static void report_deployment_status(
+    GgBuffer deployment_id,
+    bool succeeded,
+    GgBuffer source_iot_data_endpoint,
+    const char *bin_path
+) {
+    if (succeeded && source_iot_data_endpoint.len == 0) {
+        GG_LOGI(
+            "Completed deployment processing and reporting job as SUCCEEDED."
+        );
+        (void
+        ) update_current_jobs_deployment(deployment_id, GG_STR("SUCCEEDED"));
+    } else if (!succeeded) {
+        // For endpoint switch failures, config has been rolled back by this
+        // point, which triggers iotcored to disconnect from the new endpoint
+        // and reconnect to the original (source) endpoint via config
+        // subscription. The status update is published through iotcored's
+        // restored connection.
+        // TODO: Verify iotcored has reconnected to the source endpoint
+        // before reporting. Requires iotcored to expose which endpoint it
+        // is currently connected to.
+        GG_LOGW("Completed deployment processing and reporting job as FAILED.");
+        (void) update_current_jobs_deployment(deployment_id, GG_STR("FAILED"));
+    } else {
+        report_endpoint_switch_status_to_source(
+            deployment_id, source_iot_data_endpoint, bin_path
+        );
+    }
+}
+
 static GgError validate_endpoint_switch_deployment(
     GgMap components,
     const char *bin_path,
@@ -3691,19 +3785,12 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             &bootstrap_deployment, bootstrap_deployment_succeeded
         );
 
-        if (send_deployment_update && bootstrap_deployment_succeeded) {
-            GG_LOGI(
-                "Completed deployment processing and reporting job as SUCCEEDED."
-            );
-            (void) update_current_jobs_deployment(
-                bootstrap_deployment.deployment_id, GG_STR("SUCCEEDED")
-            );
-        } else if (send_deployment_update) {
-            GG_LOGW(
-                "Completed deployment processing and reporting job as FAILED."
-            );
-            (void) update_current_jobs_deployment(
-                bootstrap_deployment.deployment_id, GG_STR("FAILED")
+        if (send_deployment_update) {
+            report_deployment_status(
+                bootstrap_deployment.deployment_id,
+                bootstrap_deployment_succeeded,
+                bootstrap_ctx.source_iot_data_endpoint,
+                args->bin_path
             );
         } else {
             GG_LOGI("Completed deployment, but job was canceled.");
@@ -3744,21 +3831,12 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         (void) send_fss_update(deployment, deployment_succeeded);
 
         // TODO: need error details from handle_deployment
-        if (deployment_succeeded) {
-            GG_LOGI(
-                "Completed deployment processing and reporting job as SUCCEEDED."
-            );
-            (void) update_current_jobs_deployment(
-                deployment->deployment_id, GG_STR("SUCCEEDED")
-            );
-        } else {
-            GG_LOGW(
-                "Completed deployment processing and reporting job as FAILED."
-            );
-            (void) update_current_jobs_deployment(
-                deployment->deployment_id, GG_STR("FAILED")
-            );
-        }
+        report_deployment_status(
+            deployment->deployment_id,
+            deployment_succeeded,
+            ctx.source_iot_data_endpoint,
+            args->bin_path
+        );
         // clear any potential saved deployment info for next deployment
         ret = delete_saved_deployment_from_config();
         if (ret != GG_ERR_OK) {

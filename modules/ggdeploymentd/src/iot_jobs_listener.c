@@ -172,7 +172,9 @@ static GgError deserialize_payload(
     return GG_ERR_OK;
 }
 
-static GgError update_job(GgBuffer job_id, GgBuffer job_status) {
+static GgError update_job_to(
+    GgBuffer job_id, GgBuffer job_status, GgBuffer socket_name
+) {
     GgBuffer topic = GG_BUF((uint8_t[256]) { 0 });
     GgError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
     if (ret != GG_ERR_OK) {
@@ -190,12 +192,7 @@ static GgError update_job(GgBuffer job_id, GgBuffer job_status) {
     GgArena call_alloc = gg_arena_init(GG_BUF(response_scratch));
     GgObject result = { 0 };
     ret = ggl_aws_iot_call(
-        GG_STR("aws_iot_mqtt"),
-        topic,
-        payload_object,
-        false,
-        &call_alloc,
-        &result
+        socket_name, topic, payload_object, false, &call_alloc, &result
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to publish on update job topic.");
@@ -210,6 +207,10 @@ static GgError update_job(GgBuffer job_id, GgBuffer job_status) {
     }
 
     return GG_ERR_OK;
+}
+
+static GgError update_job(GgBuffer job_id, GgBuffer job_status) {
+    return update_job_to(job_id, job_status, GG_STR("aws_iot_mqtt"));
 }
 
 static GgError describe_next_job(void *ctx) {
@@ -494,8 +495,8 @@ static void listen_for_jobs_deployments(void) {
     (void) gg_backoff(10, 10000, 0, subscribe_to_connection_status, NULL);
 }
 
-GgError update_current_jobs_deployment(
-    GgBuffer deployment_id, GgBuffer status
+GgError update_current_jobs_deployment_to(
+    GgBuffer deployment_id, GgBuffer status, GgBuffer socket_name
 ) {
     GgBuffer job_id = GG_BUF((uint8_t[64]) { 0 });
     {
@@ -509,7 +510,15 @@ GgError update_current_jobs_deployment(
         job_id.len = current_deployment_id.buf.len;
     }
 
-    return update_job(job_id, status);
+    return update_job_to(job_id, status, socket_name);
+}
+
+GgError update_current_jobs_deployment(
+    GgBuffer deployment_id, GgBuffer status
+) {
+    return update_current_jobs_deployment_to(
+        deployment_id, status, GG_STR("aws_iot_mqtt")
+    );
 }
 
 GgError set_jobs_deployment_for_bootstrap(

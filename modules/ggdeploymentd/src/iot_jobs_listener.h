@@ -11,6 +11,13 @@
 void *job_listener_thread(void *ctx);
 
 GgError update_current_jobs_deployment(GgBuffer deployment_id, GgBuffer status);
+
+/// Publish an IoT Jobs status update for the current deployment via the given
+/// iotcored socket.
+GgError update_current_jobs_deployment_to(
+    GgBuffer deployment_id, GgBuffer status, GgBuffer socket_name
+);
+
 GgError set_jobs_deployment_for_bootstrap(
     GgBuffer job_id, GgBuffer deployment_id
 );
