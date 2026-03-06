@@ -323,27 +323,51 @@ static GgError set_curl_proxy_config(CurlData *curl_data) {
     if (ret == GG_ERR_OK) {
         proxy_uri_mem[proxy_uri.len] = '\0';
 
+        // Set the proxy URL
+        GG_LOGI("Setting proxy URL: %s", proxy_uri_mem);
+        CURLcode curl_error
+            = curl_easy_setopt(curl_data->curl, CURLOPT_PROXY, proxy_uri_mem);
+        if (curl_error != CURLE_OK) {
+            GG_LOGE(
+                "Failed to set proxy URL: %s", curl_easy_strerror(curl_error)
+            );
+            return translate_curl_code(curl_error);
+        }
+
+        // Read rootCaPath - needed for both http and https proxies
+        uint8_t ca_mem[PATH_MAX] = { 0 };
+        GgArena alloc_ca = gg_arena_init(
+            gg_buffer_substr(GG_BUF(ca_mem), 0, sizeof(ca_mem) - 1)
+        );
+        GgBuffer ca;
+        GgError ca_ret = ggl_gg_config_read_str(
+            GG_BUF_LIST(GG_STR("system"), GG_STR("rootCaPath")),
+            &alloc_ca,
+            &ca
+        );
+
+        if (ca_ret == GG_ERR_OK) {
+            ca_mem[ca.len] = '\0';
+            // Set CAINFO for destination server cert validation
+            // Required for http:// proxies doing SSL interception (ssl-bump)
+            GG_LOGI("Setting CA path for proxy connections: %s", ca_mem);
+            curl_error = curl_easy_setopt(
+                curl_data->curl, CURLOPT_CAINFO, ca_mem
+            );
+            if (curl_error != CURLE_OK) {
+                return translate_curl_code(curl_error);
+            }
+        }
+
         if ((proxy_uri.len > 5)
             && (strncmp((const char *) proxy_uri_mem, "https", 5) == 0)) {
-            uint8_t ca_mem[PATH_MAX] = { 0 };
-            GgArena alloc_ca = gg_arena_init(
-                gg_buffer_substr(GG_BUF(ca_mem), 0, sizeof(ca_mem) - 1)
-            );
-            GgBuffer ca;
-
-            ret = ggl_gg_config_read_str(
-                GG_BUF_LIST(GG_STR("system"), GG_STR("rootCaPath")),
-                &alloc_ca,
-                &ca
-            );
-            if (ret != GG_ERR_OK) {
+            if (ca_ret != GG_ERR_OK) {
                 GG_LOGE("No root CA provided for https proxy.");
                 return GG_ERR_FAILURE;
             }
 
-            ca_mem[ca.len] = '\0';
             GG_LOGI("Proxy CA path %s", ca_mem);
-            CURLcode curl_error = curl_easy_setopt(
+            curl_error = curl_easy_setopt(
                 curl_data->curl, CURLOPT_PROXY_CAINFO, ca_mem
             );
             if (curl_error != CURLE_OK) {
@@ -416,7 +440,7 @@ static GgError set_curl_proxy_config(CurlData *curl_data) {
                 return translate_curl_code(curl_error);
             }
 
-            GG_LOGW("Proxy key path %s", key_mem);
+            GG_LOGI("Proxy key path %s", key_mem);
             curl_error = curl_easy_setopt(
                 curl_data->curl, CURLOPT_PROXY_SSLKEY, key_mem
             );
