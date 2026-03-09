@@ -6,6 +6,7 @@
 #include "bootstrap_manager.h"
 #include "component_config.h"
 #include "component_manager.h"
+#include "credential_endpoint_validation.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
@@ -2622,6 +2623,9 @@ static void report_deployment_status(
     }
 }
 
+// TODO: Extract endpoint switch validation into a dedicated module to reduce
+// cognitive complexity of this function.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GgError validate_endpoint_switch_deployment(
     GgMap components,
     const char *bin_path,
@@ -2638,13 +2642,15 @@ static GgError validate_endpoint_switch_deployment(
     GgObject *region_obj = NULL;
     GgObject *data_ep_obj = NULL;
     GgObject *cred_ep_obj = NULL;
+    GgObject *role_alias_obj = NULL;
     gg_map_get(merge, GG_STR("awsRegion"), &region_obj);
     gg_map_get(merge, GG_STR("iotDataEndpoint"), &data_ep_obj);
     gg_map_get(merge, GG_STR("iotCredEndpoint"), &cred_ep_obj);
+    gg_map_get(merge, GG_STR("iotRoleAlias"), &role_alias_obj);
 
-    // Only validate if endpoint or region is being changed
-    if ((region_obj == NULL) && (data_ep_obj == NULL)
-        && (cred_ep_obj == NULL)) {
+    // Only validate if endpoint, region, or role alias is being changed
+    if ((region_obj == NULL) && (data_ep_obj == NULL) && (cred_ep_obj == NULL)
+        && (role_alias_obj == NULL)) {
         return GG_ERR_OK;
     }
 
@@ -2721,6 +2727,57 @@ static GgError validate_endpoint_switch_deployment(
         if (!gg_buffer_eq(effective_data_ep, *current_iot_data_ep)) {
             *is_endpoint_switch = true;
             ret = check_mqtt_connectivity(effective_data_ep, bin_path);
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+        }
+    }
+
+    // Validate credential endpoint connectivity when iotCredEndpoint or
+    // iotRoleAlias is being changed to a different value than current config.
+    if ((cred_ep_obj != NULL) || (role_alias_obj != NULL)) {
+        bool cred_ep_changed = false;
+        if (cred_ep_obj != NULL) {
+            static uint8_t current_cred_ep_buf[128] = { 0 };
+            GgArena current_cred_ep_alloc
+                = gg_arena_init(GG_BUF(current_cred_ep_buf));
+            GgBuffer current_cred_ep = read_nucleus_config_str(
+                GG_STR("iotCredEndpoint"), &current_cred_ep_alloc
+            );
+            cred_ep_changed = !gg_buffer_eq(effective_cred_ep, current_cred_ep);
+        }
+
+        bool role_alias_changed = false;
+        GgBuffer effective_role_alias;
+        static uint8_t role_alias_buf[128] = { 0 };
+        GgArena role_alias_alloc = gg_arena_init(GG_BUF(role_alias_buf));
+        if (role_alias_obj != NULL) {
+            if (gg_obj_type(*role_alias_obj) != GG_TYPE_BUF) {
+                GG_LOGE("iotRoleAlias is not a string.");
+                return GG_ERR_INVALID;
+            }
+            effective_role_alias = gg_obj_into_buf(*role_alias_obj);
+            GgBuffer current_role_alias = read_nucleus_config_str(
+                GG_STR("iotRoleAlias"), &role_alias_alloc
+            );
+            role_alias_changed
+                = !gg_buffer_eq(effective_role_alias, current_role_alias);
+        } else {
+            effective_role_alias = read_nucleus_config_str(
+                GG_STR("iotRoleAlias"), &role_alias_alloc
+            );
+        }
+
+        if (cred_ep_changed || role_alias_changed) {
+            if (effective_role_alias.len == 0) {
+                GG_LOGE("Cannot validate credential endpoint: "
+                        "failed to read iotRoleAlias.");
+                return GG_ERR_FAILURE;
+            }
+
+            ret = check_credential_endpoint(
+                effective_cred_ep, effective_role_alias, bin_path
+            );
             if (ret != GG_ERR_OK) {
                 return ret;
             }

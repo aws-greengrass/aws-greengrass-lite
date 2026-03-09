@@ -136,6 +136,7 @@ sysv
 tabrmd
 tcti
 tesd
+tesddeploy
 tlog
 tmpfiles
 TPMA
