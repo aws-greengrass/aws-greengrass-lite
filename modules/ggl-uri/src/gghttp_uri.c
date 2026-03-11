@@ -142,7 +142,7 @@ GgError gg_uri_parse(GgArena *arena, GgBuffer uri, GglUriInfo *info) {
 
 static GgError find_docker_uri_separators(
     GgBuffer uri,
-    size_t slashes[static 2],
+    size_t slashes[static 4],
     size_t *slash_count,
     size_t colons[static 3],
     size_t *colon_count,
@@ -157,14 +157,14 @@ static GgError find_docker_uri_separators(
     size_t at_count = 0;
     for (size_t position = uri.len; position > 0; position--) {
         if (uri.data[position - 1] == '/') {
-            if (*slash_count < 2) {
+            if (*slash_count < 4) {
                 slashes[*slash_count] = position - 1;
                 *slash_count += 1;
                 GG_LOGT("Found a slash while parsing Docker URI");
                 continue;
             }
             GG_LOGE(
-                "More than two slashes found while parsing Docker URI, URI is invalid."
+                "More than four slashes found while parsing Docker URI, URI is invalid."
             );
             return GG_ERR_INVALID;
         }
@@ -204,13 +204,13 @@ static GgError find_docker_uri_separators(
 static GgError parse_docker_registry_segment(
     GglDockerUriInfo *info,
     GgBuffer uri,
-    size_t slashes[static 2],
+    size_t slashes[static 4],
     size_t slash_count,
     bool has_registry
 ) {
     // Parse the registry segment that looks like
-    // [registry-host][:port]/[username/]...
-    assert(slash_count <= 2);
+    // [registry-host][:port]/[path/path/path/image]...
+    assert(slash_count <= 4);
     if (slash_count == 0) {
         // URI has no registry segment. Default to official docker hub for
         // registry.
@@ -218,14 +218,19 @@ static GgError parse_docker_registry_segment(
         GG_LOGT(
             "Assuming official docker hub by default while parsing Docker URI as no registry is provided."
         );
-    } else if (slash_count == 2) {
-        info->username = gg_buffer_substr(uri, slashes[1] + 1, slashes[0]);
+    } else if (slash_count >= 2) {
+        // The leftmost slash (slashes[slash_count - 1]) separates the registry
+        // from the path. Everything between the registry slash and the
+        // rightmost slash (slashes[0]) is the namespace/username path.
+        size_t registry_slash = slashes[slash_count - 1];
+        info->username
+            = gg_buffer_substr(uri, registry_slash + 1, slashes[0]);
         GG_LOGT(
             "Read username from Docker URI as %.*s",
             (int) info->username.len,
             info->username.data
         );
-        info->registry = gg_buffer_substr(uri, 0, slashes[1]);
+        info->registry = gg_buffer_substr(uri, 0, registry_slash);
         GG_LOGT(
             "Read registry from Docker URI as %.*s",
             (int) info->registry.len,
@@ -258,7 +263,7 @@ static GgError parse_docker_registry_segment(
 static GgError parse_repo_with_digest(
     GglDockerUriInfo *info,
     GgBuffer uri,
-    size_t slashes[static 2],
+    size_t slashes[static 4],
     size_t slash_count,
     size_t colons[static 3],
     size_t colon_count,
@@ -318,7 +323,7 @@ static GgError parse_repo_with_digest(
 static GgError parse_repo_without_digest(
     GglDockerUriInfo *info,
     GgBuffer uri,
-    size_t slashes[static 2],
+    size_t slashes[static 4],
     size_t slash_count,
     size_t colons[static 3],
     size_t colon_count
@@ -361,7 +366,7 @@ static GgError parse_repo_without_digest(
 static GgError parse_docker_repo_segment(
     GglDockerUriInfo *info,
     GgBuffer uri,
-    size_t slashes[static 2],
+    size_t slashes[static 4],
     size_t slash_count,
     size_t colons[static 3],
     size_t colon_count,
@@ -398,8 +403,8 @@ static GgError parse_docker_repo_segment(
 }
 
 GgError gg_docker_uri_parse(GgBuffer uri, GglDockerUriInfo *info) {
-    // [registry-host][:port]/[username/]repository[:tag][@algo:digest]
-    size_t slashes[2] = { SIZE_MAX, SIZE_MAX };
+    // [registry-host][:port]/[path/path/path/]repository[:tag][@algo:digest]
+    size_t slashes[4] = { SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX };
     size_t slash_count = 0;
     size_t colons[3] = { SIZE_MAX, SIZE_MAX, SIZE_MAX };
     size_t colon_count = 0;

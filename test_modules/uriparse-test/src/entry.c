@@ -98,6 +98,10 @@ GgError run_uriparse_test(void) {
         // Private ECR w/ digest
         GG_STR(
             "docker:012345678901.dkr.ecr.region.amazonaws.com/repository/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        ),
+        // Private ECR w/ multi-level repository path
+        GG_STR(
+            "docker:987654321098.dkr.ecr.us-east-1.amazonaws.com/company/prod/edge/image:1.2.3"
         )
     );
     const GglUriInfo EXPECTED_URI[] = {
@@ -117,6 +121,11 @@ GgError run_uriparse_test(void) {
         ) { .scheme = GG_STR("docker"),
             .path = GG_STR(
                 "012345678901.dkr.ecr.region.amazonaws.com/repository/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            ) },
+        (GglUriInfo
+        ) { .scheme = GG_STR("docker"),
+            .path = GG_STR(
+                "987654321098.dkr.ecr.us-east-1.amazonaws.com/company/prod/edge/image:1.2.3"
             ) }
     };
 
@@ -140,7 +149,13 @@ GgError run_uriparse_test(void) {
             .digest_algorithm = GG_STR("sha256"),
             .digest = GG_STR(
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-            ) }
+            ) },
+        (GglDockerUriInfo
+        ) { .registry
+            = GG_STR("987654321098.dkr.ecr.us-east-1.amazonaws.com"),
+            .username = GG_STR("company/prod/edge"),
+            .repository = GG_STR("image"),
+            .tag = GG_STR("1.2.3") }
     };
     static_assert(
         sizeof(EXPECTED_DOCKER_URI) / sizeof(*EXPECTED_DOCKER_URI)
