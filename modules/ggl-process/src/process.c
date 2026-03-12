@@ -71,6 +71,44 @@ void ggl_close_fds_from(unsigned int first) {
     sys_close_range(first, UINT_MAX, CLOSE_RANGE_UNSHARE);
 }
 
+static GgError child_setup_and_exec(
+    const char *const argv[], GglProcessSpawnConfig cfg
+) {
+    if (cfg.child_setup != NULL) {
+        GgError err = cfg.child_setup(cfg.child_setup_ctx);
+        if (err != GG_ERR_OK) {
+            return err;
+        }
+    }
+
+    if (!cfg.keep_stdin || cfg.null_stdout || cfg.null_stderr) {
+        int dev_null = open("/dev/null", O_RDWR | O_CLOEXEC);
+        if (dev_null < 0) {
+            GG_LOGE("Failed to open /dev/null: %d", errno);
+            return GG_ERR_FAILURE;
+        }
+        if (!cfg.keep_stdin) {
+            dup2(dev_null, STDIN_FILENO);
+        }
+        if (cfg.null_stdout) {
+            dup2(dev_null, STDOUT_FILENO);
+        }
+        if (cfg.null_stderr) {
+            dup2(dev_null, STDERR_FILENO);
+        }
+        close(dev_null);
+    }
+
+    if (!cfg.keep_fds) {
+        ggl_close_fds_from(3);
+    }
+
+    execvp(argv[0], (char **) argv);
+
+    GG_LOGE("Err %d when calling execve.", errno);
+    return GG_ERR_FAILURE;
+}
+
 GgError ggl_process_spawn(
     const char *const argv[],
     const GglProcessSpawnConfig *config,
@@ -93,25 +131,7 @@ GgError ggl_process_spawn(
     pid_t pid = fork();
 
     if (pid == 0) {
-        if (cfg.child_setup != NULL) {
-            GgError child_err = cfg.child_setup(cfg.child_setup_ctx);
-            if (child_err != GG_ERR_OK) {
-                (void) gg_file_write(
-                    err_pipe[1],
-                    (GgBuffer) { (uint8_t *) &child_err, sizeof(child_err) }
-                );
-                _Exit(1);
-            }
-        }
-
-        if (!cfg.keep_fds) {
-            ggl_close_fds_from(3);
-        }
-
-        execvp(argv[0], (char **) argv);
-
-        GG_LOGE("Err %d when calling execve.", errno);
-        GgError child_err = GG_ERR_FAILURE;
+        GgError child_err = child_setup_and_exec(argv, cfg);
         (void) gg_file_write(
             err_pipe[1],
             (GgBuffer) { (uint8_t *) &child_err, sizeof(child_err) }
@@ -137,7 +157,7 @@ GgError ggl_process_spawn(
 
     if (err_buf.len != 0) {
         assert(err_buf.len == sizeof(child_err));
-        // Child failed before exec; reap it.
+        // Failed to setup or exec in child; reap it.
         waitpid(pid, NULL, 0);
         return child_err;
     }

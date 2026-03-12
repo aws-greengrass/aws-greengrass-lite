@@ -25,8 +25,11 @@ typedef struct {
     /// Called in child after fork, before exec. Return non-OK to abort.
     GgError (*child_setup)(void *ctx);
     void *child_setup_ctx;
+    bool keep_stdin : 1;
+    bool null_stdout : 1;
+    bool null_stderr : 1;
     /// If false, closes all fds >= 3 after child_setup.
-    bool keep_fds;
+    bool keep_fds : 1;
 } GglProcessSpawnConfig;
 
 /// Spawn a child process with given arguments.
