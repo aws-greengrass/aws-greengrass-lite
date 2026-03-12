@@ -245,9 +245,11 @@ GgError ggl_process_kill(GglProcessHandle handle, uint32_t term_timeout) {
     return ggl_process_wait(handle, NULL);
 }
 
-GgError ggl_process_call(const char *const argv[]) {
+GgError ggl_process_call(
+    const char *const argv[], const GglProcessSpawnConfig *config
+) {
     GglProcessHandle handle = { 0 };
-    GgError ret = ggl_process_spawn(argv, NULL, &handle);
+    GgError ret = ggl_process_spawn(argv, config, &handle);
     if (ret != GG_ERR_OK) {
         return ret;
     }

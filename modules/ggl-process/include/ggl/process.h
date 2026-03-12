@@ -11,10 +11,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/// Run a process with given arguments, and return if successful.
-/// argv must be null-terminated.
-GgError ggl_process_call(const char *const argv[]);
-
 /// Handle for a process
 typedef struct {
     int32_t val;
@@ -31,6 +27,13 @@ typedef struct {
     /// If false, closes all fds >= 3 after child_setup.
     bool keep_fds : 1;
 } GglProcessSpawnConfig;
+
+/// Run a process with given arguments, and return if successful.
+/// argv must be null-terminated.
+/// config may be NULL for default behavior.
+GgError ggl_process_call(
+    const char *const argv[], const GglProcessSpawnConfig *config
+);
 
 /// Spawn a child process with given arguments.
 /// Exactly one of wait or kill must eventually be called to clean up resources

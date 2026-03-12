@@ -91,7 +91,7 @@ static SigV4Details sigv4_from_tes(
 
 static GgError merge_dir_to(GgBuffer source, const char *dir) {
     const char *mkdir[] = { "mkdir", "-p", dir, NULL };
-    GgError ret = ggl_process_call(mkdir);
+    GgError ret = ggl_process_call(mkdir, NULL);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -106,7 +106,7 @@ static GgError merge_dir_to(GgBuffer source, const char *dir) {
     }
 
     const char *cp[] = { "cp", "-RP", source_path, dir, NULL };
-    return ggl_process_call(cp);
+    return ggl_process_call(cp, NULL);
 }
 
 static GgError get_thing_name(char **thing_name) {
