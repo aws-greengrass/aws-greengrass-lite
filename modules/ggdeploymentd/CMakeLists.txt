@@ -18,7 +18,6 @@ ggl_init_module(
        ggl-yaml
        ggl-zip
        ggl-process
-       ggl-exec
        aws-iot-call
        core-bus-gghealthd
        core-bus-gg-config

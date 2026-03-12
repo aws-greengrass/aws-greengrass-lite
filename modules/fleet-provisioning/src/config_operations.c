@@ -12,7 +12,7 @@
 #include <gg/object.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/exec.h>
+#include <ggl/process.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
@@ -390,7 +390,7 @@ GgError ggl_update_system_config(
 
     const char *cp_args[]
         = { "cp", args->root_ca_path, (char *) path_vec.buf.data, NULL };
-    ret = ggl_exec_command(cp_args);
+    ret = ggl_process_call(cp_args, NULL);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to copy root CA file");
         return ret;

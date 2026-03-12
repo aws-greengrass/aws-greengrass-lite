@@ -13,7 +13,7 @@
 #include <gg/utils.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/exec.h>
+#include <ggl/process.h>
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
@@ -67,7 +67,7 @@ GgError iotcored_instance_start(
     IotcoredInstance *ctx, GgBuffer iotcored_path, GgBuffer endpoint
 ) {
     memset(ctx, 0, sizeof(*ctx));
-    ctx->pid = -1;
+    ctx->handle = (GglProcessHandle) { -1 };
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
     GgArena alloc = gg_arena_init(
@@ -123,14 +123,14 @@ GgError iotcored_instance_start(
         client_id, NULL,
     };
 
-    ret = ggl_exec_command_async(args, &ctx->pid);
+    ret = ggl_process_spawn(args, NULL, &ctx->handle);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to spawn iotcored instance.");
-        ctx->pid = -1;
+        ctx->handle = (GglProcessHandle) { -1 };
         return ret;
     }
 
-    GG_LOGD("Spawned iotcored instance (pid=%d).", ctx->pid);
+    GG_LOGD("Spawned iotcored instance (pid=%d).", ctx->handle.val);
     return GG_ERR_OK;
 }
 
@@ -206,9 +206,9 @@ GgError iotcored_await_connection(GgBuffer socket_name, uint32_t timeout_s) {
 }
 
 void iotcored_instance_stop(IotcoredInstance *ctx) {
-    if (ctx->pid > 0) {
-        GG_LOGD("Stopping iotcored instance (pid=%d).", ctx->pid);
-        (void) ggl_exec_kill_process(ctx->pid);
-        ctx->pid = -1;
+    if (ctx->handle.val > 0) {
+        GG_LOGD("Stopping iotcored instance (pid=%d).", ctx->handle.val);
+        (void) ggl_process_kill(ctx->handle, 5);
+        ctx->handle = (GglProcessHandle) { -1 };
     }
 }

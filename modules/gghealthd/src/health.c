@@ -16,8 +16,8 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <gg/vector.h>
-#include <ggl/exec.h>
 #include <ggl/nucleus/constants.h>
+#include <ggl/process.h>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-daemon.h>
 #include <stdbool.h>
@@ -131,7 +131,7 @@ GgError gghealthd_update_status(GgBuffer component_name, GgBuffer status) {
                            "systemd-notify",
                            (char *) gg_obj_into_buf(*status_obj).data,
                            NULL };
-    err = ggl_exec_command(argv);
+    err = ggl_process_call(argv, NULL);
     if (err != GG_ERR_OK) {
         GG_LOGE("Failed to notify status");
     }

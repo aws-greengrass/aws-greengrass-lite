@@ -20,6 +20,7 @@
 #include <ggl/docker_client.h>
 #include <ggl/exec.h>
 #include <ggl/http.h>
+#include <ggl/process.h>
 #include <ggl/uri.h>
 #include <inttypes.h>
 #include <string.h>
@@ -72,7 +73,7 @@ GgError ggl_docker_pull(GgBuffer image_name) {
 
     GG_LOGD("Pulling %.*s", (int) image_name.len, image_name.data);
     const char *args[] = { "docker", "pull", "-q", image_null_term, NULL };
-    GgError err = ggl_exec_command(args);
+    GgError err = ggl_process_call(args, NULL);
     if (err != GG_ERR_OK) {
         GG_LOGE("docker image pull failed.");
         return GG_ERR_FAILURE;

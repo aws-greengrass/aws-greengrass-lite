@@ -15,7 +15,7 @@
 #include <gg/log.h>
 #include <gg/types.h>
 #include <gg/utils.h>
-#include <ggl/exec.h>
+#include <ggl/process.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,7 +37,7 @@ static GgError change_custom_file_ownership(FleetProvArgs *args) {
     if (args->cert_path != NULL) {
         const char *cert_chown_args[]
             = { "chown", USER_GROUP, args->cert_path, NULL };
-        ret = ggl_exec_command(cert_chown_args);
+        ret = ggl_process_call(cert_chown_args, NULL);
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to change ownership of custom certificate");
             return ret;
@@ -46,7 +46,7 @@ static GgError change_custom_file_ownership(FleetProvArgs *args) {
     if (args->key_path != NULL && strncmp(args->claim_key, "handle:", 7) != 0) {
         const char *key_chown_args[]
             = { "chown", USER_GROUP, args->key_path, NULL };
-        ret = ggl_exec_command(key_chown_args);
+        ret = ggl_process_call(key_chown_args, NULL);
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to change ownership of custom private key");
             return ret;
@@ -81,7 +81,7 @@ static GgError cleanup_actions(
     const char *chown_args[]
         = { "chown", "-R", USER_GROUP, (char *) output_dir_path.data, NULL };
 
-    ret = ggl_exec_command(chown_args);
+    ret = ggl_process_call(chown_args, NULL);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to change ownership of certificates");
         return ret;
@@ -97,7 +97,7 @@ static GgError cleanup_actions(
     return GG_ERR_OK;
 }
 
-static GgError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
+static GgError start_iotcored(FleetProvArgs *args, GglProcessHandle *handle) {
     static uint8_t uuid_mem[37];
     uuid_t binuuid;
     uuid_generate_random(binuuid);
@@ -110,15 +110,15 @@ static GgError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
             args->root_ca_path,  "-c", args->claim_cert,  "-k",
             args->claim_key,     NULL };
 
-    GgError ret = ggl_exec_command_async(iotcore_d_args, iotcored_pid);
+    GgError ret = ggl_process_spawn(iotcore_d_args, NULL, handle);
 
-    GG_LOGD("PID for new iotcored: %d", *iotcored_pid);
+    GG_LOGD("PID for new iotcored: %d", handle->val);
 
     return ret;
 }
 
-static void cleanup_kill_process(const pid_t *pid) {
-    (void) ggl_exec_kill_process(*pid);
+static void cleanup_kill_process(GglProcessHandle *handle) {
+    (void) ggl_process_kill(*handle, 5);
 }
 
 static GgError open_file_or_default(
@@ -291,12 +291,12 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     GG_CLEANUP(cleanup_close, output_dir);
 
     // Start IoTCored
-    pid_t pid = -1;
-    ret = start_iotcored(args, &pid);
+    GglProcessHandle iotcored_handle = { -1 };
+    ret = start_iotcored(args, &iotcored_handle);
     if (ret != GG_ERR_OK) {
         return ret;
     }
-    GG_CLEANUP(cleanup_kill_process, pid);
+    GG_CLEANUP(cleanup_kill_process, iotcored_handle);
 
     // TPM or regular pki
     int cert_req = -1;

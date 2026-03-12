@@ -7,11 +7,11 @@
 
 #include <gg/error.h>
 #include <gg/types.h>
-#include <sys/types.h>
+#include <ggl/process.h>
 #include <stdint.h>
 
 typedef struct {
-    pid_t pid;
+    GglProcessHandle handle;
 } IotcoredInstance;
 
 /// Spawn an iotcored process pointed at the given endpoint. The spawned

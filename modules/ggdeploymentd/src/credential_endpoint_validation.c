@@ -11,10 +11,9 @@
 #include <gg/log.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/exec.h>
+#include <ggl/process.h>
 #include <limits.h>
 #include <string.h>
-#include <sys/types.h>
 #include <stdint.h>
 
 #define TESD_INSTANCE_NAME "tesddeploy"
@@ -22,7 +21,7 @@
 #define MAX_ROLE_ALIAS_LEN 128
 
 typedef struct {
-    pid_t pid;
+    GglProcessHandle handle;
 } TesdInstance;
 
 static GgError tesd_instance_start(
@@ -31,21 +30,21 @@ static GgError tesd_instance_start(
     const char *cred_endpoint,
     const char *role_alias
 ) {
-    ctx->pid = -1;
+    ctx->handle = (GglProcessHandle) { -1 };
 
     const char *args[] = {
         tesd_path,     "-n", TESD_INSTANCE_NAME, "-e",
         cred_endpoint, "-a", role_alias,         NULL,
     };
 
-    GgError ret = ggl_exec_command_async(args, &ctx->pid);
+    GgError ret = ggl_process_spawn(args, NULL, &ctx->handle);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to spawn tesd instance.");
-        ctx->pid = -1;
+        ctx->handle = (GglProcessHandle) { -1 };
         return ret;
     }
 
-    GG_LOGD("Spawned tesd instance (pid=%d).", ctx->pid);
+    GG_LOGD("Spawned tesd instance (pid=%d).", ctx->handle.val);
     return GG_ERR_OK;
 }
 
@@ -67,10 +66,10 @@ static GgError try_fetch_credentials(void *ctx) {
 }
 
 static void tesd_instance_stop(TesdInstance *ctx) {
-    if (ctx->pid > 0) {
-        GG_LOGD("Stopping tesd instance (pid=%d).", ctx->pid);
-        (void) ggl_exec_kill_process(ctx->pid);
-        ctx->pid = -1;
+    if (ctx->handle.val > 0) {
+        GG_LOGD("Stopping tesd instance (pid=%d).", ctx->handle.val);
+        (void) ggl_process_kill(ctx->handle, 5);
+        ctx->handle = (GglProcessHandle) { -1 };
     }
 }
 
@@ -107,7 +106,7 @@ GgError check_credential_endpoint(
 
     GG_LOGI("Checking credential endpoint %s.", ep_buf);
 
-    TesdInstance instance = { .pid = -1 };
+    TesdInstance instance = { .handle = { -1 } };
     ret = tesd_instance_start(&instance, tesd_path_buf, ep_buf, alias_buf);
     GG_CLEANUP(tesd_instance_stop, instance);
     if (ret != GG_ERR_OK) {
