@@ -11,7 +11,6 @@
 #include <gg/error.h>
 #include <gg/file.h>
 #include <gg/flags.h>
-#include <gg/io.h>
 #include <gg/json_decode.h>
 #include <gg/list.h>
 #include <gg/log.h>
@@ -21,7 +20,6 @@
 #include <gg/vector.h>
 #include <ggl/api_ecr.h>
 #include <ggl/docker_client.h>
-#include <ggl/exec.h>
 #include <ggl/http.h>
 #include <ggl/process.h>
 #include <ggl/uri.h>
@@ -31,17 +29,57 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-static GgError head_buf_write(void *context, GgBuffer buf) {
-    GgByteVec *output = (GgByteVec *) context;
-    GgBuffer remaining = gg_byte_vec_remaining_capacity(*output);
-    buf = gg_buffer_substr(buf, 0, remaining.len);
-    (void) gg_byte_vec_append(output, buf);
+static GgError redirect_output_setup(void *ctx) {
+    int fd = *(int *) ctx;
+    if (dup2(fd, STDOUT_FILENO) < 0) {
+        return GG_ERR_FAILURE;
+    }
+    if (dup2(fd, STDERR_FILENO) < 0) {
+        return GG_ERR_FAILURE;
+    }
     return GG_ERR_OK;
 }
 
-// Captures the first N bytes of a payload. The rest are silently discarded.
-static GgWriter head_buf_writer(GgByteVec *vec) {
-    return (GgWriter) { .ctx = vec, .write = head_buf_write };
+static GgError run_with_output(const char *const argv[], GgByteVec *output) {
+    int out_pipe[2];
+    if (pipe2(out_pipe, O_CLOEXEC) < 0) {
+        return GG_ERR_FAILURE;
+    }
+    GG_CLEANUP(cleanup_close, out_pipe[0]);
+
+    GglProcessSpawnConfig cfg = {
+        .child_setup = redirect_output_setup,
+        .child_setup_ctx = &out_pipe[1],
+    };
+    GglProcessHandle handle = { -1 };
+    GgError ret = ggl_process_spawn(argv, &cfg, &handle);
+    (void) gg_close(out_pipe[1]);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    while (true) {
+        uint8_t tmp[256];
+        GgBuffer buf = GG_BUF(tmp);
+        ret = gg_file_read(out_pipe[0], &buf);
+        if (ret != GG_ERR_OK) {
+            (void) ggl_process_kill(handle, 0);
+            return ret;
+        }
+        if (buf.len == 0) {
+            break;
+        }
+        GgBuffer remaining = gg_byte_vec_remaining_capacity(*output);
+        (void
+        ) gg_byte_vec_append(output, gg_buffer_substr(buf, 0, remaining.len));
+    }
+
+    bool exit_ok = false;
+    ret = ggl_process_wait(handle, &exit_ok);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+    return exit_ok ? GG_ERR_OK : GG_ERR_FAILURE;
 }
 
 /// The max length of a docker image name including its repository and digest
@@ -51,7 +89,7 @@ GgError ggl_docker_check_server(void) {
     const char *args[] = { "docker", "-v", NULL };
     uint8_t output_bytes[512U] = { 0 };
     GgByteVec output = GG_BYTE_VEC(output_bytes);
-    GgError err = ggl_exec_command_with_output(args, head_buf_writer(&output));
+    GgError err = run_with_output(args, &output);
     if (err != GG_ERR_OK) {
         if (output.buf.len == 0) {
             GG_LOGE("Docker does not appear to be installed.");
@@ -98,7 +136,7 @@ GgError ggl_docker_remove(GgBuffer image_name) {
 
     uint8_t output_bytes[512U] = { 0 };
     GgByteVec output = GG_BYTE_VEC(output_bytes);
-    GgError err = ggl_exec_command_with_output(args, head_buf_writer(&output));
+    GgError err = run_with_output(args, &output);
     if (err != GG_ERR_OK) {
         size_t start = 0;
         if (gg_buffer_contains(output.buf, GG_STR("No such image"), &start)) {
@@ -128,7 +166,7 @@ GgError ggl_docker_check_image(GgBuffer image_name) {
 
     uint8_t output_bytes[256] = { 0 };
     GgByteVec output = GG_BYTE_VEC(output_bytes);
-    GgError err = ggl_exec_command_with_output(args, head_buf_writer(&output));
+    GgError err = run_with_output(args, &output);
     if (err != GG_ERR_OK) {
         GG_LOGE(
             "docker image ls -q failed: '%.*s'",
