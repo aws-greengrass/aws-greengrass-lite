@@ -1,6 +1,6 @@
 # GG Lite - Fleet Status Service Daemon Design
 
-See [gg-fleet-statusd spec](../spec/components/gg-fleet-statusd.md) for the
+See [gg-fleet-statusd spec](../spec/executable/gg-fleet-statusd.md) for the
 public interface for gg-fleet-statusd.
 
 ## Overview

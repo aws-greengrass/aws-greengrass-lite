@@ -1,6 +1,6 @@
 # `gghealthd` design
 
-See [gghealthd spec](../spec/components/gghealthd.md) for the public interface
+See [gghealthd spec](../spec/executable/gghealthd.md) for the public interface
 for gghealthd.
 
 gghealthd is intended to forward and serve component lifecycle state updates

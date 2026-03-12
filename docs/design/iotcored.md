@@ -1,6 +1,6 @@
 # `iotcored` design
 
-See [`iotcored` spec](../spec/components/iotcored.md) for the public interface
+See [`iotcored` spec](../spec/executable/iotcored.md) for the public interface
 for `iotcored`.
 
 The implementation of `iotcored` is split into three parts:

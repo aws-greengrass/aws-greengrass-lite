@@ -60,7 +60,7 @@ journalctl -x -f -a -u ggl.core.ggdeploymentd.service
 ```
 
 > Note: refer to the sample's
-> [README.md](../../../samples/sample.ggLitePython/README.md) in order to setup
+> [README.md](../samples/sample.ggLitePython/README.md) in order to setup
 > prerequisite python installation and packages.
 
 ## Local component recipes
