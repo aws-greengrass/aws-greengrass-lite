@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <fcntl.h>
 #include <gg/arena.h>
 #include <gg/base64.h>
 #include <gg/buffer.h>
+#include <gg/cleanup.h>
 #include <gg/error.h>
+#include <gg/file.h>
 #include <gg/flags.h>
 #include <gg/io.h>
 #include <gg/json_decode.h>
@@ -24,6 +27,7 @@
 #include <ggl/uri.h>
 #include <inttypes.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -139,6 +143,14 @@ GgError ggl_docker_check_image(GgBuffer image_name) {
     return GG_ERR_OK;
 }
 
+static GgError stdin_pipe_setup(void *ctx) {
+    int fd = *(int *) ctx;
+    if (dup2(fd, STDIN_FILENO) < 0) {
+        return GG_ERR_FAILURE;
+    }
+    return GG_ERR_OK;
+}
+
 GgError ggl_docker_credentials_store(
     GgBuffer registry, GgBuffer username, GgBuffer secret
 ) {
@@ -158,7 +170,26 @@ GgError ggl_docker_credentials_store(
     const char *const ARGS[] = { "docker",     "login",      registry_buf,
                                  "--username", username_buf, "--password-stdin",
                                  NULL };
-    return ggl_exec_command_with_input(ARGS, gg_obj_buf(secret));
+
+    int in_pipe[2];
+    if (pipe2(in_pipe, O_CLOEXEC) < 0) {
+        return GG_ERR_FAILURE;
+    }
+    GG_CLEANUP(cleanup_close, in_pipe[0]);
+
+    fcntl(in_pipe[1], F_SETFL, O_NONBLOCK);
+    GgError write_ret = gg_file_write(in_pipe[1], secret);
+    (void) gg_close(in_pipe[1]);
+    if (write_ret != GG_ERR_OK) {
+        return write_ret;
+    }
+
+    GglProcessSpawnConfig cfg = {
+        .child_setup = stdin_pipe_setup,
+        .child_setup_ctx = &in_pipe[0],
+        .keep_stdin = true,
+    };
+    return ggl_process_call(ARGS, &cfg);
 }
 
 GgError ggl_docker_credentials_ecr_retrieve(
