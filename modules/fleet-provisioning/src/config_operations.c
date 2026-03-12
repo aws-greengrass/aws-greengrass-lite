@@ -135,8 +135,16 @@ static GgError load_required_config(
             "Failed to read services/aws.greengrass.fleet_provisioning/configuration/%s",
             key
         );
+        return ret;
     }
-    return ret;
+    if (*output == NULL) {
+        GG_LOGE(
+            "Required configuration value is empty: services/aws.greengrass.fleet_provisioning/configuration/%s",
+            key
+        );
+        return GG_ERR_INVALID;
+    }
+    return GG_ERR_OK;
 }
 
 static GgError load_optional_config(
