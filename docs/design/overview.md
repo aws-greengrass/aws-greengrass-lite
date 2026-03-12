@@ -28,11 +28,11 @@ GG libraries are functions that get linked with daemons to provide the common
 behaviors needed by all GG daemons. One example is interfacing the the GG
 coreBus.
 
-| Library  | Provided functionality                                                                              |
-| -------- | --------------------------------------------------------------------------------------------------- |
-| ggl-lib  | General datatypes and the corebus interface for communications between GGL components               |
-| ggl-json | A basic JSON interface for conversion to/from JSON & corebus datatypes                              |
-| ggl-exec | A Linux interface library to simplify starting/stopping/killing processes around the EXEC function. |
-| ggl-http | A library to use HTTP to fetch a token and download a file. Suitable for S3 downloads.              |
-| ggl-yaml | A basic YAML interface for conversion to/from YAML and corebus datatypes                            |
-| ggl-file | A library for basic file operations needed for component installation and deployment operations.    |
+| Library     | Provided functionality                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| ggl-lib     | General datatypes and the corebus interface for communications between GGL components            |
+| ggl-json    | A basic JSON interface for conversion to/from JSON & corebus datatypes                           |
+| ggl-process | A Linux interface library for process lifecycle management: spawning, waiting, and killing.      |
+| ggl-http    | A library to use HTTP to fetch a token and download a file. Suitable for S3 downloads.           |
+| ggl-yaml    | A basic YAML interface for conversion to/from YAML and corebus datatypes                         |
+| ggl-file    | A library for basic file operations needed for component installation and deployment operations. |
