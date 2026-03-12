@@ -223,8 +223,7 @@ static GgError parse_docker_registry_segment(
         // from the path. Everything between the registry slash and the
         // rightmost slash (slashes[0]) is the namespace/username path.
         size_t registry_slash = slashes[slash_count - 1];
-        info->username
-            = gg_buffer_substr(uri, registry_slash + 1, slashes[0]);
+        info->username = gg_buffer_substr(uri, registry_slash + 1, slashes[0]);
         GG_LOGT(
             "Read username from Docker URI as %.*s",
             (int) info->username.len,
