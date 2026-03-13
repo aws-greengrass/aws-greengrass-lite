@@ -49,8 +49,15 @@ The service automatically initializes the following configuration at startup:
 
 ## Offline Capabilities
 
-In this current stage of the design, fleet status service will not support any
-offline capabilities. It will simply send a fleet status update on startup if an
-MQTT connection is present. In the future, status updates will be sent on any
-instances of MQTT reconnections as well, ensuring that the device status is
-visible in the cloud as soon as it has a network connection.
+The fleet status service subscribes to MQTT connection status from `iotcored`.
+On initial connection, a fleet status update is sent with a `NUCLEUS_LAUNCH`
+trigger. On subsequent reconnections (e.g., after a network interruption), an
+update is sent with a `RECONNECT` trigger. This satisfies spec requirement
+`[fss-5]`.
+
+A periodic update with a `CADENCE` trigger is also sent at a configurable
+interval (default 24 hours).
+
+**Note:** If `iotcored` itself restarts, the coreBus subscription is lost and
+reconnection status updates will not be received until `gg-fleet-statusd` is
+also restarted. See `TODO` in `connection_status_close_callback` in `entry.c`.

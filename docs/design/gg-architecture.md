@@ -547,9 +547,8 @@ WorkingDirectory=/opt/local/greengrass
 Environment=<some nice environment variables>
 ExecStartPre=/opt/local/greengrass/componentdir/componentStart.sh
 ExecStart=/opt/local/greengrass/componentdir/componentRun.sh
-OnFailure=greengrass-recovery.service
 Restart=on-failure
-RestartSec=10s
+RestartSec=1
 
 [Install]
 WantedBy=GreengrassCore.target

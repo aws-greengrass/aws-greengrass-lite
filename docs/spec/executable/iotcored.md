@@ -18,6 +18,9 @@ For information on MQTT, see <https://mqtt.org/mqtt-specification/>.
 
 ### 2.0 autoscaling
 
+> **Note:** This section is not yet implemented. The current implementation uses
+> a single MQTT connection for all subscriptions.
+
 - [iotcored-2.1] When the number of subscriptions exceeds the AWS IoT Core
   per-connection maximum, additional connections will be used.
 - [iotcored-2.2] The maximum number of auto-scaling connections may be set by a

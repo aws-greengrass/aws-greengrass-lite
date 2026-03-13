@@ -51,7 +51,7 @@ supported as mentioned in the
   - kernel:rootPath
   - iot:thingName
   - work:path
-  - Limited configuration:json_pointer support
+  - configuration:json_pointer
 
 - Component_dependency_name prefixes are not supported for recipe variable
   replacement.
