@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(ggl-tls LIBS gg-sdk ggl-process)
+ggl_init_module(ggl-tls LIBS gg-sdk ggl-process core-bus core-bus-gg-config ggl-uri)

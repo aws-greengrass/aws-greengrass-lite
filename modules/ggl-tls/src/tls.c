@@ -2,6 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "proxy.h"
 #include <assert.h>
 #include <gg/cleanup.h>
 #include <gg/error.h>
@@ -9,54 +10,15 @@
 #include <gg/log.h>
 #include <ggl/process.h>
 #include <ggl/tls.h>
-#include <inttypes.h>
-#include <netdb.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 #define CONTROL_FD 3
 #define TRANSPORT_FD 4
-
-static GgError tcp_connect(const char *host, uint16_t port, int *out_fd) {
-    char port_str[6];
-    snprintf(port_str, sizeof(port_str), "%" PRIu16, port);
-
-    struct addrinfo hints = { .ai_socktype = SOCK_STREAM };
-    struct addrinfo *res = NULL;
-    if (getaddrinfo(host, port_str, &hints, &res) != 0) {
-        GG_LOGE("Failed to resolve %s:%" PRIu16 ".", host, port);
-        return GG_ERR_FAILURE;
-    }
-
-    int fd = -1;
-    for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
-        fd = socket(
-            ai->ai_family, ai->ai_socktype | SOCK_CLOEXEC, ai->ai_protocol
-        );
-        if (fd < 0) {
-            continue;
-        }
-        if (connect(fd, ai->ai_addr, ai->ai_addrlen) == 0) {
-            break;
-        }
-        (void) gg_close(fd);
-        fd = -1;
-    }
-    freeaddrinfo(res);
-
-    if (fd < 0) {
-        GG_LOGE("Failed to connect to %s:%" PRIu16 ".", host, port);
-        return GG_ERR_FAILURE;
-    }
-
-    *out_fd = fd;
-    return GG_ERR_OK;
-}
 
 static GgError receive_helper_fd(int sock, int *out_fd) {
     char payload[64];
@@ -119,21 +81,14 @@ static GgError child_setup(void *ctx) {
     return GG_ERR_OK;
 }
 
-GgError ggl_tls_connect(
+static GgError tls_on_fd(
+    int transport_fd,
     const char *hostname,
-    uint16_t port,
     const char *private_key,
     const char *certificate,
     const char *root_ca,
     GglTlsConn *conn
 ) {
-    int tcp_fd = -1;
-    GgError ret = tcp_connect(hostname, port, &tcp_fd);
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
-    GG_CLEANUP(cleanup_close, tcp_fd);
-
     int ctl_sock[2];
     if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ctl_sock) < 0) {
         GG_LOGE("socketpair failed: %m.");
@@ -142,7 +97,7 @@ GgError ggl_tls_connect(
     GG_CLEANUP(cleanup_close, ctl_sock[0]);
 
     GglProcessHandle proc = { 0 };
-    ret = ggl_process_spawn(
+    GgError ret = ggl_process_spawn(
         (const char *[]) {
             "ggl-tls-helper", "--hostname",    hostname,    "--private-key",
             private_key,      "--certificate", certificate, "--root-ca",
@@ -152,7 +107,7 @@ GgError ggl_tls_connect(
             .child_setup = child_setup,
             .child_setup_ctx = &(ChildSetupCtx) {
                 .ctl_fd = ctl_sock[1],
-                .transport_fd = tcp_fd,
+                .transport_fd = transport_fd,
             },
             .keep_fds = true,
         },
@@ -171,6 +126,29 @@ GgError ggl_tls_connect(
     }
 
     *conn = (GglTlsConn) { .fd = tunnel_fd, .pid = proc.val };
+    return GG_ERR_OK;
+}
+
+GgError ggl_tls_connect(
+    const char *hostname,
+    uint16_t port,
+    const char *private_key,
+    const char *certificate,
+    const char *root_ca,
+    GglTlsConn *conn
+) {
+    int fd = -1;
+    GgError ret = proxy_connect(hostname, port, &fd);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+    GG_CLEANUP(cleanup_close, fd);
+
+    ret = tls_on_fd(fd, hostname, private_key, certificate, root_ca, conn);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
     return GG_ERR_OK;
 }
 
