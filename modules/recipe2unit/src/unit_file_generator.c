@@ -437,7 +437,7 @@ static GgError update_unit_file_buffer(
     return GG_ERR_OK;
 }
 
-// TODO: Implement shutdown and recover lifecycle phases for Classic parity.
+// TODO: Implement shutdown and recover lifecycle phases for Greengrass Nucleus parity.
 // See docs/RECIPE_SUPPORT_CHANGES.md for the current feature gap list.
 static void compatibility_check(GgMap selected_lifecycle_map) {
     if (gg_map_get(selected_lifecycle_map, GG_STR("shutdown"), NULL)) {
