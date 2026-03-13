@@ -12,6 +12,7 @@
 #include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/server.h>
+#include <systemd/sd-daemon.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -36,6 +37,12 @@ static GgError create_local_deployment(
 
 void ggdeploymentd_start_server(void) {
     GG_LOGI("Starting ggdeploymentd core bus server.");
+
+    int notify_ret = sd_notify(0, "READY=1");
+    if (notify_ret < 0) {
+        GG_LOGE("Failed to send sd_notify (errno=%d).", -notify_ret);
+        return;
+    }
 
     GglRpcMethodDesc handlers[] = { { GG_STR("create_local_deployment"),
                                       false,
