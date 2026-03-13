@@ -87,8 +87,7 @@ static GgError docker_test(
 GgError run_uriparse_test(void) {
     const GgBufList DOCKER_ECR_URIS = GG_BUF_LIST(
         // Public ECR
-        GG_STR(
-            "docker:public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest"
+        GG_STR("docker:public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest"
         ),
         // Dockerhub
         GG_STR("docker:mysql:8.0"),
@@ -106,25 +105,25 @@ GgError run_uriparse_test(void) {
         )
     );
     const GglUriInfo EXPECTED_URI[] = {
-        (GglUriInfo) {
-            .scheme = GG_STR("docker"),
-            .path = GG_STR(
-                "public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest"
+        (GglUriInfo
+        ) { .scheme = GG_STR("docker"),
+            .path
+            = GG_STR("public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest"
             ) },
         (GglUriInfo) { .scheme = GG_STR("docker"),
                        .path = GG_STR("mysql:8.0") },
-        (GglUriInfo) {
-            .scheme = GG_STR("docker"),
+        (GglUriInfo
+        ) { .scheme = GG_STR("docker"),
             .path = GG_STR(
                 "012345678901.dkr.ecr.region.amazonaws.com/repository/image:latest"
             ) },
-        (GglUriInfo) {
-            .scheme = GG_STR("docker"),
+        (GglUriInfo
+        ) { .scheme = GG_STR("docker"),
             .path = GG_STR(
                 "012345678901.dkr.ecr.region.amazonaws.com/repository/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
             ) },
-        (GglUriInfo) {
-            .scheme = GG_STR("docker"),
+        (GglUriInfo
+        ) { .scheme = GG_STR("docker"),
             .path = GG_STR(
                 "987654321098.dkr.ecr.us-east-1.amazonaws.com/company/prod/edge/image:1.2.3"
             ) }
@@ -138,21 +137,21 @@ GgError run_uriparse_test(void) {
         (GglDockerUriInfo) { .registry = GG_STR("docker.io"),
                              .repository = GG_STR("mysql"),
                              .tag = GG_STR("8.0") },
-        (GglDockerUriInfo) {
-            .registry = GG_STR("012345678901.dkr.ecr.region.amazonaws.com"),
+        (GglDockerUriInfo
+        ) { .registry = GG_STR("012345678901.dkr.ecr.region.amazonaws.com"),
             .username = GG_STR("repository"),
             .repository = GG_STR("image"),
             .tag = GG_STR("latest") },
-        (GglDockerUriInfo) {
-            .registry = GG_STR("012345678901.dkr.ecr.region.amazonaws.com"),
+        (GglDockerUriInfo
+        ) { .registry = GG_STR("012345678901.dkr.ecr.region.amazonaws.com"),
             .username = GG_STR("repository"),
             .repository = GG_STR("image"),
             .digest_algorithm = GG_STR("sha256"),
             .digest = GG_STR(
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
             ) },
-        (GglDockerUriInfo) {
-            .registry = GG_STR("987654321098.dkr.ecr.us-east-1.amazonaws.com"),
+        (GglDockerUriInfo
+        ) { .registry = GG_STR("987654321098.dkr.ecr.us-east-1.amazonaws.com"),
             .username = GG_STR("company/prod/edge"),
             .repository = GG_STR("image"),
             .tag = GG_STR("1.2.3") }
