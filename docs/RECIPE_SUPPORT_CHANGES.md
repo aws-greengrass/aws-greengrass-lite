@@ -62,3 +62,10 @@ supported as mentioned in the
 - Platform Override only supports `architecture.detail`, please refer known
   issues link
   [here](https://github.com/aws-greengrass/aws-greengrass-lite/issues).
+
+### MQTT Connection
+
+- Greengrass Nucleus Lite uses MQTT clean sessions (`cleanSession = true`).
+  Greengrass Nucleus uses persistent sessions (`cleanSession = false`). This
+  means messages published to subscribed topics while the device is offline will
+  not be queued by IoT Core and will be lost on reconnection.

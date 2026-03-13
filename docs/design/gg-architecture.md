@@ -600,6 +600,13 @@ host orchestrator.
 
 ##### Example:
 
+> **Note:** This example illustrates a conceptual recovery approach using
+> systemd's `OnFailure=` directive. This is not currently implemented —
+> `recipe2unit` does not generate `OnFailure=` directives, and no
+> `greengrass-recovery.service` exists. Greengrass Nucleus uses per-component
+> `recover` lifecycle scripts instead; Greengrass Nucleus Lite does not yet
+> support the `recover` phase (see `docs/RECIPE_SUPPORT_CHANGES.md`).
+
 A service FOO is installed on a systemd host. The recipe is translated to the
 following systemd unit file.
 

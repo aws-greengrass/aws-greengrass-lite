@@ -166,6 +166,10 @@ which allow component-managed state transitions over IPC.
 
 ### subscribe_to_deployment_updates
 
+> **Note:** This API is not yet implemented (returns `GG_ERR_UNSUPPORTED`).
+> `ggdeploymentd` currently uses `subscribe_to_lifecycle_completion` instead for
+> deployment tracking. It is unclear whether both APIs are needed.
+
 This subscription is intended to be used by `ggdeploymentd` to signal an ongoing
 deployment for which it awaits the result. This API sends a response when all
 components succeed or any fail.

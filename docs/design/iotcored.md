@@ -30,3 +30,24 @@ endpoint and device credentials.
 
 These may be passed as command line parameters; if they are not the values will
 be pulled from the Greengrass Nucleus Lite config library.
+
+## MQTT Session Behavior
+
+Greengrass Nucleus Lite connects to AWS IoT Core with `cleanSession = true`.
+This differs from Greengrass Nucleus, which uses `cleanSession = false`
+(persistent sessions).
+
+With clean sessions:
+
+- IoT Core does not persist subscriptions across disconnects. On reconnection,
+  `iotcored` re-registers all active subscriptions from its local tracking.
+- Messages published to subscribed topics while the device is offline are not
+  queued by IoT Core and will be lost.
+
+With persistent sessions (Greengrass Nucleus):
+
+- IoT Core retains subscriptions and queues QoS 1 messages (up to service
+  limits) for delivery when the device reconnects.
+
+This behavioral difference affects components that rely on receiving messages
+published during network interruptions.
