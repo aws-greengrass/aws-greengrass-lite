@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "artifact_permission.h"
 #include "bootstrap_manager.h"
 #include "component_config.h"
 #include "component_manager.h"
@@ -680,6 +681,7 @@ static GgError get_recipe_artifacts(
         GgObject *unarchive_obj = NULL;
         GgObject *expected_digest_obj = NULL;
         GgObject *algorithm = NULL;
+        GgObject *permission_obj = NULL;
 
         GgError err = gg_map_validate(
             gg_obj_into_map(artifacts.items[i]),
@@ -693,7 +695,11 @@ static GgError get_recipe_artifacts(
                   GG_OPTIONAL,
                   GG_TYPE_BUF,
                   &expected_digest_obj },
-                { GG_STR("Algorithm"), GG_OPTIONAL, GG_TYPE_BUF, &algorithm }
+                { GG_STR("Algorithm"), GG_OPTIONAL, GG_TYPE_BUF, &algorithm },
+                { GG_STR("Permission"),
+                  GG_OPTIONAL,
+                  GG_TYPE_MAP,
+                  &permission_obj }
             )
         );
 
@@ -787,8 +793,16 @@ static GgError get_recipe_artifacts(
             }
         }
 
-        // TODO: set permissions from recipe
+        // Resolve artifact file permissions from recipe.
+        // Default is 0755 for backward compatibility with existing Nucleus
+        // Lite deployments. Note: Greengrass Nucleus defaults to Read:OWNER,
+        // Execute:NONE (0440). This difference is intentional to avoid
+        // regression.
         mode_t mode = 0755;
+        if (permission_obj != NULL) {
+            mode
+                = artifact_permission_to_mode(gg_obj_into_map(*permission_obj));
+        }
         int artifact_fd = -1;
         err = gg_file_openat(
             component_store_fd,
