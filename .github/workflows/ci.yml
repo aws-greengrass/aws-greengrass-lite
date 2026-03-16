@@ -56,8 +56,9 @@ jobs:
       - name: Check ${{ matrix.name }}
         run: |
           sudo tee -a /etc/nix/nix.conf > /dev/null <<EOF
-          extra-substituters = https://d17qv3gttz4z4k.cloudfront.net
+          extra-substituters = https://d17qv3gttz4z4k.cloudfront.net?priority=30
           extra-trusted-public-keys = gglite-nix-cache-1:Zdz1mEqn//xa8ORxHkc76auwxmX8/6C2K/zWRjmq8Co=
           log-lines = 0
           EOF
+          sudo systemctl restart nix-daemon
           nix build -L .#checks.x86_64-linux.${{ matrix.check }}
