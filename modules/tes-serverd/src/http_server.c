@@ -307,7 +307,7 @@ GgError http_server(void) {
 
     int ret_val = sd_notify(0, "READY=1");
     if (ret_val < 0) {
-        GG_LOGE("Unable to update component state (errno=%d)", -ret);
+        GG_LOGE("Unable to update component state (errno=%d)", -ret_val);
         return GG_ERR_FATAL;
     }
 
