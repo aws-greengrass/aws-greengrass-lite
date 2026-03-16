@@ -270,7 +270,11 @@ static void reset_failed_components(void) {
 
 GgError gghealthd_init(void) {
     reset_failed_components();
-    sd_notify(0, "READY=1");
+    int notify_ret = sd_notify(0, "READY=1");
+    if (notify_ret < 0) {
+        GG_LOGE("Failed to send sd_notify (errno=%d).", -notify_ret);
+        return GG_ERR_FATAL;
+    }
     init_health_events();
     return GG_ERR_OK;
 }
