@@ -87,7 +87,6 @@
           , ninja
           , openssl
           , curl
-          , uriparser
           , libuuid
           , libevent
           , argp-standalone
@@ -105,7 +104,6 @@
             buildInputs = [
               openssl
               curl
-              uriparser
               libuuid
               sqlite.dev
               libevent

@@ -23,7 +23,6 @@ To build the project, you will need the following build dependencies:
 - libyaml-dev
 - libsystemd-dev
 - libevent-dev
-- liburiparser-dev
 - cgroup-tools
 
 On Ubuntu, these can be installed with:
@@ -31,7 +30,7 @@ On Ubuntu, these can be installed with:
 ```sh
 sudo apt update && sudo apt install build-essential pkg-config cmake git curl libssl-dev \
   libcurl4-openssl-dev uuid-dev libzip-dev libsqlite3-dev libyaml-dev \
-  libsystemd-dev libevent-dev liburiparser-dev cgroup-tools
+  libsystemd-dev libevent-dev cgroup-tools
 ```
 
 If your system's cmake is too old, you may need to build or download a newer

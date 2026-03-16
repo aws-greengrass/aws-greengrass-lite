@@ -23,7 +23,6 @@ This project uses the following third party library dependencies:
 | libcurl         | 7.68                     |
 | libevent        | 2.1.12                   |
 | libsystemd      | 249                      |
-| liburiparser    | 0.9.6                    |
 | libuuid         | 2.37.2                   |
 | libyaml         | 0.2.2                    |
 | libzip          | 1.7.3                    |

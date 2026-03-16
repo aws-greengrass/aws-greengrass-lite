@@ -18,6 +18,9 @@ coverity
 cpack
 cpus
 CURLH
+CURLU
+CURLUE
+CURLUPART
 DBUILD
 dbus
 DCMAKE
@@ -79,7 +82,6 @@ ktls
 libcgroup
 libsystemd
 libtss
-liburiparser
 libuuid
 libyaml
 LOGD
@@ -149,7 +151,6 @@ unacked
 unarchived
 unrefp
 unsuback
-uriparser
 uuid
 venv
 wbio
