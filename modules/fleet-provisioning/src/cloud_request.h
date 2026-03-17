@@ -13,7 +13,7 @@ GgError ggl_get_certificate_from_aws(
     GgBuffer template_name,
     GgMap template_params,
     GgBuffer *thing_name_out,
-    int certificate_fd
+    GgBuffer *cert_pem_out
 );
 
 #endif
