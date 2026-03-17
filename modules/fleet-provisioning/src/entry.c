@@ -29,6 +29,7 @@
 #define MAX_ENDPOINT_LENGTH 128
 #define MAX_TEMPLATE_PARAM_LEN 4096
 #define MAX_CSR_LENGTH 4096
+#define MAX_CERT_PEM_LENGTH 8192
 
 #define USER_GROUP (GGL_SYSTEMD_SYSTEM_USER ":" GGL_SYSTEMD_SYSTEM_GROUP)
 
@@ -321,7 +322,28 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     }
     GgBuffer csr_buf = { csr_mem, (size_t) csr_len };
 
-    // Create certificate output file
+    // Wait for MQTT(iotcored) connection to establish
+    (void) gg_sleep(5);
+
+    static uint8_t thing_name_mem[128];
+    GgBuffer thing_name = GG_BUF(thing_name_mem);
+
+    // X.509 PEM certificates are typically ~1.5-2KB
+    uint8_t cert_pem_mem[MAX_CERT_PEM_LENGTH] = { 0 };
+    GgBuffer cert_pem = GG_BUF(cert_pem_mem);
+
+    ret = ggl_get_certificate_from_aws(
+        csr_buf,
+        gg_buffer_from_null_term(args->template_name),
+        template_params,
+        &thing_name,
+        &cert_pem
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    // Create certificate file only after successful provisioning
     int cert_fd;
     ret = open_file_or_default(
         args->cert_path,
@@ -335,21 +357,16 @@ GgError run_fleet_prov(FleetProvArgs *args) {
     }
     GG_CLEANUP(cleanup_close, cert_fd);
 
-    // Wait for MQTT(iotcored) connection to establish
-    (void) gg_sleep(5);
-
-    static uint8_t thing_name_mem[128];
-    GgBuffer thing_name = GG_BUF(thing_name_mem);
-
-    ret = ggl_get_certificate_from_aws(
-        csr_buf,
-        gg_buffer_from_null_term(args->template_name),
-        template_params,
-        &thing_name,
-        cert_fd
-    );
-    if (ret != GG_ERR_OK) {
-        return ret;
+    ssize_t written = write(cert_fd, cert_pem.data, cert_pem.len);
+    if (written != (ssize_t) cert_pem.len) {
+        GG_LOGE("Failed to write certificate to file.");
+        // Remove partial cert file to avoid blocking future retries
+        if (args->cert_path != NULL) {
+            (void) unlink(args->cert_path);
+        } else {
+            (void) unlinkat(output_dir, "certificate.pem", 0);
+        }
+        return GG_ERR_FAILURE;
     }
 
     ret = cleanup_actions(output_dir_path, thing_name, args);
