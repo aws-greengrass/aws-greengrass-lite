@@ -1,0 +1,24 @@
+#!/bin/sh
+# Pre-commit hook: check formatting on staged C files.
+# Install with: git config core.hooksPath .githooks
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM -- '*.c' '*.h')
+[ -z "$STAGED" ] && exit 0
+
+if ! command -v clang-format >/dev/null 2>&1; then
+    echo "warning: clang-format not found, skipping format check"
+    exit 0
+fi
+
+FAIL=0
+for f in $STAGED; do
+    if ! clang-format --style=file --dry-run --Werror "$f" >/dev/null 2>&1; then
+        echo "format: $f"
+        FAIL=1
+    fi
+done
+
+if [ "$FAIL" -ne 0 ]; then
+    echo "Run: clang-format --style=file -i <file>"
+    exit 1
+fi

@@ -40,11 +40,27 @@ To send us a pull request, please:
    If you also reformat all the code, it will be hard for us to focus on your
    change.
 3. Ensure local tests pass.
-4. Commit to your fork using clear commit messages.
-5. Send us a pull request, answering any default questions in the pull request
+4. Run the CI checks locally before pushing (see below).
+5. Commit to your fork using clear commit messages.
+6. Send us a pull request, answering any default questions in the pull request
    interface.
-6. Pay attention to any automated CI failures reported in the pull request, and
+7. Pay attention to any automated CI failures reported in the pull request, and
    stay involved in the conversation.
+
+## Running CI checks locally
+
+The CI runs formatting, linting, static analysis, and build checks on every pull
+request. Run all of them locally before pushing:
+
+```sh
+nix flake check -L
+```
+
+To catch formatting errors early, enable the pre-commit hook:
+
+```sh
+git config core.hooksPath .githooks
+```
 
 GitHub provides additional document on
 [forking a repository](https://help.github.com/articles/fork-a-repo/) and
