@@ -380,6 +380,23 @@ static GgError find_and_process_set_env(
     return ret;
 }
 
+// Find the byte offset where 'exec ' should be inserted for run/startup
+// phases. Returns SIZE_MAX if exec should not be inserted.
+static size_t find_exec_insert_pos(GgBuffer phase, GgBuffer script) {
+    if (!gg_buffer_eq(phase, GG_STR("run"))
+        && !gg_buffer_eq(phase, GG_STR("startup"))) {
+        return SIZE_MAX;
+    }
+    // Insert before the last command (after the last newline, or at 0).
+    size_t pos = 0;
+    for (size_t idx = 0; idx < script.len; idx++) {
+        if (script.data[idx] == '\n') {
+            pos = idx + 1;
+        }
+    }
+    return pos;
+}
+
 static GgError process_lifecycle_phase(
     int out_fd,
     GgMap selected_lifecycle,
@@ -437,12 +454,26 @@ static GgError process_lifecycle_phase(
         (int) phase.len,
         phase.data
     );
+
+    // Ideally run/startup scripts are a single long-running command, with
+    // setup in the install phase. However, customers may use multi-command
+    // run scripts, so handle both by exec'ing the last command.
+    size_t exec_pos = find_exec_insert_pos(phase, selected_script_as_buf);
+
     uint8_t *current_pointer = &selected_script_as_buf.data[0];
     uint8_t *end_pointer
         = &selected_script_as_buf.data[selected_script_as_buf.len];
     while (true) {
         if (current_pointer == end_pointer) {
             break;
+        }
+        if ((size_t) (current_pointer - selected_script_as_buf.data)
+            == exec_pos) {
+            ret = gg_file_write(out_fd, GG_STR("exec "));
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+            exec_pos = SIZE_MAX;
         }
         if (*current_pointer != '{') {
             ret = gg_file_write(out_fd, (GgBuffer) { current_pointer, 1 });
