@@ -6,12 +6,12 @@
   },
   "aws_sigv4": {
     "url": "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git",
-    "rev": "f0409ced6c2c9430f0e972019b7e8f20bbf58f4e",
-    "hash": "sha256-6is4ymM/Ct9JntgpFHF4Vlv5+GUwy0HZvEiEV+ALJkw="
+    "rev": "v1.3.1",
+    "hash": "sha256-R2jmLg2w6wZhMr0GR9D1K0sVFjDE3pVmNeGP3qQ82Sg="
   },
   "gg_sdk": {
     "url": "https://github.com/aws-greengrass/aws-greengrass-component-sdk.git",
-    "rev": "1d8b8280eb14b65ae1e92d2b708a9754fc62d7ab",
-    "hash": "sha256-cjGM6XV7R+p/e8mu2IJQqhuCIPBDylhfhknz4jJUGqg="
+    "rev": "v1.0.0",
+    "hash": "sha256-Cc6NtNQv4pa3NyhYQz+EYLxM2R9pfJWjgDYiIHNGrDo="
   }
 }
