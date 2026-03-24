@@ -1,3 +1,28 @@
+# Release Notes v2.4.0
+
+- Increased backoff interval for MQTT connections
+- FleetStatusService now supports the periodicStatusPublishIntervalSeconds
+  configuration
+- aws.greengrass.Cli is now ignored during dependency resolution to support
+  components that require it for Greengrass nucleus
+- Local deployments now support the --group-name option to override a thing
+  group deployment
+- Local deployments now support the --remove-component option to remove a
+  locally deployed component
+- Local deployments no longer block on certain system configurations being set
+  to support devices in an unprovisioned state
+- Removed ggdeploymentd dependencies on services that require a network
+  connection
+- ggdeploymentd service now waits until it is ready to receive deployments
+  before being marked as active
+- Fixed an issue where MQTT messages could be delayed until the next keepalive
+  interval
+- Fixed an issue where iotcored may enter deadlock and be unable to reconnect
+- Fixed SSL verification failures when using an HTTP proxy with SSL
+  bump/interception
+- Improved connection reliability
+- Now applies artifact permissions from recipe
+
 # Release Notes v2.3.3
 
 This release fixes some bugs and has minor improvements:
@@ -8,6 +33,19 @@ This release fixes some bugs and has minor improvements:
 - Allows component install phases to retry up to 3 times before failing
   deployment instead of after first fail
 - Increases socket timeouts to be more generous
+
+# Release Notes v2.3.2
+
+This release updates the version file for correct reporting.
+
+# Release Notes v2.3.1
+
+This release includes the following fixes:
+
+- GG will not attempt to update deployment state for canceled jobs
+- Ensure DIR from fdopendir is closed
+- Fleet provisioning will now trigger certificate file overwrite on each run
+- Other minor bug fixes
 
 # Release Notes v2.3.0
 

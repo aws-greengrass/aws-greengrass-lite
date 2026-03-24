@@ -41,6 +41,7 @@ evkeyvalq
 execvp
 execvpe
 FDNAMES
+fdopendir
 FIXEDTPM
 FOWNER
 Fssd
@@ -147,6 +148,7 @@ TPMS
 uefi
 unacked
 unarchived
+unprovisioned
 unrefp
 unsuback
 uriparser
