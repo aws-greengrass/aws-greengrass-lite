@@ -9,7 +9,7 @@ Using Nix will allow you to use a reproducible development environment matching
 CI as well as run the CI checks locally.
 
 Use the following Nix installer which enables used features automatically:
-https://git.lix.systems/lix-project/lix-installer
+https://github.com/NixOS/nix-installer
 
 If using a Nix environment for building, you will need to pass
 `CMAKE_INSTALL_PREFIX` when running CMake.
