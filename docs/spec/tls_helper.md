@@ -21,18 +21,23 @@ The TLS helper must be on the PATH for the Greengrass nucleus daemons. The
 binary name must be `ggl-tls-helper`. Greengrass nucleus daemons will invoke it
 by executing `ggl-tls-helper`.
 
-The helper will be passed the following as its args:
+The process invoking the helper must pass the following as its args:
 
 - `--endpoint` followed by the endpoint to connect to with TLS.
+- `--port` followed by the port to use for the TCP connection to the endpoint.
 - `--private-key` followed by the `system.privateKeyPath` config value.
 - `--certificate` followed by the `system.certificateFilePath` config value.
 - `--root-ca` followed by the `system.rootCaPath` config value.
 
-If Greengrass has proxy configuration, the following environment variables are
-set: `ALL_PROXY`, `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`. If proxies are to
-be supported, these should be used for connecting the the proxy and proxy
-exceptions. These variables are to be interpreted in the same way as for
-Greengrass components, and are recognized by libraries like OpenSSL and libcurl.
+The invoking process may additionally set the following args:
+
+- `--proxy` followed by the proxy HTTP/HTTPS endpoint to use.
+
+When passed a `--proxy` arg, the TLS helper MUST either use it for the
+connection or exit with a non-zero error code.
+
+The invoking process must applying any no_proxy logic before invoking the TLS
+helper.
 
 The TLS helper will also get a control socket at file descriptor `3`. This will
 be a unix domain socket. Except in case of an error, the helper MUST use the the
