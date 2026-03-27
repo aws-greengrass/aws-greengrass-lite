@@ -9,8 +9,6 @@
 #include <gg/object.h>
 #include <gg/vector.h>
 #include <ggl/aws_iot_call.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -34,7 +32,7 @@ static GgError send_csr_request(
     GgBuffer csr_as_ggl_buffer,
     GgBuffer *token_out,
     GgBuffer iotcored,
-    int certificate_fd
+    GgBuffer *cert_pem_out
 ) {
     uint8_t arena_mem[MAX_CSR_RESPONSE_SIZE] = { 0 };
     GgArena arena = gg_arena_init(GG_BUF(arena_mem));
@@ -88,7 +86,7 @@ static GgError send_csr_request(
         return ret;
     }
 
-    // Extract and write certificatePem to file descriptor
+    // Extract certificatePem from response
     GgObject *cert_pem_val;
     if (!gg_map_get(
             gg_obj_into_map(result), GG_STR("certificatePem"), &cert_pem_val
@@ -103,10 +101,10 @@ static GgError send_csr_request(
     }
 
     GgBuffer cert_pem = gg_obj_into_buf(*cert_pem_val);
-    ssize_t written = write(certificate_fd, cert_pem.data, cert_pem.len);
-    if (written != (ssize_t) cert_pem.len) {
-        GG_LOGE("Failed to write certificate to file.");
-        return GG_ERR_FAILURE;
+    ret = gg_buf_copy(cert_pem, cert_pem_out);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("Failed to copy certificate PEM.");
+        return ret;
     }
 
     GG_LOGD("Certificate ownership token received (length: %zu)", token.len);
@@ -188,14 +186,14 @@ GgError ggl_get_certificate_from_aws(
     GgBuffer template_name,
     GgMap template_params,
     GgBuffer *thing_name_out,
-    int certificate_fd
+    GgBuffer *cert_pem_out
 ) {
     static uint8_t token_mem[MAX_TOKEN_SIZE];
     GgBuffer token = GG_BUF(token_mem);
     GgBuffer iotcored = GG_STR("iotcoredfleet");
 
     GgError ret
-        = send_csr_request(csr_as_ggl_buffer, &token, iotcored, certificate_fd);
+        = send_csr_request(csr_as_ggl_buffer, &token, iotcored, cert_pem_out);
     if (ret != GG_ERR_OK) {
         return ret;
     }
