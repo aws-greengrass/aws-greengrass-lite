@@ -15,6 +15,7 @@
 #include "priv_io.h"
 #include "stale_component.h"
 #include <assert.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <gg/arena.h>
@@ -47,12 +48,15 @@
 #include <ggl/semver.h>
 #include <ggl/uri.h>
 #include <ggl/zip.h>
+#include <grp.h>
 #include <limits.h>
+#include <pwd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define MAX_DECODE_BUF_LEN 4096
@@ -655,6 +659,40 @@ static GgError unarchive_artifact(
     return ggl_zip_unarchive(component_store_fd, zip_file, output_dir_fd, mode);
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
+static void recursive_chown(int dir_fd, uid_t uid, gid_t gid) {
+    int fd = openat(dir_fd, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (fd < 0) {
+        return;
+    }
+    DIR *dir = fdopendir(fd);
+    if (dir == NULL) {
+        close(fd);
+        return;
+    }
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    for (struct dirent *ent; (ent = readdir(dir)) != NULL;) {
+        if (ent->d_name[0] == '.'
+            && (ent->d_name[1] == '\0'
+                || (ent->d_name[1] == '.' && ent->d_name[2] == '\0'))) {
+            continue;
+        }
+        if (fchownat(dir_fd, ent->d_name, uid, gid, AT_SYMLINK_NOFOLLOW) != 0) {
+            GG_LOGW("Failed to chown %s", ent->d_name);
+        }
+        if (ent->d_type == DT_DIR) {
+            int sub_fd = openat(
+                dir_fd, ent->d_name, O_RDONLY | O_DIRECTORY | O_CLOEXEC
+            );
+            if (sub_fd >= 0) {
+                recursive_chown(sub_fd, uid, gid);
+                close(sub_fd);
+            }
+        }
+    }
+    closedir(dir);
+}
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GgError get_recipe_artifacts(
     GgBuffer component_arn,
@@ -669,6 +707,39 @@ static GgError get_recipe_artifacts(
     GgError error = ggl_get_recipe_artifacts_for_platform(recipe, &artifacts);
     if (error != GG_ERR_OK) {
         return error;
+    }
+
+    // Resolve posixUser for artifact ownership
+    char *posix_user = NULL;
+    uid_t chown_uid = 0;
+    gid_t chown_gid = 0;
+    bool chown_artifacts = false;
+
+    GgError posix_ret = get_posix_user(&posix_user);
+    if (posix_ret == GG_ERR_OK && strlen(posix_user) > 0) {
+        // Extract username (before ':')
+        char user_name[256];
+        snprintf(
+            user_name,
+            sizeof(user_name),
+            "%.*s",
+            (int) strcspn(posix_user, ":"),
+            posix_user
+        );
+
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        struct passwd *pw = getpwnam(user_name);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        struct group *gr = getgrnam(GGL_SYSTEMD_SYSTEM_GROUP);
+        if (pw != NULL && gr != NULL) {
+            chown_uid = pw->pw_uid;
+            chown_gid = gr->gr_gid;
+            chown_artifacts = true;
+        } else {
+            GG_LOGW("Failed to resolve uid/gid for artifact chown.");
+        }
+    } else {
+        GG_LOGW("posixUser not configured; skipping artifact chown.");
     }
 
     bool ecr_logged_in = false;
@@ -862,6 +933,63 @@ static GgError get_recipe_artifacts(
             );
             if (err != GG_ERR_OK) {
                 return err;
+            }
+        }
+
+        // Change ownership of artifact to posixUser:ggcore
+        if (chown_artifacts) {
+            char artifact_name[PATH_MAX];
+            snprintf(
+                artifact_name,
+                sizeof(artifact_name),
+                "%.*s",
+                (int) info.file.len,
+                (char *) info.file.data
+            );
+            if (fchownat(
+                    component_store_fd,
+                    artifact_name,
+                    chown_uid,
+                    chown_gid,
+                    AT_SYMLINK_NOFOLLOW
+                )
+                != 0) {
+                GG_LOGW("Failed to chown artifact %s", artifact_name);
+            }
+
+            if (needs_unarchive) {
+                GgBuffer dest = info.file;
+                if (gg_buffer_has_suffix(info.file, GG_STR(".zip"))) {
+                    dest = gg_buffer_substr(
+                        info.file, 0, info.file.len - (sizeof(".zip") - 1U)
+                    );
+                }
+                snprintf(
+                    artifact_name,
+                    sizeof(artifact_name),
+                    "%.*s",
+                    (int) dest.len,
+                    (char *) dest.data
+                );
+                if (fchownat(
+                        component_archive_store_fd,
+                        artifact_name,
+                        chown_uid,
+                        chown_gid,
+                        AT_SYMLINK_NOFOLLOW
+                    )
+                    != 0) {
+                    GG_LOGW("Failed to chown unarchived dir %s", artifact_name);
+                }
+                int sub_fd = openat(
+                    component_archive_store_fd,
+                    artifact_name,
+                    O_RDONLY | O_DIRECTORY | O_CLOEXEC
+                );
+                if (sub_fd >= 0) {
+                    recursive_chown(sub_fd, chown_uid, chown_gid);
+                    close(sub_fd);
+                }
             }
         }
     }

@@ -26,3 +26,6 @@ ggl_init_module(
        recipe2unit
        PkgConfig::uuid
        PkgConfig::libsystemd)
+target_compile_definitions(
+  ggdeploymentd
+  PRIVATE "GGL_SYSTEMD_SYSTEM_GROUP=\"${GGL_SYSTEMD_SYSTEM_GROUP}\"")
