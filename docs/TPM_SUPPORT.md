@@ -4,6 +4,11 @@ This guide demonstrates how to set up AWS Greengrass Lite with TPM 2.0 support
 using Amazon EC2 NitroTPM. The TPM provides hardware-backed security for device
 identity and cryptographic operations.
 
+Greengrass Lite uses the OpenSSL
+[OSSL_STORE](https://www.openssl.org/docs/man3.0/man7/ossl_store.html) API to
+load the private key. When an OpenSSL 3 provider for TPM 2.0 is configured and
+activated via `openssl.cnf`, any `handle:` URI is handled transparently.
+
 ## TPM Setup
 
 ### Step 1: Set up NitroTPM Instance (as an example)
