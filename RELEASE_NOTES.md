@@ -1,3 +1,15 @@
+# Release Notes v2.5.0
+
+- Use of AWS Greengrass Nucleus Lite with HSMs using PKCS#11 is now supported.
+  PKCS#11 backed key/cert handles can now be used and will be passed to OpenSSL
+  to allow handling by system configured OpenSSL Providers.
+- TPM backed keys can now be used with fleet provisioning.
+- Fixed a regression in fleet provisioning introduced in v2.4.0 as part of
+  changing the underlying protocol version from MQTT v3 to v5.
+- Fixed a regression introduced in v2.4.0 where artifact permissions declared by
+  recipes were now respected, but the artifacts were not owned by the component
+  user.
+
 # Release Notes v2.4.0
 
 - Increased backoff interval for MQTT connections
