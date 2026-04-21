@@ -12,6 +12,7 @@
 #include <gg/log.h>
 #include <gg/utils.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
+#include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/process.h>
 #include <limits.h>
@@ -162,7 +163,6 @@ GgError iotcored_await_connection(GgBuffer socket_name, uint32_t timeout_s) {
     deadline.tv_sec += timeout_s;
 
     uint32_t sub_handle = 0;
-    GG_CLEANUP(cleanup_ggl_client_sub_close, sub_handle);
 
     while (true) {
         struct timespec now;
@@ -197,6 +197,8 @@ GgError iotcored_await_connection(GgBuffer socket_name, uint32_t timeout_s) {
             }
         }
     }
+
+    ggl_client_sub_close(sub_handle);
 
     if (timed_out) {
         return GG_ERR_FAILURE;
