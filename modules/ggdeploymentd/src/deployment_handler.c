@@ -3274,17 +3274,30 @@ static void handle_deployment(
             return;
         }
 
-        ret = add_arn_list_to_config(
-            gg_kv_key(*pair), deployment->configuration_arn
-        );
-
-        if (ret != GG_ERR_OK) {
-            GG_LOGE(
-                "Failed to write configuration arn of %.*s to ggconfigd.",
-                (int) gg_kv_key(*pair).len,
-                gg_kv_key(*pair).data
+        // Only tag the component with this deployment's configuration ARN if
+        // it is a root component of the current deployment (i.e. explicitly
+        // listed in deployment->components). Components pulled in from other
+        // thing groups or as transitive dependencies retain their original
+        // deployment source ARN, preventing this deployment from clobbering
+        // another deployment's ownership record.
+        GgObject *component_in_deployment;
+        if (gg_map_get(
+                deployment->components,
+                gg_kv_key(*pair),
+                &component_in_deployment
+            )) {
+            ret = add_arn_list_to_config(
+                gg_kv_key(*pair), deployment->configuration_arn
             );
-            return;
+
+            if (ret != GG_ERR_OK) {
+                GG_LOGE(
+                    "Failed to write configuration arn of %.*s to ggconfigd.",
+                    (int) gg_kv_key(*pair).len,
+                    gg_kv_key(*pair).data
+                );
+                return;
+            }
         }
 
         ret = apply_configurations(
