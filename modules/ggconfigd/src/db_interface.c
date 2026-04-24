@@ -39,6 +39,10 @@ static inline void cleanup_sqlite3_finalize(sqlite3_stmt **p) {
 static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
+
+static GgError read_value_at_key(
+    int64_t key_id, GgObject *value, GgArena *alloc
+);
 static const char *config_backup_name = "config.db.backup";
 
 static void sqlite_logger(void *ctx, int err_code, const char *str) {
@@ -842,6 +846,24 @@ GgError ggconfig_write_value_at_key(
         return GG_ERR_OK;
     }
 
+    // Check if the stored value is byte-identical to the incoming one.
+    // Both are JSON-encoded, so buffer compare is sufficient. The update still
+    // proceeds (to refresh the timestamp), but notifications are suppressed
+    // when the value didn't actually change.
+    bool value_unchanged = false;
+    {
+        GgObject existing_value;
+        uint8_t existing_mem[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
+        GgArena existing_alloc = gg_arena_init(GG_BUF(existing_mem));
+        if (read_value_at_key(last_key_id, &existing_value, &existing_alloc)
+                == GG_ERR_OK
+            && gg_obj_type(existing_value) == GG_TYPE_BUF) {
+            if (gg_buffer_eq(gg_obj_into_buf(existing_value), *value)) {
+                value_unchanged = true;
+            }
+        }
+    }
+
     err = value_update(last_key_id, value, timestamp);
     if (err != GG_ERR_OK) {
         GG_LOGE(
@@ -855,6 +877,14 @@ GgError ggconfig_write_value_at_key(
         return err;
     }
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+
+    if (value_unchanged) {
+        GG_LOGD(
+            "key %s value unchanged; skipping subscriber notification",
+            print_key_path(key_path)
+        );
+        return GG_ERR_OK;
+    }
 
     err = notify_nested_key(key_path, ids);
     if (err != GG_ERR_OK) {
