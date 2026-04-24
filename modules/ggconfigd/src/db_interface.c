@@ -842,6 +842,51 @@ GgError ggconfig_write_value_at_key(
         return GG_ERR_OK;
     }
 
+    // Check if the stored value is byte-identical to the incoming one.
+    // Both are JSON-encoded, so buffer compare is sufficient. The update still
+    // proceeds (to refresh the timestamp), but notifications are suppressed
+    // when the value didn't actually change. The pointer returned by
+    // sqlite3_column_text is owned by sqlite and remains valid until the
+    // statement is finalized, which GG_CLEANUP handles at scope exit, so
+    // comparing against it in place avoids an arena allocation and memcpy.
+    bool value_unchanged = false;
+    {
+        sqlite3_stmt *stmt = NULL;
+        int rc = sqlite3_prepare_v2(
+            config_database, GGL_SQL_READ_VALUE, -1, &stmt, NULL
+        );
+        if (rc != SQLITE_OK) {
+            GG_LOGE(
+                "Failed to prepare read-value statement for key id %" PRId64
+                " with rc %d and error %s",
+                last_key_id,
+                rc,
+                sqlite3_errmsg(config_database)
+            );
+        } else {
+            // Register cleanup immediately so the statement is finalized
+            // on any exit path below.
+            GG_CLEANUP(cleanup_sqlite3_finalize, stmt);
+            sqlite3_bind_int64(stmt, 1, last_key_id);
+            rc = sqlite3_step(stmt);
+            if (rc != SQLITE_ROW) {
+                GG_LOGE(
+                    "Failed to read existing value for key id %" PRId64
+                    " with rc %d and error %s",
+                    last_key_id,
+                    rc,
+                    sqlite3_errmsg(config_database)
+                );
+            } else {
+                GgBuffer existing = {
+                    .data = (uint8_t *) sqlite3_column_text(stmt, 0),
+                    .len = (size_t) sqlite3_column_bytes(stmt, 0),
+                };
+                value_unchanged = gg_buffer_eq(existing, *value);
+            }
+        }
+    }
+
     err = value_update(last_key_id, value, timestamp);
     if (err != GG_ERR_OK) {
         GG_LOGE(
@@ -855,6 +900,14 @@ GgError ggconfig_write_value_at_key(
         return err;
     }
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+
+    if (value_unchanged) {
+        GG_LOGD(
+            "key %s value unchanged; skipping subscriber notification",
+            print_key_path(key_path)
+        );
+        return GG_ERR_OK;
+    }
 
     err = notify_nested_key(key_path, ids);
     if (err != GG_ERR_OK) {
