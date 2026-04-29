@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define MAX_HEADER_LENGTH 8192
@@ -63,8 +64,9 @@ static GgError translate_curl_code(CURLcode code) {
 
 static bool can_retry(CURLcode code, CurlData *data) {
     switch (code) {
-    // If OK, then inspect HTTP status code.
+    // If OK or FAILONERROR fired, inspect HTTP status code.
     case CURLE_OK:
+    case CURLE_HTTP_RETURNED_ERROR:
         break;
 
     case CURLE_OPERATION_TIMEDOUT:
@@ -129,6 +131,10 @@ static GgError truncate_file(void *response_data) {
 
     if (ret == -1) {
         GG_LOGE("Failed to truncate fd for write (errno=%d).", errno);
+        return GG_ERR_FAILURE;
+    }
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+        GG_LOGE("Failed to seek fd to beginning (errno=%d).", errno);
         return GG_ERR_FAILURE;
     }
     return GG_ERR_OK;
