@@ -437,7 +437,8 @@ static GgError retry_download_wrapper(void *ctx) {
     if (http_response_code == (uint16_t) 403) {
         GgError err = retry_ctx->retry_cleanup_fn(retry_ctx->response_data);
         GG_LOGE(
-            "Artifact download attempt failed with 403. Retrying with backoff."
+            "Artifact download attempt failed with HTTP %d. Retrying with backoff.",
+            http_response_code
         );
         if (err != GG_ERR_OK) {
             retry_ctx->err = err;
@@ -446,10 +447,7 @@ static GgError retry_download_wrapper(void *ctx) {
         return GG_ERR_FAILURE;
     }
     if (ret != GG_ERR_OK) {
-        GG_LOGE(
-            "Artifact download attempt failed due to error: %d", ret
-
-        );
+        GG_LOGE("Artifact download attempt failed due to error: %d", ret);
         retry_ctx->err = ret;
         return GG_ERR_OK;
     }
@@ -458,8 +456,8 @@ static GgError retry_download_wrapper(void *ctx) {
     return GG_ERR_OK;
 }
 
-// TODO: Refactor to delete the file and get the new fd instead of truncating
-// the file
+// TODO: Consider refactoring to close and reopen the file instead of
+// truncating in place.
 static GgError truncate_s3_file_on_failure(void *response_data) {
     int fd = *(int *) response_data;
 
@@ -470,6 +468,10 @@ static GgError truncate_s3_file_on_failure(void *response_data) {
 
     if (ret == -1) {
         GG_LOGE("Failed to truncate fd for write (errno=%d).", errno);
+        return GG_ERR_FAILURE;
+    }
+    if (lseek(fd, 0, SEEK_SET) == -1) {
+        GG_LOGE("Failed to seek fd to beginning (errno=%d).", errno);
         return GG_ERR_FAILURE;
     }
     return GG_ERR_OK;
