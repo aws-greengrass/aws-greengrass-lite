@@ -206,8 +206,10 @@ Some options for implementing notification grouping are:
 If a value is written to the config, but its value doesn't change (although the
 timestamp may be updated), there is no reason that a subscriber cares about this
 event. Removing notifications for these events helps prevent unnecessary
-notifications and reactions to unnecessary notifications. Currently we don't
-have this suppression functionality, but it could be added in the future.
+notifications and reactions to unnecessary notifications. Writes compare the
+stored value against the incoming one and skip the notification when they match.
+The timestamp still gets refreshed. Since values are stored as JSON-encoded
+bytes, a byte compare is enough.
 
 This also applies to the `restore` operation, which currently notifies all
 active subscribers regardless of whether their key's value actually changed
