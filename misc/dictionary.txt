@@ -11,6 +11,7 @@ cgexec
 clangd
 clientfd
 clientv
+collectionIntervalSec
 coremqtt
 coreutils
 corge
@@ -23,6 +24,7 @@ dbus
 DCMAKE
 dearmor
 depl
+devtmpfs
 DFETCHCONTENT
 DGGL
 DIOTCORED
@@ -38,6 +40,8 @@ evbuffer
 eventfd
 evhttp
 evkeyvalq
+excludeInterfaces
+excludeMounts
 execvp
 execvpe
 FDNAMES
@@ -46,6 +50,8 @@ FIXEDTPM
 FOWNER
 Fssd
 fstrict
+fstype
+fstypes
 gencb
 getent
 ggconfig
@@ -89,6 +95,7 @@ LOGE
 LOGI
 LOGT
 LOGW
+meminfo
 mqtt
 mqttproxy
 mtls
@@ -103,6 +110,8 @@ NOPASSWD
 nproc
 OSSL
 ostree
+outputDirectory
+outputMode
 parentid
 pidfd
 pkcs
@@ -110,6 +119,7 @@ pkgs
 pname
 posix
 postrm
+procPath
 ptid
 PTRACE
 Pypi
@@ -135,13 +145,17 @@ stdenv
 subscribetocomponentupdates
 svcuid
 svcuids
+sysfs
+sysPath
 sysv
 tabrmd
 tcti
 tesd
 tesddeploy
+thingName
 tlog
 tmpfiles
+tmpfs
 TPMA
 TPMI
 TPML

@@ -1,0 +1,21 @@
+[Unit]
+StartLimitInterval=20
+StartLimitBurst=10
+PartOf=greengrass-lite.target
+
+[Install]
+WantedBy=greengrass-lite.target
+
+[Service]
+Type=idle
+ExecStart=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_BINDIR@/@name@
+Restart=always
+RestartSec=1
+CapabilityBoundingSet=~CAP_SYS_ADMIN ~CAP_SYS_PTRACE
+User=@GGL_SYSTEMD_SYSTEM_USER@
+Group=@GGL_SYSTEMD_SYSTEM_GROUP@
+WorkingDirectory=/var/lib/greengrass
+
+[Unit]
+Description=Core-bus daemon. Collects system health metrics and writes EMF output.
+After=ggl.core.ggconfigd.service
