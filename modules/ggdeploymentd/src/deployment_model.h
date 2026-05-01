@@ -37,6 +37,9 @@ typedef struct {
     // deployment doc format
     GgMap components;
     GglDeploymentType type;
+    // Map of component names to configuration merge payloads, from
+    // CreateLocalDeployment IPC `componentToConfiguration` field.
+    GgMap component_to_configuration;
 } GglDeployment;
 
 /// Local runtime state for a deployment, separate from the cloud deployment

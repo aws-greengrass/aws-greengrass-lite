@@ -333,6 +333,7 @@ static GgError parse_deployment_obj(
     GgObject *deployment_id;
     GgObject *configuration_arn_obj;
     GgObject *group_name;
+    GgObject *component_to_configuration;
 
     GgError ret = gg_map_validate(
         args,
@@ -366,6 +367,10 @@ static GgError parse_deployment_obj(
               GG_TYPE_BUF,
               &configuration_arn_obj },
             { GG_STR("group_name"), GG_OPTIONAL, GG_TYPE_BUF, &group_name },
+            { GG_STR("component_to_configuration"),
+              GG_OPTIONAL,
+              GG_TYPE_MAP,
+              &component_to_configuration },
         )
     );
     if (ret != GG_ERR_OK) {
@@ -425,6 +430,11 @@ static GgError parse_deployment_obj(
             doc->thing_group = GG_STR("LOCAL_DEPLOYMENTS");
         }
         doc->configuration_arn = doc->deployment_id;
+
+        if (component_to_configuration != NULL) {
+            doc->component_to_configuration
+                = gg_obj_into_map(*component_to_configuration);
+        }
 
         ret = parse_local_deployment_components(
             root_component_versions_to_add,

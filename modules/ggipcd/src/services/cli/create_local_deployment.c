@@ -45,6 +45,30 @@ GgError ggl_handle_create_local_deployment(
                        gg_kv_key(*pair), GG_STR("componentToConfiguration")
                    )) {
             gg_kv_set_key(pair, GG_STR("component_to_configuration"));
+            // AWS IPC public spec for CreateLocalDeployment uses uppercase
+            // "MERGE"/"RESET" inside each componentToConfiguration value (see
+            // https://docs.aws.amazon.com/greengrass/v2/developerguide/ipc-local-deployments-components.html).
+            // Lite's internal convention is lowercase. Normalize at the IPC
+            // boundary so both Classic-style (MERGE/RESET) and
+            // already-lowercase callers work. Direct-map form (no wrapper) is
+            // untouched because its keys are component-config field names, not
+            // operators.
+            if (gg_obj_type(*gg_kv_val(pair)) == GG_TYPE_MAP) {
+                GG_MAP_FOREACH (comp, gg_obj_into_map(*gg_kv_val(pair))) {
+                    if (gg_obj_type(*gg_kv_val(comp)) != GG_TYPE_MAP) {
+                        continue;
+                    }
+                    GG_MAP_FOREACH (op, gg_obj_into_map(*gg_kv_val(comp))) {
+                        if (gg_buffer_eq(gg_kv_key(*op), GG_STR("MERGE"))) {
+                            gg_kv_set_key(op, GG_STR("merge"));
+                        } else if (gg_buffer_eq(
+                                       gg_kv_key(*op), GG_STR("RESET")
+                                   )) {
+                            gg_kv_set_key(op, GG_STR("reset"));
+                        }
+                    }
+                }
+            }
         } else if (gg_buffer_eq(gg_kv_key(*pair), GG_STR("groupName"))) {
             gg_kv_set_key(pair, GG_STR("group_name"));
         } else {
