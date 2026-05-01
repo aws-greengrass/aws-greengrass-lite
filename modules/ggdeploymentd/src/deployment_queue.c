@@ -342,6 +342,7 @@ static GgError parse_deployment_obj(
     GgObject *deployment_id;
     GgObject *configuration_arn_obj;
     GgObject *group_name;
+    GgObject *component_to_configuration;
 
     GgError ret = gg_map_validate(
         args,
@@ -375,6 +376,10 @@ static GgError parse_deployment_obj(
               GG_TYPE_BUF,
               &configuration_arn_obj },
             { GG_STR("group_name"), GG_OPTIONAL, GG_TYPE_BUF, &group_name },
+            { GG_STR("component_to_configuration"),
+              GG_OPTIONAL,
+              GG_TYPE_MAP,
+              &component_to_configuration },
         )
     );
     if (ret != GG_ERR_OK) {
@@ -434,6 +439,49 @@ static GgError parse_deployment_obj(
             doc->thing_group = GG_STR("LOCAL_DEPLOYMENTS");
         }
         doc->configuration_arn = doc->deployment_id;
+
+        if (component_to_configuration != NULL) {
+            doc->component_to_configuration
+                = gg_obj_into_map(*component_to_configuration);
+            // Validate canonical form: each per-component value must be a
+            // map (with optional "merge" and "reset" keys).
+            GG_MAP_FOREACH (comp_entry, doc->component_to_configuration) {
+                if (gg_obj_type(*gg_kv_val(comp_entry)) != GG_TYPE_MAP) {
+                    GG_LOGE(
+                        "component_to_configuration entry for %.*s is not a "
+                        "map.",
+                        (int) gg_kv_key(*comp_entry).len,
+                        gg_kv_key(*comp_entry).data
+                    );
+                    return GG_ERR_INVALID;
+                }
+                GgMap comp_map = gg_obj_into_map(*gg_kv_val(comp_entry));
+                GgObject *merge_val = NULL;
+                GgObject *reset_val = NULL;
+                if (gg_map_get(comp_map, GG_STR("merge"), &merge_val)
+                    && gg_obj_type(*merge_val) != GG_TYPE_MAP) {
+                    GG_LOGE(
+                        "componentToConfiguration[%.*s].merge must be a "
+                        "map, got type %d.",
+                        (int) gg_kv_key(*comp_entry).len,
+                        gg_kv_key(*comp_entry).data,
+                        (int) gg_obj_type(*merge_val)
+                    );
+                    return GG_ERR_INVALID;
+                }
+                if (gg_map_get(comp_map, GG_STR("reset"), &reset_val)
+                    && gg_obj_type(*reset_val) != GG_TYPE_LIST) {
+                    GG_LOGE(
+                        "componentToConfiguration[%.*s].reset must be a "
+                        "list, got type %d.",
+                        (int) gg_kv_key(*comp_entry).len,
+                        gg_kv_key(*comp_entry).data,
+                        (int) gg_obj_type(*reset_val)
+                    );
+                    return GG_ERR_INVALID;
+                }
+            }
+        }
 
         ret = parse_local_deployment_components(
             root_component_versions_to_add,
