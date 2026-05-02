@@ -3373,6 +3373,22 @@ static void handle_deployment(
             return;
         }
 
+        // Apply deployment-time configuration overrides from
+        // componentToConfiguration (CreateLocalDeployment IPC).
+        if (deployment->component_to_configuration.len > 0) {
+            ret = apply_component_to_configuration(
+                gg_kv_key(*pair), deployment->component_to_configuration
+            );
+            if (ret != GG_ERR_OK) {
+                GG_LOGE(
+                    "Failed to apply component_to_configuration for %.*s.",
+                    (int) gg_kv_key(*pair).len,
+                    gg_kv_key(*pair).data
+                );
+                return;
+            }
+        }
+
         // NucleusLite is the runtime itself — config merge is all it needs.
         // Skip systemd unit creation and component lifecycle processing.
         if (gg_buffer_eq(
@@ -3929,6 +3945,25 @@ static void handle_deployment(
             return;
         }
         GG_LOGD("MQTT reconnected to new IoT data endpoint.");
+    }
+
+    // Second pass: apply component_to_configuration for any component not
+    // covered by the component-install loop above. This allows updating
+    // config for already-installed components (e.g., NucleusLite) without
+    // re-deploying them.
+    if (deployment->component_to_configuration.len > 0) {
+        GG_MAP_FOREACH (cfg_pair, deployment->component_to_configuration) {
+            GgError cfg_ret = apply_component_to_configuration(
+                gg_kv_key(*cfg_pair), deployment->component_to_configuration
+            );
+            if (cfg_ret != GG_ERR_OK) {
+                GG_LOGE(
+                    "Failed to apply component_to_configuration for %.*s.",
+                    (int) gg_kv_key(*cfg_pair).len,
+                    gg_kv_key(*cfg_pair).data
+                );
+            }
+        }
     }
 
     *deployment_succeeded = true;
