@@ -1,3 +1,14 @@
+# Release Notes v2.5.1
+
+This release contains the following bug fixes:
+
+- SubscribeToConfigurationUpdate now only notifies subscribers when a
+  configuration value actually changes.
+- Fixed an issue where the deployment source ARN of components could be
+  overwritten by unrelated deployments.
+- Fixed HTTP artifact download retries not triggering on retryable error codes
+  (5xx, 429, etc.).
+
 # Release Notes v2.5.0
 
 - Use of AWS Greengrass Nucleus Lite with HSMs using PKCS#11 is now supported.
