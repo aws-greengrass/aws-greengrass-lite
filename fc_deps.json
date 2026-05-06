@@ -11,7 +11,7 @@
   },
   "gg_sdk": {
     "url": "https://github.com/aws-greengrass/aws-greengrass-component-sdk.git",
-    "rev": "v1.0.0",
-    "hash": "sha256-Cc6NtNQv4pa3NyhYQz+EYLxM2R9pfJWjgDYiIHNGrDo="
+    "rev": "v1.0.3",
+    "hash": "sha256-jdHQXj79Vp7D2p8qhqMzkm3ufaNVoXm3nUjC/8D354A="
   }
 }
