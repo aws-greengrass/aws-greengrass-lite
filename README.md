@@ -12,9 +12,9 @@ feature gap.
 ## Getting started
 
 See the [build guide](docs/BUILD.md) for instructions to build and install
-Greengrass Nucleus Lite from source.
+Greengrass nucleus lite from source.
 
-To configure and run Greengrass Nucleus Lite, see the
+To configure and run Greengrass nucleus lite, see the
 [setup guide](docs/SETUP.md).
 
 For setting up as a Greengrass developer, also see the

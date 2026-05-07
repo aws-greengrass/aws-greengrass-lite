@@ -1,6 +1,6 @@
 # Greengrass Nucleus Lite Developer setup
 
-This guide is for developers working on the Greengrass Nucleus Lite codebase to
+This guide is for developers working on the Greengrass nucleus lite codebase to
 set up.
 
 ## Using Nix

@@ -30,7 +30,7 @@ The following is the current daemon implementation flow:
 ### AWS_CONTAINER_AUTHORIZATION_TOKEN
 
 - Authorization token which is used to connected to the Token Exchange Service
-  server hosted on `AWS_CONTAINER_CREDENTIALS_FULL_URI`. Greengrass Nucleus Lite
+  server hosted on `AWS_CONTAINER_CREDENTIALS_FULL_URI`. Greengrass nucleus lite
   will export this variable for example the AWS SDK to use.
 
 ### AWS_CONTAINER_CREDENTIALS_FULL_URI
