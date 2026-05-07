@@ -8,7 +8,7 @@
 ## Overview
 
 The `tes-http-serverd` service daemon is a light-weight generic HTTP server for
-Greengrass Nucleus Lite which main purpose is to host a credential provider
+Greengrass nucleus lite which main purpose is to host a credential provider
 endpoint (on the provided or default server port) for other processes and the
 AWS SDK to make an HTTP request to. If the incoming HTTP request is
 authenticated and accepted, the TES HTTP server will provide a temporary session
@@ -66,7 +66,7 @@ can make a request to this endpoint.
 #### Authorization
 
 Requests made to the `tes-http-serverd` service requires the authorization token
-which is generated at startup of the Greengrass Nucleus Lite host orchestration.
+which is generated at startup of the Greengrass nucleus lite host orchestration.
 The environment variable `AWS_CONTAINER_AUTHORIZATION_TOKEN` will be exported to
 the system and enable the AWS SDK Client and other processes to connected to the
 HTTP server successfully. Connections with an invalid authorization token will

@@ -1,6 +1,6 @@
 # Setting up Greengrass nucleus lite
 
-See the [build guide](BUILD.md) to compile and install Greengrass Nucleus Lite.
+See the [build guide](BUILD.md) to compile and install Greengrass nucleus lite.
 If running locally for evaluation, you can use the provided container to install
 in its own environment.
 
@@ -94,7 +94,7 @@ cp ./config.yaml /etc/greengrass/config.yaml
 
 ## Running the nucleus
 
-To enable and run all the Greengrass Nucleus Lite core services for testing, run
+To enable and run all the Greengrass nucleus lite core services for testing, run
 the `run_nucleus` script available in the source directory.
 
 ```sh
@@ -108,11 +108,11 @@ Entire system logs can be viewed with `journalctl -a`. Individual service logs
 can be viewed with `journalctl -a -t <service-name>` (e.g.
 `journalctl -a -t ggdeploymentd` to view deployment logs).
 
-To stop Greengrass Nucleus Lite run `systemctl stop greengrass-lite.target`
+To stop Greengrass nucleus lite run `systemctl stop greengrass-lite.target`
 
 ## Performing a local deployment
 
-To do a local deployment with the Greengrass Nucleus Lite CLI, you will need a
+To do a local deployment with the Greengrass nucleus lite CLI, you will need a
 directory with the component's recipe and a directory with the component's
 artifacts. See the Greengrass component documentation for writing your own
 Greengrass component.

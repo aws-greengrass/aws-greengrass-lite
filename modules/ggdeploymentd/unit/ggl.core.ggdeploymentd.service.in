@@ -18,5 +18,5 @@ CapabilityBoundingSet=~CAP_SYS_PTRACE
 WorkingDirectory=/var/lib/greengrass
 
 [Unit]
-Description=Greengrass Nucleus Lite deployment queue and processor
+Description=Greengrass nucleus lite deployment queue and processor
 After=ggl.core.ggconfigd.service

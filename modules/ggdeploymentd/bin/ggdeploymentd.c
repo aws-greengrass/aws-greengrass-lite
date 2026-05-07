@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 static char doc[]
-    = "ggdeploymentd -- Greengrass Nucleus Lite deployment daemon";
+    = "ggdeploymentd -- Greengrass nucleus lite deployment daemon";
 
 static struct argp_option opts[] = {
     { 0 },

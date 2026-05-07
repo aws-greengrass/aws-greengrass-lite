@@ -9,7 +9,7 @@
 #include <ggl/nucleus/init.h>
 #include <stdlib.h>
 
-static char doc[] = "ggconfigd -- Greengrass Nucleus Lite configuration daemon";
+static char doc[] = "ggconfigd -- Greengrass nucleus lite configuration daemon";
 
 static struct argp_option opts[] = {
     { "config-file", 'c', "path", 0, "Configuration file to use", 0 },
