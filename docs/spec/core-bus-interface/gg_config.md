@@ -52,9 +52,9 @@ keys and values.
 - [gg-config-list-resp-1] The response value is a list of buffers, where each
   buffer is an immediate subkey of the specified `key_path` object.
 - [gg-config-list-resp-2] If the specified `key_path` does not exist,
-  `GGL_ERR_NOENTRY` is returned.
+  `GG_ERR_NOENTRY` is returned.
 - [gg-config-list-resp-3] If the specified `key_path` exists but is not a
-  object/map (i.e. keyPath directly holds a value), `GGL_ERR_INVALID` is
+  object/map (i.e. keyPath directly holds a value), `GG_ERR_INVALID` is
   returned.
 
 ## write
@@ -71,9 +71,12 @@ an existing value's timestamp.
 - [gg-config-write-params-1] `key_path` is a required parameter of type list.
   - [gg-config-write-params-1.1] list elements are buffers containing a single
     level in the key hierarchy.
-- [gg-config-write-params-2] `value` is a required parameter of type object.
-  - [gg-config-write-params-2.1] `value` will be used to recursively update the
-    config at `key_path`.
+- [gg-config-write-params-2] `value` is a required parameter of any type.
+  - [gg-config-write-params-2.1] If `value` is a map/object, it will be
+    recursively merged at `key_path`.
+  - [gg-config-write-params-2.2] If `value` is any other type (buffer, integer,
+    float, boolean, list), it is JSON-encoded and stored as a leaf value at
+    `key_path`.
 - [gg-config-write-params-3] `timestamp` is an optional parameter of type int.
   - [gg-config-write-params-3.1] `timestamp` is the Unix epoch time in ms to use
     to compare against existing values.
@@ -87,6 +90,19 @@ The `write` method does not have a response value.
 
 - [gg-config-write-resp-1] If the method returns without an error, the
   configuration has been successfully updated.
+- [gg-config-write-resp-2] If `value` is a scalar type, but the key is already a
+  map, `GG_ERR_FAILURE` is returned.
+- [gg-config-write-resp-3] If `value` is an empty map, but the key is already a
+  scalar value, `GG_ERR_FAILURE` is returned.
+
+### Notifications
+
+- [gg-config-write-notify-1] On a successful value write, subscribers on the
+  written key and all ancestor keys in the path are notified.
+  - [gg-config-write-notify-1.1] Writing an empty map does not trigger
+    subscriber notifications.
+  - [gg-config-write-notify-1.2] A write that is silently ignored due to
+    timestamp conflict does not trigger subscriber notifications.
 
 ## delete
 
@@ -110,6 +126,13 @@ The `delete` method does not have a response value.
   configuration key does not exist, either because it was deleted or it didn't
   exist when the call was made.
 
+### Notifications
+
+- [gg-config-delete-notify-1] Deleting a key also removes all subscriptions on
+  that key and its descendants.
+- [gg-config-delete-notify-2] Deleting a key does not trigger subscriber
+  notifications.
+
 ## subscribe
 
 The `subscribe` method sets up a subscription to updates to the value associated
@@ -129,5 +152,53 @@ with `key_path`.
 - [gg-config-subscribe-resp-1] Subscription responses are sent on each update.
   - [gg-config-subscribe-resp-1.1] The response value is the key path which was
     updated. This may be a child of the `key_path` parameter.
-- [gg-config-subscribe-resp-1] The method will return an error if the
+- [gg-config-subscribe-resp-2] The method will return an error if the
   subscripion is not set up.
+- [gg-config-subscribe-resp-3] `GG_ERR_NOENTRY` will be returned if the key was
+  not in the configuration.
+
+## backup
+
+The `backup` method creates a backup of the current configuration database. The
+backup is stored alongside the live database. Only one backup is maintained;
+calling `backup` overwrites any previous backup.
+
+- [gg-config-backup-1] `backup` can be invoked with call.
+
+### Parameters
+
+None.
+
+### Response
+
+The `backup` method does not have a response value.
+
+- [gg-config-backup-resp-1] If the method returns without an error, the backup
+  has been successfully created.
+- [gg-config-backup-resp-2] `GG_ERR_FAILURE` is returned if the database is not
+  initialized or the backup operation fails.
+
+## restore
+
+The `restore` method restores the configuration database from a
+previously-created backup. After restoring, stale subscriptions (referencing key
+IDs that no longer exist) are removed, and all remaining active subscribers are
+notified.
+
+- [gg-config-restore-1] `restore` can be invoked with call.
+
+### Parameters
+
+None.
+
+### Response
+
+The `restore` method does not have a response value.
+
+- [gg-config-restore-resp-1] If the method returns without an error, the
+  configuration has been successfully restored.
+- [gg-config-restore-resp-2] `GG_ERR_FAILURE` is returned if the database is not
+  initialized, the backup file does not exist, or the restore operation fails.
+- [gg-config-restore-resp-3] After a successful restore, all active subscribers
+  are notified with their subscribed key path regardless of whether the value
+  actually changed.
