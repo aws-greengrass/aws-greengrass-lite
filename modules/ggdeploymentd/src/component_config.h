@@ -8,9 +8,14 @@
 #include "deployment_model.h"
 #include <gg/error.h>
 #include <gg/types.h>
+#include <stdbool.h>
 
 GgError apply_configurations(
     GglDeployment *deployment, GgBuffer component_name, GgBuffer operation
+);
+
+bool is_component_config_updated(
+    GglDeployment *deployment, GgBuffer component_name
 );
 
 #endif

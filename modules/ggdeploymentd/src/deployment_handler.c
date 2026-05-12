@@ -3463,7 +3463,8 @@ static void handle_deployment(
             return;
         }
 
-        if (component_updated) {
+        if (component_updated
+            || is_component_config_updated(deployment, gg_kv_key(*pair))) {
             ret = gg_kv_vec_push(
                 &components_to_deploy, gg_kv(gg_kv_key(*pair), *gg_kv_val(pair))
             );
