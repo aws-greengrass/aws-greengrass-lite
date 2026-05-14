@@ -69,6 +69,7 @@ greengrasscoreipc
 greengrassv
 HEALTHD
 htobe
+ikhck
 INET
 iotcored
 iotcoreddeploy
@@ -89,6 +90,7 @@ LOGE
 LOGI
 LOGT
 LOGW
+MISRA
 mqtt
 mqttproxy
 mtls
@@ -155,6 +157,7 @@ unrefp
 unsuback
 uriparser
 uuid
+vcnnpodt
 venv
 wbio
 WERROR
