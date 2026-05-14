@@ -1,0 +1,37 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "com.example.IoTCorePublisher",
+  "ComponentVersion": "1.0.0",
+  "ComponentDescription": "Publishes sensor data to AWS IoT Core topics",
+  "ComponentPublisher": "Example",
+  "ComponentDependencies": {
+    "aws.greengrass.TokenExchangeService": {
+      "VersionRequirement": ">=2.0.0",
+      "DependencyType": "HARD"
+    }
+  },
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "topic": "sensor/data",
+      "interval": 30,
+      "deviceId": "sensor-001",
+      "sensorType": "temperature",
+      "minValue": 20.0,
+      "maxValue": 30.0,
+      "qos": 1
+    }
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*"
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "python3 {artifacts:path}/src/main.py"
+        }
+      }
+    }
+  ]
+}

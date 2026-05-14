@@ -2,7 +2,9 @@ aarch64
 abrmd
 ALLOCN
 argp
+armhf
 armv
+awscli
 awsiotsdk
 boto
 cattrs
@@ -11,6 +13,7 @@ cgexec
 clangd
 clientfd
 clientv
+cmdline
 coremqtt
 coreutils
 corge
@@ -26,7 +29,12 @@ depl
 DFETCHCONTENT
 DGGL
 DIOTCORED
+diskio
 dont
+dpkg
+drio
+dwio
+eceived
 EFAILURE
 elif
 EOK
@@ -42,6 +50,7 @@ execvp
 execvpe
 FDNAMES
 fdopendir
+fileb
 FIXEDTPM
 FOWNER
 Fssd
@@ -69,6 +78,7 @@ greengrasscoreipc
 greengrassv
 HEALTHD
 htobe
+iface
 INET
 iotcored
 iotcoreddeploy
@@ -78,6 +88,7 @@ journalctl
 keyid
 ktls
 lib
+libc
 libcgroup
 libsystemd
 libtss
@@ -89,6 +100,8 @@ LOGE
 LOGI
 LOGT
 LOGW
+mmcblk
+mpstat
 mqtt
 mqttproxy
 mtls
@@ -101,12 +114,15 @@ NOLINTNEXTLINE
 NOMEM
 NOPASSWD
 nproc
+nvme
 OSSL
 ostree
 parentid
 pidfd
+pids
 pkcs
 pkgs
+pkill
 pname
 posix
 postrm
@@ -120,7 +136,9 @@ respfd
 riscv
 rlimits
 rodata
+rollup
 rootca
+rsect
 semp
 serde
 serverd
@@ -128,6 +146,8 @@ SERVUNAVAIL
 Setenv
 sigv4
 Skipif
+smaps
+smem
 softhsm
 ssssssouso
 statusd
@@ -135,6 +155,7 @@ stdenv
 subscribetocomponentupdates
 svcuid
 svcuids
+sysstat
 sysv
 tabrmd
 tcti
@@ -147,9 +168,11 @@ TPMI
 TPML
 tpmrm
 TPMS
+trixie
 uefi
 unacked
 unarchived
+unconfigured
 unprovisioned
 unrefp
 unsuback
@@ -158,6 +181,7 @@ uuid
 venv
 wbio
 WERROR
+wsect
 xeau
 Xiwyu
 xlink

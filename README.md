@@ -20,6 +20,10 @@ To configure and run Greengrass nucleus lite, see the
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).
 
+For recommended device specs and measured RAM / disk / CPU footprint across
+x86_64, aarch64, and armv7l, see the
+[resource limits documentation](docs/RESOURCE_LIMITS.md).
+
 For AI agent driven getting started please follow the instruction from the
 [greengrass-agent-context-pack github repo](https://github.com/aws-greengrass/greengrass-agent-context-pack).
 

@@ -7,6 +7,11 @@ reduce the memory footprint below 10MB with smaller being better. The potential
 applications increase dramatically as size reduces so there is no maximum
 “acceptable” size defined.
 
+> **Note:** The original 10 MB target has been revised to **15 MB** based on
+> measured footprint across all supported architectures with realistic component
+> workloads. See [`../RESOURCE_LIMITS.md`](../RESOURCE_LIMITS.md) for the
+> current target and per-architecture measurements.
+
 ## Requirements Overview
 
 The most important customer requirements are listed below:
