@@ -13,5 +13,10 @@
     "url": "https://github.com/aws-greengrass/aws-greengrass-component-sdk.git",
     "rev": "v1.0.3",
     "hash": "sha256-jdHQXj79Vp7D2p8qhqMzkm3ufaNVoXm3nUjC/8D354A="
+  },
+  "unity": {
+    "url": "https://github.com/ThrowTheSwitch/Unity.git",
+    "rev": "cbcd08fa7de711053a3deec6339ee89cad5d2697",
+    "hash": "sha256-g0ubq7RxGQmL1R6vz9RIGJpVWYsgrZhsTWSrL1ySEug="
   }
 }

@@ -679,3 +679,61 @@ GgError ggl_recipe_get_from_file(
 
     return gg_arena_claim_obj(recipe, arena);
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(is_recipe_variable_valid_two_part) {
+    TEST_ASSERT_TRUE(ggl_is_recipe_variable(GG_STR("{configuration:/key}")));
+}
+
+GG_TEST_DEFINE(is_recipe_variable_valid_three_part) {
+    TEST_ASSERT_TRUE(ggl_is_recipe_variable(GG_STR("{dep:configuration:/key}"))
+    );
+}
+
+GG_TEST_DEFINE(is_recipe_variable_not_braces) {
+    TEST_ASSERT_FALSE(ggl_is_recipe_variable(GG_STR("configuration:/key")));
+}
+
+GG_TEST_DEFINE(is_recipe_variable_too_short) {
+    TEST_ASSERT_FALSE(ggl_is_recipe_variable(GG_STR("{a:}")));
+}
+
+GG_TEST_DEFINE(is_recipe_variable_no_colon) {
+    TEST_ASSERT_FALSE(ggl_is_recipe_variable(GG_STR("{nodelimiter}")));
+}
+
+GG_TEST_DEFINE(parse_recipe_variable_two_part) {
+    GglRecipeVariable var = { 0 };
+    GG_TEST_ASSERT_OK(
+        ggl_parse_recipe_variable(GG_STR("{configuration:/version}"), &var)
+    );
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("configuration"), var.type);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("/version"), var.key);
+}
+
+GG_TEST_DEFINE(parse_recipe_variable_three_part) {
+    GglRecipeVariable var = { 0 };
+    GG_TEST_ASSERT_OK(
+        ggl_parse_recipe_variable(GG_STR("{myDep:artifacts:path}"), &var)
+    );
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("myDep"), var.component_dependency_name);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("artifacts"), var.type);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("path"), var.key);
+}
+
+GG_TEST_DEFINE(parse_recipe_variable_invalid) {
+    GglRecipeVariable var = { 0 };
+    GG_TEST_ASSERT_BAD(ggl_parse_recipe_variable(GG_STR("notavar"), &var));
+}
+
+GG_TEST_DEFINE(get_current_architecture_not_empty) {
+    GgBuffer arch = get_current_architecture();
+    TEST_ASSERT_NOT_NULL(arch.data);
+    TEST_ASSERT_TRUE(arch.len > 0);
+}
+
+#endif

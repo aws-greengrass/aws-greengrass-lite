@@ -363,3 +363,31 @@ bool ggl_docker_is_uri_private_ecr(GglDockerUriInfo docker_uri) {
         GG_STR(".dkr.ecr.")
     );
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(is_private_ecr_true) {
+    GglDockerUriInfo info = {
+        .registry = GG_STR("123456789012.dkr.ecr.us-east-1.amazonaws.com"),
+    };
+    TEST_ASSERT_TRUE(ggl_docker_is_uri_private_ecr(info));
+}
+
+GG_TEST_DEFINE(is_private_ecr_false_dockerhub) {
+    GglDockerUriInfo info = {
+        .registry = GG_STR("docker.io"),
+    };
+    TEST_ASSERT_FALSE(ggl_docker_is_uri_private_ecr(info));
+}
+
+GG_TEST_DEFINE(is_private_ecr_false_short_registry) {
+    GglDockerUriInfo info = {
+        .registry = GG_STR("short"),
+    };
+    TEST_ASSERT_FALSE(ggl_docker_is_uri_private_ecr(info));
+}
+
+#endif

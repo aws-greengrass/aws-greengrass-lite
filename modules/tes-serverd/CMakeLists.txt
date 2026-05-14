@@ -4,6 +4,7 @@
 
 ggl_init_module(
   tes-serverd
+  NO_INLINE_TEST
   LIBS gg-sdk
        ggl-common
        ggl-http

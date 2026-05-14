@@ -29,3 +29,8 @@ ggl_init_module(
 target_compile_definitions(
   ggdeploymentd
   PRIVATE "GGL_SYSTEMD_SYSTEM_GROUP=\"${GGL_SYSTEMD_SYSTEM_GROUP}\"")
+if(BUILD_TESTING)
+  target_compile_definitions(
+    ggdeploymentd-inline-test
+    PRIVATE "GGL_SYSTEMD_SYSTEM_GROUP=\"${GGL_SYSTEMD_SYSTEM_GROUP}\"")
+endif()

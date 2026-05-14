@@ -271,3 +271,43 @@ GgError ggl_yaml_decode_destructive(
 
     return ret;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(yaml_decode_simple_map) {
+    uint8_t yaml_buf[] = "key: value\n";
+    GgBuffer buf = { .data = yaml_buf, .len = sizeof(yaml_buf) - 1 };
+    uint8_t arena_mem[4096];
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
+    GgObject obj = { 0 };
+    GG_TEST_ASSERT_OK(ggl_yaml_decode_destructive(buf, &arena, &obj));
+    TEST_ASSERT_EQUAL(GG_TYPE_MAP, gg_obj_type(obj));
+    GgMap map = gg_obj_into_map(obj);
+    GgObject *val;
+    TEST_ASSERT_TRUE(gg_map_get(map, GG_STR("key"), &val));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("value"), gg_obj_into_buf(*val));
+}
+
+GG_TEST_DEFINE(yaml_decode_simple_list) {
+    uint8_t yaml_buf[] = "- one\n- two\n";
+    GgBuffer buf = { .data = yaml_buf, .len = sizeof(yaml_buf) - 1 };
+    uint8_t arena_mem[4096];
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
+    GgObject obj = { 0 };
+    GG_TEST_ASSERT_OK(ggl_yaml_decode_destructive(buf, &arena, &obj));
+    TEST_ASSERT_EQUAL(GG_TYPE_LIST, gg_obj_type(obj));
+}
+
+GG_TEST_DEFINE(yaml_decode_empty_input) {
+    uint8_t yaml_buf[] = "";
+    GgBuffer buf = { .data = yaml_buf, .len = 0 };
+    uint8_t arena_mem[4096];
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
+    GgObject obj = { 0 };
+    GG_TEST_ASSERT_BAD(ggl_yaml_decode_destructive(buf, &arena, &obj));
+}
+
+#endif

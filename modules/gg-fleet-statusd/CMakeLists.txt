@@ -4,6 +4,7 @@
 
 ggl_init_module(
   gg-fleet-statusd
+  NO_INLINE_TEST
   LIBS gg-sdk
        ggl-common
        core-bus

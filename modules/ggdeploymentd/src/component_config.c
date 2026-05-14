@@ -263,3 +263,57 @@ bool is_component_config_updated(
     }
     return true;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(config_updated_component_not_in_deployment) {
+    GglDeployment deployment
+        = { .components
+            = GG_MAP(gg_kv(GG_STR("other"), gg_obj_map(GG_MAP()))) };
+    TEST_ASSERT_FALSE(
+        is_component_config_updated(&deployment, GG_STR("myComponent"))
+    );
+}
+
+GG_TEST_DEFINE(config_updated_component_not_a_map) {
+    GglDeployment deployment = {
+        .components
+        = GG_MAP(gg_kv(GG_STR("myComponent"), gg_obj_buf(GG_STR("notamap"))))
+    };
+    TEST_ASSERT_FALSE(
+        is_component_config_updated(&deployment, GG_STR("myComponent"))
+    );
+}
+
+GG_TEST_DEFINE(config_updated_no_configuration_update_key) {
+    GglDeployment deployment
+        = { .components = GG_MAP(gg_kv(
+                GG_STR("myComponent"),
+                gg_obj_map(GG_MAP(
+                    gg_kv(GG_STR("version"), gg_obj_buf(GG_STR("1.0.0")))
+                ))
+            )) };
+    TEST_ASSERT_FALSE(
+        is_component_config_updated(&deployment, GG_STR("myComponent"))
+    );
+}
+
+GG_TEST_DEFINE(config_updated_has_configuration_update) {
+    GglDeployment deployment = {
+        .components = GG_MAP(gg_kv(
+            GG_STR("myComponent"),
+            gg_obj_map(GG_MAP(gg_kv(
+                GG_STR("configurationUpdate"),
+                gg_obj_map(GG_MAP(gg_kv(GG_STR("merge"), gg_obj_map(GG_MAP()))))
+            )))
+        ))
+    };
+    TEST_ASSERT_TRUE(
+        is_component_config_updated(&deployment, GG_STR("myComponent"))
+    );
+}
+
+#endif
