@@ -293,7 +293,8 @@ target_include_directories(gg-sdk INTERFACE ${gg_sdk_SOURCE_DIR}/priv_include)
 
 # Common setup for a GGL module
 function(ggl_init_module name)
-  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR" "INCDIRS;LIBS")
+  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "NO_INLINE_TEST" "SRCDIR"
+                        "INCDIRS;LIBS")
   if("${COMP_ARG_SRCDIR}" STREQUAL "")
     set(COMP_ARG_SRCDIR src)
   endif()
@@ -356,6 +357,21 @@ function(ggl_init_module name)
     set_target_properties(${bin_name}-bin PROPERTIES OUTPUT_NAME ${bin_name})
     install(TARGETS ${bin_name}-bin)
   endforeach()
+
+  if(BUILD_TESTING
+     AND NOT SRCS_LEN EQUAL 0
+     AND NOT COMP_ARG_NO_INLINE_TEST)
+    add_executable(${name}-inline-test
+                   ${SRCS} ${gg_sdk_SOURCE_DIR}/test/main_no_overrides.c)
+    target_compile_definitions(${name}-inline-test
+                               PRIVATE "GG_MODULE=(\"${name}\")" GG_SDK_TESTING)
+    target_include_directories(${name}-inline-test PRIVATE ${COMP_ARG_INCDIRS}
+                                                           ${COMP_ARG_SRCDIR})
+    target_link_libraries(${name}-inline-test PRIVATE ${COMP_ARG_LIBS} unity
+                                                      gg-test)
+    add_test(NAME ${name}-inline-test
+             COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name}-inline-test)
+  endif()
 endfunction()
 
 file(GLOB MODULES CONFIGURE_DEPENDS "modules/*")

@@ -56,3 +56,94 @@ mode_t artifact_permission_to_mode(GgMap permission_map) {
     }
     return mode;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(permission_read_owner_exec_none) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0440,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("OWNER"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("NONE")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_all_exec_none) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0444,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("ALL"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("NONE")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_owner_exec_owner) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0550,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("OWNER"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("OWNER")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_all_exec_all) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0555,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("ALL"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("ALL")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_none_exec_none) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0400,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("NONE"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("NONE")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_none_exec_owner) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0550,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("NONE"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("OWNER")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_all_exec_owner) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0554,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("ALL"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("OWNER")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_read_none_exec_all) {
+    TEST_ASSERT_EQUAL_HEX16(
+        0555,
+        artifact_permission_to_mode(GG_MAP(
+            gg_kv(GG_STR("Read"), gg_obj_buf(GG_STR("NONE"))),
+            gg_kv(GG_STR("Execute"), gg_obj_buf(GG_STR("ALL")))
+        ))
+    );
+}
+
+GG_TEST_DEFINE(permission_empty_map) {
+    TEST_ASSERT_EQUAL_HEX16(0440, artifact_permission_to_mode((GgMap) { 0 }));
+}
+
+#endif

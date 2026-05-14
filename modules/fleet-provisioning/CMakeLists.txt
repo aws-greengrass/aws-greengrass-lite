@@ -4,6 +4,7 @@
 
 ggl_init_module(
   fleet-provision
+  NO_INLINE_TEST
   LIBS gg-sdk
        ggl-common
        aws-iot-call

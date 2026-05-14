@@ -133,3 +133,45 @@ bool is_in_range(GgBuffer version, GgBuffer requirements_range) {
 
     return true;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(semver_exact_match) {
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("1.0.0"), GG_STR("1.0.0")));
+}
+
+GG_TEST_DEFINE(semver_exact_no_match) {
+    TEST_ASSERT_FALSE(is_in_range(GG_STR("1.0.1"), GG_STR("1.0.0")));
+}
+
+GG_TEST_DEFINE(semver_gte) {
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("2.0.0"), GG_STR(">=1.0.0")));
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("1.0.0"), GG_STR(">=1.0.0")));
+    TEST_ASSERT_FALSE(is_in_range(GG_STR("0.9.0"), GG_STR(">=1.0.0")));
+}
+
+GG_TEST_DEFINE(semver_lte) {
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("1.0.0"), GG_STR("<=2.0.0")));
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("2.0.0"), GG_STR("<=2.0.0")));
+    TEST_ASSERT_FALSE(is_in_range(GG_STR("3.0.0"), GG_STR("<=2.0.0")));
+}
+
+GG_TEST_DEFINE(semver_gt) {
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("2.0.0"), GG_STR(">1.0.0")));
+    TEST_ASSERT_FALSE(is_in_range(GG_STR("1.0.0"), GG_STR(">1.0.0")));
+}
+
+GG_TEST_DEFINE(semver_lt) {
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("0.9.0"), GG_STR("<1.0.0")));
+    TEST_ASSERT_FALSE(is_in_range(GG_STR("1.0.0"), GG_STR("<1.0.0")));
+}
+
+GG_TEST_DEFINE(semver_range) {
+    TEST_ASSERT_TRUE(is_in_range(GG_STR("1.5.0"), GG_STR(">=1.0.0 <=2.0.0")));
+    TEST_ASSERT_FALSE(is_in_range(GG_STR("3.0.0"), GG_STR(">=1.0.0 <=2.0.0")));
+}
+
+#endif

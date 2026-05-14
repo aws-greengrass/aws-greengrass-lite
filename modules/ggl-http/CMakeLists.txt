@@ -4,6 +4,7 @@
 
 ggl_init_module(
   ggl-http
+  NO_INLINE_TEST
   LIBS gg-sdk
        aws_sigv4
        core-bus

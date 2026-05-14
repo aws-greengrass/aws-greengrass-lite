@@ -46,3 +46,42 @@ GgError ggl_gg_config_jsonp_parse(GgBuffer json_ptr, GgBufVec *key_path) {
 
     return GG_ERR_OK;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(jsonp_parse_single_key) {
+    GgBuffer keys[GG_MAX_OBJECT_DEPTH] = { 0 };
+    GgBufVec key_path = GG_BUF_VEC(keys);
+    GG_TEST_ASSERT_OK(ggl_gg_config_jsonp_parse(GG_STR("/foo"), &key_path));
+    TEST_ASSERT_EQUAL(1, key_path.buf_list.len);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("foo"), key_path.buf_list.bufs[0]);
+}
+
+GG_TEST_DEFINE(jsonp_parse_multiple_keys) {
+    GgBuffer keys[GG_MAX_OBJECT_DEPTH] = { 0 };
+    GgBufVec key_path = GG_BUF_VEC(keys);
+    GG_TEST_ASSERT_OK(
+        ggl_gg_config_jsonp_parse(GG_STR("/foo/bar/baz"), &key_path)
+    );
+    TEST_ASSERT_EQUAL(3, key_path.buf_list.len);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("foo"), key_path.buf_list.bufs[0]);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("bar"), key_path.buf_list.bufs[1]);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("baz"), key_path.buf_list.bufs[2]);
+}
+
+GG_TEST_DEFINE(jsonp_parse_invalid_no_leading_slash) {
+    GgBuffer keys[GG_MAX_OBJECT_DEPTH] = { 0 };
+    GgBufVec key_path = GG_BUF_VEC(keys);
+    GG_TEST_ASSERT_BAD(ggl_gg_config_jsonp_parse(GG_STR("foo"), &key_path));
+}
+
+GG_TEST_DEFINE(jsonp_parse_empty_string) {
+    GgBuffer keys[GG_MAX_OBJECT_DEPTH] = { 0 };
+    GgBufVec key_path = GG_BUF_VEC(keys);
+    GG_TEST_ASSERT_BAD(ggl_gg_config_jsonp_parse(GG_STR(""), &key_path));
+}
+
+#endif

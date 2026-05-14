@@ -20,6 +20,7 @@ corge
 coverity
 cpack
 cpus
+ctest
 CURLH
 DBUILD
 dbus
@@ -105,6 +106,8 @@ mpstat
 mqtt
 mqttproxy
 mtls
+myrepo
+myuser
 NOCASE
 noclear
 NOCONN

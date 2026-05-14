@@ -193,6 +193,21 @@
                 allowSubstitutes = false;
               };
 
+            unit-tests = { pkgs, stdenv, cmake, ninja, pkg-config, ... }:
+              stdenv.mkDerivation {
+                name = "check-unit-tests";
+                src = checkSrc;
+                nativeBuildInputs = [ pkg-config cmake ninja ];
+                inherit (pkgs.ggl) buildInputs;
+                cmakeBuildType = "Debug";
+                cmakeFlags = (fetchContentFlags pkgs)
+                  ++ [ "-DBUILD_TESTING=1" ];
+                postBuild = ''
+                  ctest --verbose
+                '';
+                installPhase = "touch $out";
+              };
+
             cmake-lint = pkgs: ''
               ${pkgs.cmake-format}/bin/cmake-lint \
                 $(${pkgs.fd}/bin/fd '.*\.cmake|CMakeLists.txt') \

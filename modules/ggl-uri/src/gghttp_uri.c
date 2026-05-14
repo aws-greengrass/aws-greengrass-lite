@@ -431,3 +431,93 @@ GgError gg_docker_uri_parse(GgBuffer uri, GglDockerUriInfo *info) {
 
     return GG_ERR_OK;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(docker_uri_simple_repo) {
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_OK(gg_docker_uri_parse(GG_STR("nginx"), &info));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("docker.io"), info.registry);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("nginx"), info.repository);
+}
+
+GG_TEST_DEFINE(docker_uri_with_tag) {
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_OK(gg_docker_uri_parse(GG_STR("nginx:latest"), &info));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("docker.io"), info.registry);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("nginx"), info.repository);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("latest"), info.tag);
+}
+
+GG_TEST_DEFINE(docker_uri_with_registry_and_user) {
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_OK(gg_docker_uri_parse(
+        GG_STR("registry.example.com/myuser/myrepo:v1"), &info
+    ));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("registry.example.com"), info.registry);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("myuser"), info.username);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("myrepo"), info.repository);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("v1"), info.tag);
+}
+
+GG_TEST_DEFINE(docker_uri_with_digest) {
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_OK(
+        gg_docker_uri_parse(GG_STR("nginx@sha256:abcdef1234567890"), &info)
+    );
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("nginx"), info.repository);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("sha256"), info.digest_algorithm);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("abcdef1234567890"), info.digest);
+}
+
+GG_TEST_DEFINE(docker_uri_empty_invalid) {
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_BAD(gg_docker_uri_parse(GG_STR(""), &info));
+}
+
+GG_TEST_DEFINE(docker_uri_via_uri_parse_public_ecr) {
+    uint8_t arena_mem[256];
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
+    GglUriInfo uri_info = { 0 };
+    GG_TEST_ASSERT_OK(gg_uri_parse(
+        &arena,
+        GG_STR("docker:public.ecr.aws/cloudwatch-agent/cloudwatch-agent:latest"
+        ),
+        &uri_info
+    ));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("docker"), uri_info.scheme);
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_OK(gg_docker_uri_parse(uri_info.path, &info));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("public.ecr.aws"), info.registry);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("cloudwatch-agent"), info.username);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("cloudwatch-agent"), info.repository);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("latest"), info.tag);
+}
+
+GG_TEST_DEFINE(docker_uri_via_uri_parse_private_ecr_digest) {
+    uint8_t arena_mem[512];
+    GgArena arena = gg_arena_init(GG_BUF(arena_mem));
+    GglUriInfo uri_info = { 0 };
+    GG_TEST_ASSERT_OK(gg_uri_parse(
+        &arena,
+        GG_STR(
+            "docker:012345678901.dkr.ecr.region.amazonaws.com/repository/image"
+            "@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b78"
+            "52b855"
+        ),
+        &uri_info
+    ));
+    GglDockerUriInfo info = { 0 };
+    GG_TEST_ASSERT_OK(gg_docker_uri_parse(uri_info.path, &info));
+    GG_TEST_ASSERT_BUF_EQUAL(
+        GG_STR("012345678901.dkr.ecr.region.amazonaws.com"), info.registry
+    );
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("repository"), info.username);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("image"), info.repository);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("sha256"), info.digest_algorithm);
+}
+
+#endif

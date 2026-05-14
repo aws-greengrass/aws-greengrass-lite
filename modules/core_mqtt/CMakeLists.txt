@@ -4,6 +4,7 @@
 
 ggl_init_module(
   core_mqtt
+  NO_INLINE_TEST
   SRCDIR ${core_mqtt_SOURCE_DIR}/source
   INCDIRS config ${core_mqtt_SOURCE_DIR}/source/include
           ${core_mqtt_SOURCE_DIR}/source/interface

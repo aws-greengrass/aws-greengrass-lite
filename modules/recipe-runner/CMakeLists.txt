@@ -2,5 +2,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(recipe-runner LIBS gg-sdk ggl-constants ggl-common ggl-json
-                                   ggl-recipe)
+ggl_init_module(
+  recipe-runner
+  NO_INLINE_TEST
+  LIBS gg-sdk ggl-constants ggl-common ggl-json ggl-recipe)

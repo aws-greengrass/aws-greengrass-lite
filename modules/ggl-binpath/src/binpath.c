@@ -40,3 +40,41 @@ GgError ggl_binpath_append_name(
 
     return gg_byte_vec_append(result, name);
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+GG_TEST_DEFINE(binpath_get_dir_absolute) {
+    uint8_t buf[64] = { 0 };
+    GgByteVec result = GG_BYTE_VEC(buf);
+    GG_TEST_ASSERT_OK(ggl_binpath_get_dir(GG_STR("/usr/bin/foo"), &result));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("/usr/bin/"), result.buf);
+}
+
+GG_TEST_DEFINE(binpath_get_dir_no_slash) {
+    uint8_t buf[64] = { 0 };
+    GgByteVec result = GG_BYTE_VEC(buf);
+    GG_TEST_ASSERT_OK(ggl_binpath_get_dir(GG_STR("foo"), &result));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR(""), result.buf);
+}
+
+GG_TEST_DEFINE(binpath_append_name) {
+    uint8_t buf[64] = { 0 };
+    GgByteVec result = GG_BYTE_VEC(buf);
+    GG_TEST_ASSERT_OK(
+        ggl_binpath_append_name(GG_STR("/usr/bin/foo"), GG_STR("bar"), &result)
+    );
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("/usr/bin/bar"), result.buf);
+}
+
+GG_TEST_DEFINE(binpath_null_argv0) {
+    uint8_t buf[64] = { 0 };
+    GgByteVec result = GG_BYTE_VEC(buf);
+    GG_TEST_ASSERT_BAD(
+        ggl_binpath_get_dir((GgBuffer) { .data = NULL, .len = 0 }, &result)
+    );
+}
+
+#endif

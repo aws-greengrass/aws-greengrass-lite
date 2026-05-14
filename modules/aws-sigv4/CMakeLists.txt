@@ -4,5 +4,6 @@
 
 ggl_init_module(
   aws_sigv4
+  NO_INLINE_TEST
   SRCDIR ${aws_sigv4_SOURCE_DIR}/source
   INCDIRS config ${aws_sigv4_SOURCE_DIR}/source/include)
