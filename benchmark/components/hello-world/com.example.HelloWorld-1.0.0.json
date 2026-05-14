@@ -1,0 +1,27 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "com.example.HelloWorld",
+  "ComponentVersion": "1.0.0",
+  "ComponentDescription": "Simple Hello World component that logs configurable messages",
+  "ComponentPublisher": "Example",
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "message": "Hello from Greengrass!",
+      "interval": 10,
+      "logLevel": "INFO"
+    }
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*"
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "python3 {artifacts:path}/src/main.py"
+        }
+      }
+    }
+  ]
+}

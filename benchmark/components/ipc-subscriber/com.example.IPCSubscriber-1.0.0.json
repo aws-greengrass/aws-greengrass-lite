@@ -1,0 +1,27 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "com.example.IPCSubscriber",
+  "ComponentVersion": "1.0.0",
+  "ComponentDescription": "Subscribes to Greengrass IPC messages from other components",
+  "ComponentPublisher": "Example",
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "topics": ["local/sensor/data", "local/alerts/*"],
+      "processingMode": "log",
+      "outputFile": "/tmp/ipc-messages.log"
+    }
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*"
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "python3 {artifacts:path}/src/main.py"
+        }
+      }
+    }
+  ]
+}

@@ -8,3 +8,10 @@ result
 result-*
 compile_commands.json
 *.db
+
+benchmark/scripts/cloud-setup.env
+
+.history/
+.kiro/
+.yolo-sisyphus/
+__pycache__/

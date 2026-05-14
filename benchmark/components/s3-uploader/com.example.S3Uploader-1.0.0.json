@@ -1,0 +1,40 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "com.example.S3Uploader",
+  "ComponentVersion": "1.0.0",
+  "ComponentDescription": "Monitors directory and uploads files to S3",
+  "ComponentPublisher": "Example",
+  "ComponentDependencies": {
+    "aws.greengrass.TokenExchangeService": {
+      "VersionRequirement": ">=2.0.0",
+      "DependencyType": "HARD"
+    }
+  },
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "watchDirectory": "/tmp/uploads",
+      "s3Bucket": "my-greengrass-uploads",
+      "s3Prefix": "device-uploads/",
+      "uploadInterval": 60,
+      "deleteAfterUpload": false,
+      "filePattern": "*",
+      "maxFileSize": 10485760
+    }
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*"
+      },
+      "Lifecycle": {
+        "install": {
+          "Script": "pip3 install boto3 watchdog"
+        },
+        "run": {
+          "Script": "python3 {artifacts:path}/src/main.py"
+        }
+      }
+    }
+  ]
+}
