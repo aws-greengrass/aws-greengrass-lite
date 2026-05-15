@@ -1,6 +1,8 @@
 # IPC Subscriber Component
 
-A Greengrass component that subscribes to local IPC topics and processes messages from other components. Demonstrates inter-component communication patterns and message processing.
+A Greengrass component that subscribes to local IPC topics and processes
+messages from other components. Demonstrates inter-component communication
+patterns and message processing.
 
 ## Features
 
@@ -39,26 +41,31 @@ The component processes different message types:
 ## Deployment Steps
 
 ### 1. Prepare Artifacts
+
 ```bash
 cd examples/ipc-subscriber
 zip -r ipc-subscriber.zip src/
 ```
 
 ### 2. Upload to S3
+
 ```bash
 aws s3 cp ipc-subscriber.zip s3://YOUR_BUCKET/ipc-subscriber/1.0.0/
 ```
 
 ### 3. Update Recipe
+
 Edit `recipe.json` and replace `YOUR_BUCKET` with your S3 bucket name.
 
 ### 4. Create Component
+
 ```bash
 aws greengrassv2 create-component-version \
     --inline-recipe fileb://recipe.json
 ```
 
 ### 5. Deploy to Device
+
 Create a deployment with this component.
 
 ## Testing Locally
@@ -75,6 +82,7 @@ python3 main.py
 ## Usage Examples
 
 ### Basic Sensor Monitoring
+
 ```json
 {
   "topics": ["local/sensor/temperature", "local/sensor/humidity"],
@@ -84,6 +92,7 @@ python3 main.py
 ```
 
 ### Alert Processing
+
 ```json
 {
   "topics": ["local/alerts/*", "local/warnings/*"],
@@ -113,16 +122,19 @@ Messages are logged with timestamps and topic information:
 ## Verification
 
 ### Check Component Logs
+
 ```bash
 sudo tail -f /greengrass/v2/logs/com.example.IPCSubscriber.log
 ```
 
 ### Check Message Log File
+
 ```bash
 tail -f /tmp/ipc-messages.log
 ```
 
 ### Test with Publisher
+
 Deploy alongside the IPC Publisher component to see message flow.
 
 ## Extending the Component
@@ -132,7 +144,7 @@ Add custom message processing by modifying the `process_message` method:
 ```python
 def process_message(self, topic, message):
     message_data = json.loads(message)
-    
+
     # Custom processing logic
     if message_data.get('messageType') == 'custom-alert':
         self.handle_custom_alert(message_data)

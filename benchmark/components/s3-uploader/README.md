@@ -1,6 +1,8 @@
 # S3 Uploader Component
 
-A Greengrass component that monitors a directory for new files and automatically uploads them to Amazon S3. Supports both real-time file monitoring and periodic polling.
+A Greengrass component that monitors a directory for new files and automatically
+uploads them to Amazon S3. Supports both real-time file monitoring and periodic
+polling.
 
 ## Features
 
@@ -32,7 +34,7 @@ A Greengrass component that monitors a directory for new files and automatically
 - `s3Prefix`: S3 key prefix for uploaded files
 - `uploadInterval`: Polling interval in seconds (fallback mode)
 - `deleteAfterUpload`: Delete local files after successful upload
-- `filePattern`: File pattern to match (e.g., "*.jpg", "data_*")
+- `filePattern`: File pattern to match (e.g., "\_.jpg", "data\_\_")
 - `maxFileSize`: Maximum file size in bytes (default 10MB)
 
 ## Prerequisites
@@ -50,10 +52,7 @@ Your S3 bucket needs appropriate permissions. Example bucket policy:
       "Principal": {
         "AWS": "arn:aws:iam::ACCOUNT:role/GreengrassV2TokenExchangeRole"
       },
-      "Action": [
-        "s3:PutObject",
-        "s3:PutObjectAcl"
-      ],
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
       "Resource": "arn:aws:s3:::my-greengrass-uploads/*"
     }
   ]
@@ -70,10 +69,7 @@ The Greengrass Token Exchange Service role needs:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:PutObjectAcl"
-      ],
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
       "Resource": "arn:aws:s3:::my-greengrass-uploads/*"
     }
   ]
@@ -83,34 +79,42 @@ The Greengrass Token Exchange Service role needs:
 ## Deployment Steps
 
 ### 1. Create S3 Bucket
+
 ```bash
 aws s3 mb s3://my-greengrass-uploads
 ```
 
 ### 2. Prepare Artifacts
+
 ```bash
 cd examples/s3-uploader
 zip -r s3-uploader.zip src/
 ```
 
 ### 3. Upload to S3
+
 ```bash
 aws s3 cp s3-uploader.zip s3://YOUR_BUCKET/s3-uploader/1.0.0/
 ```
 
 ### 4. Update Recipe
+
 Edit `recipe.json` and replace:
+
 - `YOUR_BUCKET` with your artifacts S3 bucket
 - `my-greengrass-uploads` with your target bucket in configuration
 
 ### 5. Create Component
+
 ```bash
 aws greengrassv2 create-component-version \
     --inline-recipe fileb://recipe.json
 ```
 
 ### 6. Deploy with TES
+
 Ensure your deployment includes:
+
 - `aws.greengrass.TokenExchangeService`
 - `com.example.S3Uploader`
 
@@ -128,6 +132,7 @@ python3 main.py
 ```
 
 In another terminal, add test files:
+
 ```bash
 echo "test data" > /tmp/test-uploads/test.txt
 ```
@@ -135,6 +140,7 @@ echo "test data" > /tmp/test-uploads/test.txt
 ## Usage Examples
 
 ### Upload Log Files
+
 ```json
 {
   "watchDirectory": "/var/log/app",
@@ -146,10 +152,11 @@ echo "test data" > /tmp/test-uploads/test.txt
 ```
 
 ### Upload Images
+
 ```json
 {
   "watchDirectory": "/tmp/camera",
-  "s3Bucket": "my-images-bucket", 
+  "s3Bucket": "my-images-bucket",
   "s3Prefix": "camera-images/",
   "filePattern": "*.jpg",
   "maxFileSize": 5242880
@@ -159,11 +166,13 @@ echo "test data" > /tmp/test-uploads/test.txt
 ## Verification
 
 ### Check S3 Bucket
+
 ```bash
 aws s3 ls s3://my-greengrass-uploads/device-uploads/
 ```
 
 ### Check Component Logs
+
 ```bash
 sudo tail -f /greengrass/v2/logs/com.example.S3Uploader.log
 ```
@@ -174,4 +183,5 @@ sudo tail -f /greengrass/v2/logs/com.example.S3Uploader.log
 - **Access denied errors**: Verify IAM role has S3 permissions
 - **Large files failing**: Check maxFileSize configuration
 - **Directory not found**: Ensure watchDirectory exists and is writable
-- **Watchdog not working**: Component will fall back to polling mode automatically
+- **Watchdog not working**: Component will fall back to polling mode
+  automatically

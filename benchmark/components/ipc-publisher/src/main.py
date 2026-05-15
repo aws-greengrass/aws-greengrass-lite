@@ -10,24 +10,23 @@ from datetime import datetime, timezone
 
 try:
     import awsiot.greengrasscoreipc
-    from awsiot.greengrasscoreipc.model import (
-        PublishToTopicRequest,
-        PublishMessage,
-        BinaryMessage
-    )
+    from awsiot.greengrasscoreipc.model import (PublishToTopicRequest,
+                                                PublishMessage, BinaryMessage)
     GREENGRASS_IPC_AVAILABLE = True
 except ImportError:
     GREENGRASS_IPC_AVAILABLE = False
-    logging.warning("Greengrass IPC not available - running in simulation mode")
+    logging.warning(
+        "Greengrass IPC not available - running in simulation mode")
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('IPCPublisher')
 
+
 class IPCPublisher:
+
     def __init__(self):
         self.config = self.load_configuration()
         self.ipc_client = None
@@ -45,9 +44,12 @@ class IPCPublisher:
 
             # Load from environment variables
             config["topic"] = os.environ.get('GG_TOPIC', config["topic"])
-            config["interval"] = int(os.environ.get('GG_INTERVAL', config["interval"]))
-            config["messageType"] = os.environ.get('GG_MESSAGE_TYPE', config["messageType"])
-            config["deviceId"] = os.environ.get('GG_DEVICE_ID', config["deviceId"])
+            config["interval"] = int(
+                os.environ.get('GG_INTERVAL', config["interval"]))
+            config["messageType"] = os.environ.get('GG_MESSAGE_TYPE',
+                                                   config["messageType"])
+            config["deviceId"] = os.environ.get('GG_DEVICE_ID',
+                                                config["deviceId"])
 
             return config
         except Exception as e:
@@ -64,7 +66,8 @@ class IPCPublisher:
                 logger.error(f"Failed to connect to Greengrass IPC: {e}")
                 self.ipc_client = None
         else:
-            logger.info("Running in simulation mode - messages will be logged only")
+            logger.info(
+                "Running in simulation mode - messages will be logged only")
 
     def generate_message_data(self):
         """Generate message data for IPC publishing"""
@@ -94,7 +97,8 @@ class IPCPublisher:
                 request.topic = self.config['topic']
                 publish_message = PublishMessage()
                 publish_message.binary_message = BinaryMessage()
-                publish_message.binary_message.message = message_json.encode('utf-8')
+                publish_message.binary_message.message = message_json.encode(
+                    'utf-8')
                 request.publish_message = publish_message
 
                 operation = self.ipc_client.new_publish_to_topic()
@@ -102,10 +106,14 @@ class IPCPublisher:
                 future = operation.get_response()
                 future.result(timeout=10.0)
 
-                logger.info(f"Published to IPC topic '{self.config['topic']}': {message_json}")
+                logger.info(
+                    f"Published to IPC topic '{self.config['topic']}': {message_json}"
+                )
             else:
                 # Simulation mode
-                logger.info(f"[SIMULATION] Would publish to IPC topic '{self.config['topic']}': {message_json}")
+                logger.info(
+                    f"[SIMULATION] Would publish to IPC topic '{self.config['topic']}': {message_json}"
+                )
 
         except Exception as e:
             logger.error(f"Failed to publish IPC message: {e}")
@@ -130,6 +138,7 @@ class IPCPublisher:
         finally:
             if self.ipc_client:
                 self.ipc_client.close()
+
 
 if __name__ == "__main__":
     publisher = IPCPublisher()

@@ -1,6 +1,8 @@
 # IoT Core Publisher Component
 
-A Greengrass component that generates simulated sensor data and publishes it to AWS IoT Core topics. Demonstrates proper use of Greengrass IPC for IoT Core communication.
+A Greengrass component that generates simulated sensor data and publishes it to
+AWS IoT Core topics. Demonstrates proper use of Greengrass IPC for IoT Core
+communication.
 
 ## Features
 
@@ -18,7 +20,7 @@ A Greengrass component that generates simulated sensor data and publishes it to 
 {
   "topic": "sensor/data",
   "interval": 30,
-  "deviceId": "sensor-001", 
+  "deviceId": "sensor-001",
   "sensorType": "temperature",
   "minValue": 20.0,
   "maxValue": 30.0,
@@ -40,7 +42,7 @@ Published messages follow this structure:
 ```json
 {
   "deviceId": "sensor-001",
-  "sensorType": "temperature", 
+  "sensorType": "temperature",
   "value": 24.5,
   "unit": "°C",
   "timestamp": "2024-01-01T12:00:00.000Z",
@@ -60,12 +62,8 @@ Your Greengrass device needs an IoT policy allowing:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "iot:Publish"
-      ],
-      "Resource": [
-        "arn:aws:iot:*:*:topic/sensor/*"
-      ]
+      "Action": ["iot:Publish"],
+      "Resource": ["arn:aws:iot:*:*:topic/sensor/*"]
     }
   ]
 }
@@ -73,38 +71,46 @@ Your Greengrass device needs an IoT policy allowing:
 
 ### Token Exchange Service
 
-This component requires the Token Exchange Service (TES) to be deployed and configured. TES provides AWS credentials for IoT Core access.
+This component requires the Token Exchange Service (TES) to be deployed and
+configured. TES provides AWS credentials for IoT Core access.
 
 ## Deployment Steps
 
 ### 1. Install Dependencies
+
 ```bash
 # The component requires the Greengrass IPC SDK
 pip3 install awsiotsdk
 ```
 
 ### 2. Prepare Artifacts
+
 ```bash
 cd examples/iot-core-publisher
 zip -r iot-core-publisher.zip src/
 ```
 
 ### 3. Upload to S3
+
 ```bash
 aws s3 cp iot-core-publisher.zip s3://YOUR_BUCKET/iot-core-publisher/1.0.0/
 ```
 
 ### 4. Update Recipe
+
 Edit `recipe.json` and replace `YOUR_BUCKET` with your S3 bucket name.
 
 ### 5. Create Component
+
 ```bash
 aws greengrassv2 create-component-version \
     --inline-recipe fileb://recipe.json
 ```
 
 ### 6. Deploy with TES
+
 Ensure your deployment includes:
+
 - `aws.greengrass.TokenExchangeService`
 - `com.example.IoTCorePublisher`
 
@@ -123,12 +129,15 @@ python3 main.py
 ## Verification
 
 ### Check IoT Core
+
 Monitor your IoT Core topic in the AWS Console:
+
 1. Go to IoT Core → Test → MQTT test client
 2. Subscribe to your topic (e.g., `sensor/data`)
 3. Verify messages are arriving
 
 ### Check Greengrass Logs
+
 ```bash
 # On the Greengrass device
 sudo tail -f /greengrass/v2/logs/com.example.IoTCorePublisher.log
@@ -136,7 +145,10 @@ sudo tail -f /greengrass/v2/logs/com.example.IoTCorePublisher.log
 
 ## Troubleshooting
 
-- **No messages in IoT Core**: Check IoT policy permissions and TES configuration
-- **IPC connection failed**: Verify Greengrass is running and component has proper permissions
-- **Authentication errors**: Ensure Token Exchange Service is deployed and role has IoT permissions
+- **No messages in IoT Core**: Check IoT policy permissions and TES
+  configuration
+- **IPC connection failed**: Verify Greengrass is running and component has
+  proper permissions
+- **Authentication errors**: Ensure Token Exchange Service is deployed and role
+  has IoT permissions
 - **Topic not found**: Verify topic name matches IoT policy resources

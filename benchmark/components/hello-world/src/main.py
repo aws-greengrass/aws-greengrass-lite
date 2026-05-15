@@ -10,11 +10,12 @@ from pathlib import Path
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('HelloWorld')
 
+
 class HelloWorldComponent:
+
     def __init__(self):
         self.config = self.load_configuration()
         self.setup_logging()
@@ -30,13 +31,17 @@ class HelloWorldComponent:
             }
 
             # Try to load from Greengrass configuration
-            config_path = os.environ.get('AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT')
+            config_path = os.environ.get(
+                'AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT')
             if config_path:
                 # In a real deployment, this would use the Greengrass IPC client
                 # For now, we'll use environment variables or default config
-                config["message"] = os.environ.get('GG_MESSAGE', config["message"])
-                config["interval"] = int(os.environ.get('GG_INTERVAL', config["interval"]))
-                config["logLevel"] = os.environ.get('GG_LOG_LEVEL', config["logLevel"])
+                config["message"] = os.environ.get('GG_MESSAGE',
+                                                   config["message"])
+                config["interval"] = int(
+                    os.environ.get('GG_INTERVAL', config["interval"]))
+                config["logLevel"] = os.environ.get('GG_LOG_LEVEL',
+                                                    config["logLevel"])
 
             return config
         except Exception as e:
@@ -49,7 +54,8 @@ class HelloWorldComponent:
 
     def setup_logging(self):
         """Configure logging based on component configuration"""
-        log_level = getattr(logging, self.config.get('logLevel', 'INFO').upper())
+        log_level = getattr(logging,
+                            self.config.get('logLevel', 'INFO').upper())
         logger.setLevel(log_level)
 
     def run(self):
@@ -67,6 +73,7 @@ class HelloWorldComponent:
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             sys.exit(1)
+
 
 if __name__ == "__main__":
     component = HelloWorldComponent()

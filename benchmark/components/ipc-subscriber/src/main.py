@@ -10,21 +10,20 @@ from pathlib import Path
 
 try:
     import awsiot.greengrasscoreipc
-    from awsiot.greengrasscoreipc.model import (
-        SubscribeToTopicRequest,
-        SubscriptionResponseMessage
-    )
+    from awsiot.greengrasscoreipc.model import (SubscribeToTopicRequest,
+                                                SubscriptionResponseMessage)
     GREENGRASS_IPC_AVAILABLE = True
 except ImportError:
     GREENGRASS_IPC_AVAILABLE = False
-    logging.warning("Greengrass IPC not available - running in simulation mode")
+    logging.warning(
+        "Greengrass IPC not available - running in simulation mode")
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('IPCSubscriber')
+
 
 class MessageHandler(awsiot.greengrasscoreipc.SubscribeToTopicStreamHandler):
     """Handle incoming IPC messages"""
@@ -36,7 +35,8 @@ class MessageHandler(awsiot.greengrasscoreipc.SubscribeToTopicStreamHandler):
     def on_stream_event(self, event: SubscriptionResponseMessage) -> None:
         try:
             message = str(event.binary_message.message, 'utf-8')
-            topic = event.topic_name if hasattr(event, 'topic_name') else 'unknown'
+            topic = event.topic_name if hasattr(event,
+                                                'topic_name') else 'unknown'
 
             logger.info(f"Received message on topic '{topic}': {message}")
             self.subscriber.process_message(topic, message)
@@ -51,7 +51,9 @@ class MessageHandler(awsiot.greengrasscoreipc.SubscribeToTopicStreamHandler):
     def on_stream_closed(self) -> None:
         logger.info("Message stream closed")
 
+
 class IPCSubscriber:
+
     def __init__(self):
         self.config = self.load_configuration()
         self.ipc_client = None
@@ -73,8 +75,10 @@ class IPCSubscriber:
             if topics_env:
                 config["topics"] = topics_env.split(',')
 
-            config["processingMode"] = os.environ.get('GG_PROCESSING_MODE', config["processingMode"])
-            config["outputFile"] = os.environ.get('GG_OUTPUT_FILE', config["outputFile"])
+            config["processingMode"] = os.environ.get('GG_PROCESSING_MODE',
+                                                      config["processingMode"])
+            config["outputFile"] = os.environ.get('GG_OUTPUT_FILE',
+                                                  config["outputFile"])
 
             return config
         except Exception as e:
@@ -114,7 +118,8 @@ class IPCSubscriber:
                 formatted_message = message
 
             # Log to file if configured
-            if self.config['processingMode'] == 'log' and self.config['outputFile']:
+            if self.config['processingMode'] == 'log' and self.config[
+                    'outputFile']:
                 with open(self.config['outputFile'], 'a') as f:
                     timestamp = datetime.now().isoformat()
                     f.write(f"[{timestamp}] Topic: {topic}\n")
@@ -124,7 +129,8 @@ class IPCSubscriber:
             # Additional processing based on message type
             if isinstance(message_data, dict):
                 msg_type = message_data.get('messageType', 'unknown')
-                logger.info(f"Processing {msg_type} message from topic {topic}")
+                logger.info(
+                    f"Processing {msg_type} message from topic {topic}")
 
                 # Example: Alert on high temperature
                 if msg_type == 'sensor-reading':
@@ -173,7 +179,8 @@ class IPCSubscriber:
                     time.sleep(10)
             else:
                 # Simulation mode
-                logger.info("Running in simulation mode - no actual subscriptions")
+                logger.info(
+                    "Running in simulation mode - no actual subscriptions")
                 while True:
                     logger.info("Would be listening for IPC messages...")
                     time.sleep(30)
@@ -192,6 +199,7 @@ class IPCSubscriber:
                     pass
             if self.ipc_client:
                 self.ipc_client.close()
+
 
 if __name__ == "__main__":
     subscriber = IPCSubscriber()

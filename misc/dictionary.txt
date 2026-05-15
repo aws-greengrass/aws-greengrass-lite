@@ -32,6 +32,9 @@ DIOTCORED
 diskio
 dont
 dpkg
+drio
+dwio
+eceived
 EFAILURE
 elif
 EOK
@@ -135,6 +138,7 @@ rlimits
 rodata
 rollup
 rootca
+rsect
 semp
 serde
 serverd
@@ -168,6 +172,7 @@ trixie
 uefi
 unacked
 unarchived
+unconfigured
 unprovisioned
 unrefp
 unsuback
@@ -176,6 +181,7 @@ uuid
 venv
 wbio
 WERROR
+wsect
 xeau
 Xiwyu
 xlink

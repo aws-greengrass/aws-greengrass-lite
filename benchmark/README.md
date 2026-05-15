@@ -1,20 +1,20 @@
 # GGLite Resource Benchmark Harness
 
-Reproducible benchmark harness for measuring AWS Greengrass Nucleus Lite (GGLite)
-resource consumption across x86_64, aarch64, and armv7l architectures.
+Reproducible benchmark harness for measuring AWS Greengrass Nucleus Lite
+(GGLite) resource consumption across x86_64, aarch64, and armv7l architectures.
 
 The harness covers two scenarios:
 
-- **Phase 1 — Steady-state local deployment**: nucleus daemons measured at
-  rest with components deployed via `ggl-cli deploy --recipe-dir` (local
-  path, no cloud round-trip).
-- **Phase 2 — Cloud deployment**: nucleus daemons measured during and after
-  a cloud deployment via `aws greengrassv2 create-deployment` (the production
+- **Phase 1 — Steady-state local deployment**: nucleus daemons measured at rest
+  with components deployed via `ggl-cli deploy --recipe-dir` (local path, no
+  cloud round-trip).
+- **Phase 2 — Cloud deployment**: nucleus daemons measured during and after a
+  cloud deployment via `aws greengrassv2 create-deployment` (the production
   customer path).
 
 See [`REPORT.md`](./REPORT.md) for the latest measured numbers and full
-methodology, and [`docs/RESOURCE_LIMITS.md`](../docs/RESOURCE_LIMITS.md) for
-the customer-facing summary.
+methodology, and [`docs/RESOURCE_LIMITS.md`](../docs/RESOURCE_LIMITS.md) for the
+customer-facing summary.
 
 ## Folder Layout
 
@@ -56,17 +56,17 @@ benchmark/
 The harness has a clear host / device split:
 
 - **Host**: where you orchestrate from (your dev machine). The host runs
-  `provision-account.sh`, `provision-device.sh`, and `pull-data.sh`. It does
-  not run measurements itself.
+  `provision-account.sh`, `provision-device.sh`, and `pull-data.sh`. It does not
+  run measurements itself.
 - **Device**: the target you are benchmarking (RPi, EC2 instance, etc.). The
   device runs `run-all.sh` and the underlying samplers. Measurements happen
   here.
 
 ### 1. One-time AWS account setup (host)
 
-Run `provision-account.sh` once per AWS account to set up the IAM role,
-IoT policy, IoT Thing Groups, and S3 bucket used by the benchmark. The
-script is idempotent — safe to re-run.
+Run `provision-account.sh` once per AWS account to set up the IAM role, IoT
+policy, IoT Thing Groups, and S3 bucket used by the benchmark. The script is
+idempotent — safe to re-run.
 
 ```bash
 cd benchmark/scripts
@@ -91,8 +91,8 @@ Installs GGLite on the device and writes its certificates / config:
 
 ### 3. Copy the `benchmark/` folder onto the device
 
-`run-all.sh` and the samplers run on the device, so the device needs a copy
-of this folder. Either clone the repo on the device, or sync from the host:
+`run-all.sh` and the samplers run on the device, so the device needs a copy of
+this folder. Either clone the repo on the device, or sync from the host:
 
 ```bash
 # from the host, with the repo checked out:
@@ -110,23 +110,23 @@ sudo ./run-all.sh <arch>             # Phase 1 only (steady-state local deploy)
 sudo ./run-all.sh <arch> --phase2    # Phase 1 + Phase 2 (adds cloud-deploy scenarios)
 ```
 
-Output lands on the **device** under `~/benchmark/data/<arch>/<YYYY-MM-DD>/`
-(or wherever the benchmark folder lives on the device).
+Output lands on the **device** under `~/benchmark/data/<arch>/<YYYY-MM-DD>/` (or
+wherever the benchmark folder lives on the device).
 
 ### 5. Pull raw data back to the host (host)
 
-From the host, sync the device's `data/<arch>/` directory back into this
-repo's `benchmark/data/<arch>/`:
+From the host, sync the device's `data/<arch>/` directory back into this repo's
+`benchmark/data/<arch>/`:
 
 ```bash
 ./pull-data.sh <arch> <user>@<device-ip>
 # Optional 3rd arg: remote benchmark/data path (default: ~/benchmark/data)
 ```
 
-The host-side `benchmark/data/` directory is `.gitignored` but kept locally
-so runs are auditable and re-analyzable. The orchestrator on the device
-appends a dated section to its on-device `REPORT.md`; the consolidated
-`REPORT.md` in this repo summarizes results across runs.
+The host-side `benchmark/data/` directory is `.gitignored` but kept locally so
+runs are auditable and re-analyzable. The orchestrator on the device appends a
+dated section to its on-device `REPORT.md`; the consolidated `REPORT.md` in this
+repo summarizes results across runs.
 
 ## Prerequisites
 
@@ -143,54 +143,54 @@ appends a dated section to its on-device `REPORT.md`; the consolidated
 - `systemd` as PID 1
 - SSH access (key-based recommended)
 - Internet access (for `apt-get` during provisioning)
-- Tools installed by the provisioning script: `smem`, `cgroup-tools`,
-  `awscli` (Phase 2 only)
+- Tools installed by the provisioning script: `smem`, `cgroup-tools`, `awscli`
+  (Phase 2 only)
 
 **AWS resources** (see `cloud-setup.env.example`): IoT Thing(s), device
-certificate, IoT policy, IAM role, role alias, and an S3 bucket — all set
-up by `provision-account.sh`.
+certificate, IoT policy, IAM role, role alias, and an S3 bucket — all set up by
+`provision-account.sh`.
 
 ## Workload Scenarios
 
-| Scenario              | Components                                                                      | Workload                                       |
-| :-------------------- | :------------------------------------------------------------------------------ | :--------------------------------------------- |
-| Phase 1: baseline     | None                                                                            | Idle nucleus                                    |
-| Phase 1: simple       | `hello-world` + `ipc-publisher` + `ipc-subscriber`                              | 1 IPC msg/sec local                             |
-| Phase 1: realistic    | 2× publisher + 2× subscriber + `iot-core-publisher` + `s3-uploader`             | 2 msg/sec IPC + 1 msg/sec IoT Core + 1 S3/min   |
-| Phase 2: cloud-initial| Same as realistic-load, deployed via `aws greengrassv2 create-deployment`       | First-time cloud deployment + 10-min steady    |
-| Phase 2: cloud-update | Version-bump (`hello-world` 1.0.0 → 1.0.1) on an already-deployed core device   | Update deployment + 10-min steady              |
+| Scenario               | Components                                                                    | Workload                                      |
+| :--------------------- | :---------------------------------------------------------------------------- | :-------------------------------------------- |
+| Phase 1: baseline      | None                                                                          | Idle nucleus                                  |
+| Phase 1: simple        | `hello-world` + `ipc-publisher` + `ipc-subscriber`                            | 1 IPC msg/sec local                           |
+| Phase 1: realistic     | 2× publisher + 2× subscriber + `iot-core-publisher` + `s3-uploader`           | 2 msg/sec IPC + 1 msg/sec IoT Core + 1 S3/min |
+| Phase 2: cloud-initial | Same as realistic-load, deployed via `aws greengrassv2 create-deployment`     | First-time cloud deployment + 10-min steady   |
+| Phase 2: cloud-update  | Version-bump (`hello-world` 1.0.0 → 1.0.1) on an already-deployed core device | Update deployment + 10-min steady             |
 
 ## Non-Goals
 
-The harness is intentionally scoped to in-process resource measurement.
-The following are **out of scope**:
+The harness is intentionally scoped to in-process resource measurement. The
+following are **out of scope**:
 
-- **CI integration for automated regression detection.** The harness runs
-  on demand; wiring it into a scheduled CI workflow is a separate effort.
-- **Network degradation testing.** Measuring GGLite behavior under flaky
-  MQTT / TES connectivity is out of scope (Phase 2 measures network
-  *utilization*, not degradation).
-- **Flash wear and IOPS.** Constrained devices can fail from write
-  amplification on embedded flash; not measured here.
+- **CI integration for automated regression detection.** The harness runs on
+  demand; wiring it into a scheduled CI workflow is a separate effort.
+- **Network degradation testing.** Measuring GGLite behavior under flaky MQTT /
+  TES connectivity is out of scope (Phase 2 measures network _utilization_, not
+  degradation).
+- **Flash wear and IOPS.** Constrained devices can fail from write amplification
+  on embedded flash; not measured here.
 - **riscv64.** Architecture is experimental in GGLite and not part of the
   primary benchmark matrix.
 - **Non-Lite 1P components** (Stream Manager, Log Manager, Secret Manager).
-  These are Java-based and owned by a different team; the harness scopes
-  to GGLite daemons only.
+  These are Java-based and owned by a different team; the harness scopes to
+  GGLite daemons only.
 - **Concurrent-deployment stress testing.** Unusual failure mode.
 - **`RelWithDebInfo` build comparison.** Only `MinSizeRel` is measured; the
   harness is build-type-agnostic so this can be repeated later.
-- **Unit tests for the harness scripts.** The harness itself is integration
-  test coverage; `shellcheck` lint provides syntax-level enforcement.
-- **24-hour soak.** Long-run leak detection is tracked separately as a
-  follow-up appendix to `REPORT.md`.
+- **Unit tests for the harness scripts.** The harness itself is integration test
+  coverage; `shellcheck` lint provides syntax-level enforcement.
+- **24-hour soak.** Long-run leak detection is tracked separately as a follow-up
+  appendix to `REPORT.md`.
 - **Power consumption.** Hardware-dependent; documented as future work.
 
 ## Results
 
-See [`REPORT.md`](./REPORT.md) for the full detailed report with per-arch
-data, per-daemon breakdowns, deployment-time peaks, post-deploy steady-state
-tables, and methodology details.
+See [`REPORT.md`](./REPORT.md) for the full detailed report with per-arch data,
+per-daemon breakdowns, deployment-time peaks, post-deploy steady-state tables,
+and methodology details.
 
 The customer-facing summary lives at
 [`docs/RESOURCE_LIMITS.md`](../docs/RESOURCE_LIMITS.md).

@@ -6,7 +6,7 @@ export COMPONENTS_DIR="$SCRIPT_DIR/../../components"
 
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/../cloud-setup.env"
-# shellcheck source=deploy-helpers.sh
+# shellcheck source=/dev/null
 source "$SCRIPT_DIR/deploy-helpers.sh"
 
 OUTPUT_DIR="${1:?Usage: $0 <output-dir>}"

@@ -1,6 +1,8 @@
 # IPC Publisher Component
 
-A Greengrass component that publishes messages to local IPC topics for inter-component communication. Useful for creating data pipelines between components on the same device.
+A Greengrass component that publishes messages to local IPC topics for
+inter-component communication. Useful for creating data pipelines between
+components on the same device.
 
 ## Features
 
@@ -50,26 +52,31 @@ Published messages follow this structure:
 ## Deployment Steps
 
 ### 1. Prepare Artifacts
+
 ```bash
 cd examples/ipc-publisher
 zip -r ipc-publisher.zip src/
 ```
 
 ### 2. Upload to S3
+
 ```bash
 aws s3 cp ipc-publisher.zip s3://YOUR_BUCKET/ipc-publisher/1.0.0/
 ```
 
 ### 3. Update Recipe
+
 Edit `recipe.json` and replace `YOUR_BUCKET` with your S3 bucket name.
 
 ### 4. Create Component
+
 ```bash
 aws greengrassv2 create-component-version \
     --inline-recipe fileb://recipe.json
 ```
 
 ### 5. Deploy to Device
+
 Create a deployment with this component.
 
 ## Testing Locally
@@ -95,15 +102,20 @@ Deploy alongside the IPC Subscriber component to see end-to-end communication:
 ## Verification
 
 ### Check Component Logs
+
 ```bash
 sudo tail -f /greengrass/v2/logs/com.example.IPCPublisher.log
 ```
 
 ### Monitor IPC Traffic
-Use the IPC Subscriber component or check Greengrass nucleus logs for IPC activity.
+
+Use the IPC Subscriber component or check Greengrass nucleus logs for IPC
+activity.
 
 ## Troubleshooting
 
-- **IPC connection failed**: Verify Greengrass is running and component has proper permissions
-- **Messages not received**: Check topic names match between publisher and subscriber
+- **IPC connection failed**: Verify Greengrass is running and component has
+  proper permissions
+- **Messages not received**: Check topic names match between publisher and
+  subscriber
 - **High CPU usage**: Increase interval to reduce publishing frequency

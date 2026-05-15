@@ -10,24 +10,23 @@ from datetime import datetime, timezone
 
 try:
     import awsiot.greengrasscoreipc
-    from awsiot.greengrasscoreipc.model import (
-        IoTCoreMessage,
-        PublishToIoTCoreRequest,
-        QOS
-    )
+    from awsiot.greengrasscoreipc.model import (IoTCoreMessage,
+                                                PublishToIoTCoreRequest, QOS)
     GREENGRASS_IPC_AVAILABLE = True
 except ImportError:
     GREENGRASS_IPC_AVAILABLE = False
-    logging.warning("Greengrass IPC not available - running in simulation mode")
+    logging.warning(
+        "Greengrass IPC not available - running in simulation mode")
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('IoTCorePublisher')
 
+
 class IoTCorePublisher:
+
     def __init__(self):
         self.config = self.load_configuration()
         self.ipc_client = None
@@ -48,11 +47,16 @@ class IoTCorePublisher:
 
             # Load from environment variables (for testing)
             config["topic"] = os.environ.get('GG_TOPIC', config["topic"])
-            config["interval"] = int(os.environ.get('GG_INTERVAL', config["interval"]))
-            config["deviceId"] = os.environ.get('GG_DEVICE_ID', config["deviceId"])
-            config["sensorType"] = os.environ.get('GG_SENSOR_TYPE', config["sensorType"])
-            config["minValue"] = float(os.environ.get('GG_MIN_VALUE', config["minValue"]))
-            config["maxValue"] = float(os.environ.get('GG_MAX_VALUE', config["maxValue"]))
+            config["interval"] = int(
+                os.environ.get('GG_INTERVAL', config["interval"]))
+            config["deviceId"] = os.environ.get('GG_DEVICE_ID',
+                                                config["deviceId"])
+            config["sensorType"] = os.environ.get('GG_SENSOR_TYPE',
+                                                  config["sensorType"])
+            config["minValue"] = float(
+                os.environ.get('GG_MIN_VALUE', config["minValue"]))
+            config["maxValue"] = float(
+                os.environ.get('GG_MAX_VALUE', config["maxValue"]))
             config["qos"] = int(os.environ.get('GG_QOS', config["qos"]))
 
             return config
@@ -70,17 +74,20 @@ class IoTCorePublisher:
                 logger.error(f"Failed to connect to Greengrass IPC: {e}")
                 self.ipc_client = None
         else:
-            logger.info("Running in simulation mode - messages will be logged only")
+            logger.info(
+                "Running in simulation mode - messages will be logged only")
 
     def generate_sensor_data(self):
         """Generate simulated sensor data"""
-        value = random.uniform(self.config['minValue'], self.config['maxValue'])
+        value = random.uniform(self.config['minValue'],
+                               self.config['maxValue'])
 
         data = {
             "deviceId": self.config['deviceId'],
             "sensorType": self.config['sensorType'],
             "value": round(value, 2),
-            "unit": "°C" if self.config['sensorType'] == "temperature" else "units",
+            "unit":
+            "°C" if self.config['sensorType'] == "temperature" else "units",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "quality": "good"
         }
@@ -107,10 +114,14 @@ class IoTCorePublisher:
                 future = operation.get_response()
                 future.result(timeout=10.0)
 
-                logger.info(f"Published to IoT Core topic '{self.config['topic']}': {message_json}")
+                logger.info(
+                    f"Published to IoT Core topic '{self.config['topic']}': {message_json}"
+                )
             else:
                 # Simulation mode
-                logger.info(f"[SIMULATION] Would publish to topic '{self.config['topic']}': {message_json}")
+                logger.info(
+                    f"[SIMULATION] Would publish to topic '{self.config['topic']}': {message_json}"
+                )
 
         except Exception as e:
             logger.error(f"Failed to publish message: {e}")
@@ -135,6 +146,7 @@ class IoTCorePublisher:
         finally:
             if self.ipc_client:
                 self.ipc_client.close()
+
 
 if __name__ == "__main__":
     publisher = IoTCorePublisher()

@@ -1,6 +1,7 @@
 # Hello World Component
 
-A simple Greengrass component that logs configurable messages at regular intervals. Perfect for testing basic component deployment and configuration.
+A simple Greengrass component that logs configurable messages at regular
+intervals. Perfect for testing basic component deployment and configuration.
 
 ## Features
 
@@ -8,7 +9,8 @@ A simple Greengrass component that logs configurable messages at regular interva
 - Adjustable logging interval
 - Configurable log level
 - Proper error handling and graceful shutdown
-- Universal runtime compatibility (`"runtime": "*"`) - works on both Greengrass and Lite
+- Universal runtime compatibility (`"runtime": "*"`) - works on both Greengrass
+  and Lite
 
 ## Configuration
 
@@ -29,6 +31,7 @@ The component accepts the following configuration parameters:
 ## Deployment Steps
 
 ### 1. Prepare Artifacts
+
 ```bash
 # Create deployment package
 cd examples/hello-world
@@ -36,15 +39,18 @@ zip -r hello-world.zip src/
 ```
 
 ### 2. Upload to S3
+
 ```bash
 # Upload to your S3 bucket
 aws s3 cp hello-world.zip s3://YOUR_BUCKET/hello-world/1.0.0/
 ```
 
 ### 3. Update Recipe
+
 Edit `recipe.json` and replace `YOUR_BUCKET` with your actual S3 bucket name.
 
 ### 4. Create Component
+
 ```bash
 # Create the component in AWS IoT Greengrass
 aws greengrassv2 create-component-version \
@@ -52,6 +58,7 @@ aws greengrassv2 create-component-version \
 ```
 
 ### 5. Deploy to Device
+
 Create a deployment targeting your Greengrass core device with this component.
 
 ## Testing Locally
@@ -64,6 +71,7 @@ python3 main.py
 ```
 
 Set environment variables to test different configurations:
+
 ```bash
 export GG_MESSAGE="Testing locally!"
 export GG_INTERVAL=5
