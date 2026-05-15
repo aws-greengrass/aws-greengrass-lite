@@ -32,7 +32,7 @@ class IPCPublisher:
         self.config = self.load_configuration()
         self.ipc_client = None
         self.setup_ipc_client()
-        
+
     def load_configuration(self):
         """Load component configuration"""
         try:
@@ -42,17 +42,17 @@ class IPCPublisher:
                 "messageType": "sensor-reading",
                 "deviceId": "ipc-sensor-001"
             }
-            
+
             # Load from environment variables
             config["topic"] = os.environ.get('GG_TOPIC', config["topic"])
             config["interval"] = int(os.environ.get('GG_INTERVAL', config["interval"]))
             config["messageType"] = os.environ.get('GG_MESSAGE_TYPE', config["messageType"])
             config["deviceId"] = os.environ.get('GG_DEVICE_ID', config["deviceId"])
-            
+
             return config
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
-            raise    
+            raise
 
     def setup_ipc_client(self):
         """Initialize Greengrass IPC client"""
@@ -65,7 +65,7 @@ class IPCPublisher:
                 self.ipc_client = None
         else:
             logger.info("Running in simulation mode - messages will be logged only")
-    
+
     def generate_message_data(self):
         """Generate message data for IPC publishing"""
         data = {
@@ -80,14 +80,14 @@ class IPCPublisher:
             },
             "status": "active"
         }
-        
+
         return data
-    
+
     def publish_to_ipc(self, message_data):
         """Publish message via Greengrass IPC"""
         try:
             message_json = json.dumps(message_data)
-            
+
             if self.ipc_client:
                 # Real Greengrass IPC publishing
                 request = PublishToTopicRequest()
@@ -96,32 +96,32 @@ class IPCPublisher:
                 publish_message.binary_message = BinaryMessage()
                 publish_message.binary_message.message = message_json.encode('utf-8')
                 request.publish_message = publish_message
-                
+
                 operation = self.ipc_client.new_publish_to_topic()
                 operation.activate(request)
                 future = operation.get_response()
                 future.result(timeout=10.0)
-                
+
                 logger.info(f"Published to IPC topic '{self.config['topic']}': {message_json}")
             else:
                 # Simulation mode
                 logger.info(f"[SIMULATION] Would publish to IPC topic '{self.config['topic']}': {message_json}")
-                
+
         except Exception as e:
             logger.error(f"Failed to publish IPC message: {e}")
             raise
-    
+
     def run(self):
         """Main component loop"""
         logger.info("IPC Publisher component starting...")
         logger.info(f"Configuration: {json.dumps(self.config, indent=2)}")
-        
+
         try:
             while True:
                 message_data = self.generate_message_data()
                 self.publish_to_ipc(message_data)
                 time.sleep(self.config['interval'])
-                
+
         except KeyboardInterrupt:
             logger.info("IPC Publisher component stopping...")
         except Exception as e:

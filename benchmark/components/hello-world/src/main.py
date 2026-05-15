@@ -18,7 +18,7 @@ class HelloWorldComponent:
     def __init__(self):
         self.config = self.load_configuration()
         self.setup_logging()
-        
+
     def load_configuration(self):
         """Load component configuration from Greengrass"""
         try:
@@ -28,7 +28,7 @@ class HelloWorldComponent:
                 "interval": 10,
                 "logLevel": "INFO"
             }
-            
+
             # Try to load from Greengrass configuration
             config_path = os.environ.get('AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT')
             if config_path:
@@ -37,7 +37,7 @@ class HelloWorldComponent:
                 config["message"] = os.environ.get('GG_MESSAGE', config["message"])
                 config["interval"] = int(os.environ.get('GG_INTERVAL', config["interval"]))
                 config["logLevel"] = os.environ.get('GG_LOG_LEVEL', config["logLevel"])
-            
+
             return config
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
@@ -46,22 +46,22 @@ class HelloWorldComponent:
                 "interval": 10,
                 "logLevel": "INFO"
             }
-    
+
     def setup_logging(self):
         """Configure logging based on component configuration"""
         log_level = getattr(logging, self.config.get('logLevel', 'INFO').upper())
         logger.setLevel(log_level)
-        
+
     def run(self):
         """Main component loop"""
         logger.info("HelloWorld component starting...")
         logger.info(f"Configuration: {json.dumps(self.config, indent=2)}")
-        
+
         try:
             while True:
                 logger.info(self.config['message'])
                 time.sleep(self.config['interval'])
-                
+
         except KeyboardInterrupt:
             logger.info("HelloWorld component stopping...")
         except Exception as e:
