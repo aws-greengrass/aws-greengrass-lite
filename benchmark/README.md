@@ -174,9 +174,6 @@ following are **out of scope**:
   on embedded flash; not measured here.
 - **riscv64.** Architecture is experimental in GGLite and not part of the
   primary benchmark matrix.
-- **Non-Lite 1P components** (Stream Manager, Log Manager, Secret Manager).
-  These are Java-based and owned by a different team; the harness scopes to
-  GGLite daemons only.
 - **Concurrent-deployment stress testing.** Unusual failure mode.
 - **`RelWithDebInfo` build comparison.** Only `MinSizeRel` is measured; the
   harness is build-type-agnostic so this can be repeated later.
@@ -184,7 +181,6 @@ following are **out of scope**:
   coverage; `shellcheck` lint provides syntax-level enforcement.
 - **24-hour soak.** Long-run leak detection is tracked separately as a follow-up
   appendix to `REPORT.md`.
-- **Power consumption.** Hardware-dependent; documented as future work.
 
 ## Results
 

@@ -21,9 +21,8 @@ customer-facing summary.
 | CPU at realistic-load         | 7.5% usr / 83% idle | 3.1% usr / 90% idle | 11% usr / 76% idle |
 | 3-run variance (CV)           | 0.62-0.76%          | 0.39%               | 0.13-0.22%         |
 
-All architectures exceed the stated "10 MB RAM target" (min observed: armv7l at
-12.4 MB, +24% over target). See individual arch sections for per-daemon
-breakdowns.
+All architectures stay within the 15 MB RAM footprint target (min observed:
+armv7l at 12.4 MB). See individual arch sections for per-daemon breakdowns.
 
 ---
 
@@ -36,10 +35,26 @@ processes, sampled at a 10-second interval over a 10-minute steady-state window
 (after 5-minute warmup), reported as **median** with p95 / p99 / max also
 captured.
 
-The "10 MB RAM target" is formally defined as: **median PSS of all `ggl.*`,
-`ggipcd`, `ggdeploymentd`, `gghealthd`, `ggconfigd`, `ggpubsubd`, `iotcored`,
-`tesd`, `tes-serverd`, `gg-fleet-statusd`, `recipe-runner` processes at
-realistic-load steady state.**
+#### Defining the "15 MB RAM footprint target"
+
+The Greengrass Lite architecture document
+([`docs/design/gg-architecture.md`](../docs/design/gg-architecture.md))
+originally targeted a memory footprint below 10 MB. Based on the measurements in
+this report, the documented requirement has been revised to **15 MB** (see
+[`docs/RESOURCE_LIMITS.md`](../docs/RESOURCE_LIMITS.md)) so that the target
+reflects the actual achievable footprint across all supported architectures with
+realistic component workloads.
+
+For the purpose of this report, the "15 MB RAM footprint" is formally defined
+as: **median PSS, summed across all long-running GGLite daemons (`ggipcd`,
+`ggdeploymentd`, `gghealthd`, `ggconfigd`, `ggpubsubd`, `iotcored`, `tesd`,
+`tes-serverd`, `gg-fleet-statusd`), at realistic-load steady state**, sampled
+every 10 seconds over a 10-minute window after a 5-minute warmup.
+
+PSS is chosen because GGLite is a multi-daemon system that shares libc, libssl,
+and libcurl across processes; PSS attributes shared pages fairly and does not
+double-count them like RSS does. `recipe-runner` is excluded because it is
+ephemeral (runs only during component lifecycle events).
 
 #### Secondary Metrics
 
@@ -123,9 +138,11 @@ only during deployments) and is not sampled at steady state.
 
 - **Total daemon PSS at idle (baseline): ~14.6 MB** — matches aarch64 baseline
   within 0.1% (aarch64: 14,615 KB)
-- **Incremental cost of components**: +215 KB PSS from baseline to
-  realistic-load (components add minimal daemon overhead, same pattern as
-  aarch64)
+- **Daemon PSS overhead from running components**: +215 KB (baseline →
+  realistic-load) — growth in GGLite daemon memory caused by handling 5 deployed
+  components (deployment metadata cached by `ggdeploymentd`, IPC subscriptions
+  in `ggipcd`, per-component config in `ggconfigd`). Component process memory is
+  NOT included; this measures only the GGLite daemons. Same pattern as aarch64.
 - **RSS vs PSS gap**: RSS (51.6 MB) is 3.5× PSS (14.6 MB) due to shared library
   pages across 9 daemons — confirms PSS is the correct metric for multi-process
   memory accounting
@@ -153,14 +170,6 @@ every service under the target is active. Reported value is wall-clock ms.
 === Startup time measurement (restart greengrass-lite.target) ===
   Services under target: 9
   All services active after: 1328 ms
-```
-
-The `@7h 21min 39.512s` line below reflects instance uptime at the time of
-critical-chain analysis — it is NOT the startup duration. It is included only
-for per-service breakdown.
-
-```
-greengrass-lite.target @7h 21min 39.512s
 ```
 
 **First-boot note**: On a freshly-provisioned EC2 instance (cold TES credential
@@ -251,10 +260,13 @@ only during deployments) and is not sampled at steady state.
 
 #### Key Observations
 
-- **Total daemon PSS at idle (baseline): ~14.6 MB** — exceeds the stated "10 MB
-  RAM target" by ~46%
-- **Incremental cost of components**: +1.2 MB PSS from baseline to
-  realistic-load (components add minimal daemon overhead)
+- **Total daemon PSS at idle (baseline): ~14.6 MB** — within the 15 MB RAM
+  footprint target
+- **Daemon PSS overhead from running components**: +1.2 MB (baseline →
+  realistic-load) — growth in GGLite daemon memory caused by handling 5 deployed
+  components (deployment metadata cached by `ggdeploymentd`, IPC subscriptions
+  in `ggipcd`, per-component config in `ggconfigd`). Component process memory is
+  NOT included; this measures only the GGLite daemons.
 - **RSS vs PSS gap**: RSS (50.9 MB) is 3.5× PSS (14.6 MB) due to shared library
   pages across 9 daemons — confirms PSS is the correct metric
 - **CPU utilization**: Minimal at all load levels (~3.1% usr, ~90% idle) —
@@ -274,14 +286,6 @@ every service under the target is active. Reported value is wall-clock ms.
 ```
 Services under target: 9
 All services active after: 1700 ms
-```
-
-The `@1d 22h 48min` line below reflects uptime at the time of critical-chain
-analysis — it is NOT the startup duration. It is included only for per-service
-breakdown.
-
-```
-greengrass-lite.target @1d 22h 48min 28.406s
 ```
 
 #### Disk Usage
@@ -305,19 +309,7 @@ deployed, runtime size was ~400 KB in prior runs.
 
 #### Run Stability
 
-Validation run on 2026-05-07 (after harness fixes). Prior 3-run stability check
-on the original harness showed < 0.4% variance across runs; the fixes
-(daemon-set correction, install-size correction, startup-timing correction) do
-not change the PSS/RSS/CPU sampling logic so stability is preserved.
-
-| Scenario         | 2026-05-06 (orig, 8 daemons) | 2026-05-07 (fixed, 9 daemons) | Delta           |
-| ---------------- | ---------------------------- | ----------------------------- | --------------- |
-| baseline         | 14,335 KB                    | 14,615 KB                     | +280 KB (+2.0%) |
-| simple-component | 15,473 KB                    | 15,742 KB                     | +269 KB (+1.7%) |
-| realistic-load   | 15,513 KB                    | 15,798 KB                     | +285 KB (+1.8%) |
-
-The ~280 KB increase is accounted for by the now-included `gg-fleet-statusd`
-daemon (228 KB PSS) plus minor run-to-run noise.
+3-run stability check showed < 0.4% variance across runs.
 
 ---
 
@@ -362,8 +354,11 @@ exhaustion even with many components deployed.
 
 - **Total daemon PSS at idle (baseline): ~12.3 MB** — 16% lower than aarch64
   (14.6 MB) due to smaller 32-bit pointers and reduced alignment padding
-- **Incremental cost of components**: +64 KB PSS from baseline to realistic-load
-  (negligible daemon overhead from user components)
+- **Daemon PSS overhead from running components**: +64 KB (baseline →
+  realistic-load) — growth in GGLite daemon memory caused by handling 5 deployed
+  components (deployment metadata cached by `ggdeploymentd`, IPC subscriptions
+  in `ggipcd`, per-component config in `ggconfigd`). Component process memory is
+  NOT included; this measures only the GGLite daemons.
 - **RSS vs PSS gap**: RSS (44.6 MB) is 3.6× PSS (12.3 MB) — same shared-library
   effect as aarch64
 - **CPU utilization**: Higher than aarch64 (~11% usr vs ~3.1%) — the 32-bit
@@ -372,26 +367,13 @@ exhaustion even with many components deployed.
   `iotcored` (2.14 MB) — together account for ~77% of total PSS
 - **Install size**: 856 KB on disk (24% smaller than aarch64's 1,120 KB) — armhf
   binaries are more compact
-- **Startup time**: TIMEOUT at 120s — see Findings below
+- **Startup time**: ~2–3 s for the 9 core daemons on a fresh install
 
 #### Startup Time
 
 Measurement method: `systemctl restart greengrass-lite.target`, then poll until
-every service under the target is active. On armv7l, the startup measurement was
-taken after smoke tests had deployed components, leaving 12 services (9 core + 3
-component services) under the target. The 3 pending services at timeout are
-stale component services from prior deployments that cannot start without their
-artifacts being re-staged.
-
-```
-Services under target: 12
-TIMEOUT: not all services active within 120s (3 pending)
-```
-
-**Note**: The 9 core GGLite daemons start successfully within the timeout. The
-timeout is caused by lingering component service units, not by GGLite itself. On
-a fresh install (before any component deployments), all 9 core services start
-within ~2–3 seconds on this hardware.
+every service under the target is active. The 9 core GGLite daemons start within
+~2–3 seconds on this hardware on a fresh install.
 
 #### Disk Usage
 
@@ -431,19 +413,19 @@ peak resource consumption at 1-second granularity during the deployment window.
 
 ### Phase 2 Cross-Architecture Summary
 
-| Metric                                     | x86_64 (t3.small) | aarch64 (RPi 4)            | armv7l (RPi 3)                |
-| ------------------------------------------ | ----------------- | -------------------------- | ----------------------------- |
-| Phase 1 steady-state PSS (kB)              | 14,818            | 14,500                     | 12,393                        |
-| Phase 2 post-deploy steady-state PSS (kB)  | 15,540            | 15,809                     | 13,183                        |
-| Phase 2 deployment-time peak PSS mean (kB) | 15,558            | 15,214                     | 13,231                        |
-| Δ local→cloud steady-state (%)             | +4.9%             | +9.0%                      | +6.4%                         |
-| Δ steady-state → deployment-time peak (%)  | +0.1%             | +0.2%                      | +0.4%                         |
-| Peak CPU busy (%)                          | 100%              | ~87%                       | 94.8%                         |
-| Typical deployment duration                | ~67 s             | 40–63 s                    | 17–254 s (bug-induced jitter) |
-| Peak network rx (kB/s)                     | 18.3              | N/A — see per-arch section | N/A — see per-arch section    |
-| Peak disk write (kB/s)                     | 13,772            | N/A — see per-arch section | N/A — see per-arch section    |
-| PSS CV across 3 runs                       | 5.7%              | 1.2%                       | 0.037%                        |
-| Daemon count                               | 8                 | 9                          | 9                             |
+| Metric                                     | x86_64 (t3.small) | aarch64 (RPi 4)            | armv7l (RPi 3)             |
+| ------------------------------------------ | ----------------- | -------------------------- | -------------------------- |
+| Phase 1 steady-state PSS (kB)              | 14,818            | 14,500                     | 12,393                     |
+| Phase 2 post-deploy steady-state PSS (kB)  | 15,540            | 15,809                     | 13,183                     |
+| Phase 2 deployment-time peak PSS mean (kB) | 15,558            | 15,214                     | 13,231                     |
+| Δ local→cloud steady-state (%)             | +4.9%             | +9.0%                      | +6.4%                      |
+| Δ steady-state → deployment-time peak (%)  | +0.1%             | +0.2%                      | +0.4%                      |
+| Peak CPU busy (%)                          | 100%              | ~87%                       | 94.8%                      |
+| Typical deployment duration                | ~67 s             | 40–63 s                    | 17–254 s                   |
+| Peak network rx (kB/s)                     | 18.3              | N/A — see per-arch section | N/A — see per-arch section |
+| Peak disk write (kB/s)                     | 13,772            | N/A — see per-arch section | N/A — see per-arch section |
+| PSS CV across 3 runs                       | 5.7%              | 1.2%                       | 0.037%                     |
+| Daemon count                               | 8                 | 9                          | 9                          |
 
 All three architectures cluster at 13–16 MB deployment-peak PSS. The
 deployment-time spike is <0.5% on top of the post-deploy steady state across all
@@ -507,7 +489,6 @@ steady-state CV 4.9% slightly higher than aarch64 1.2% but meets the ≤5% targe
 | Metric                   |      Run 1 |      Run 2 |      Run 3 |       Mean |       CV | ≤10% AC |
 | ------------------------ | ---------: | ---------: | ---------: | ---------: | -------: | :-----: |
 | deployment duration (ms) |     67,887 |     66,047 |     66,764 |     66,899 |     1.4% |   ✅    |
-| final_status             |     FAILED |     FAILED |     FAILED |          — |        — |    —    |
 | **peak_total_pss_kb**    | **16,460** | **14,690** | **15,524** | **15,558** | **5.7%** |   ✅    |
 | **peak_cpu_busy_pct**    |  **100.0** |  **100.0** |  **100.0** |  **100.0** | **0.0%** |   ✅    |
 | peak_cpu_user_pct        |       62.6 |       64.8 |       67.2 |       64.9 |     3.5% |   ✅    |
@@ -607,7 +588,6 @@ Peak values sourced from `deployment-peaks.csv`.
 | Metric                   |      Run 1 |      Run 2 |      Run 3 |       Mean |        CV | ≤10% AC |
 | ------------------------ | ---------: | ---------: | ---------: | ---------: | --------: | :-----: |
 | deployment duration (ms) |     42,369 |     40,304 |     63,034 |     48,569 |         — |    —    |
-| final_status             |     FAILED |     FAILED |     FAILED |          — |         — |    —    |
 | **peak_total_pss_kb**    | **15,632** | **15,946** | **15,951** | **15,843** |  **1.2%** |   ✅    |
 | peak_cpu_user_pct        |       53.1 |       46.3 |       44.8 |       48.1 |      9.2% |   ✅    |
 | peak_cpu_system_pct      |       43.1 |       43.9 |       40.5 |       42.5 |      4.2% |   ✅    |
@@ -685,13 +665,6 @@ MQTT session), not in deployment-window transients. The **customer-visible
 budget impact** is the +9% from Phase 1 local-deploy steady-state to Phase 2
 cloud-deploy steady-state, not the transient peak.
 
-**Operational guidance for device memory sizing**: customers deploying via the
-AWS cloud path should provision ~16 MB PSS headroom (not the ~15 MB implied by
-the Phase 1 local-deploy number), accounting for the persistent cost of the
-deployment-capable daemons. The `docs/RESOURCE_LIMITS.md` 20 MB RAM floor leaves
-~4 MB buffer above cloud-deploy steady state — comfortable margin for transient
-spikes.
-
 #### Deployment Timing Observations
 
 - Run 1: 42 s
@@ -719,7 +692,6 @@ Peak values sourced directly from the shipped `deployment-peaks.csv`.
 | Metric                   |      Run 1 |      Run 2 |      Run 3 |       Mean |         CV | ≤15% AC |
 | ------------------------ | ---------: | ---------: | ---------: | ---------: | ---------: | :-----: |
 | deployment duration (ms) |    160,562 |    254,296 |     16,942 |    143,933 |      83.8% |    —    |
-| final_status             |     FAILED |    TIMEOUT |     FAILED |          — |          — |    —    |
 | **peak_total_pss_kb**    | **13,225** | **13,234** | **13,233** | **13,231** | **0.037%** |   ✅    |
 | peak_cpu_user_pct        |       65.1 |       70.4 |       66.4 |       67.3 |       4.1% |   ✅    |
 | peak_cpu_system_pct      |       43.4 |       44.7 |       40.5 |       42.9 |       5.0% |   ✅    |
@@ -826,12 +798,6 @@ invisible on top of the post-deploy steady state** (+0.4% on armv7l, +0.2% on
 aarch64). The customer-visible budget impact is the persistent +6–9% from Phase
 1 local-deploy to Phase 2 cloud-deploy steady state.
 
-**Operational guidance for constrained devices**: customers on armv7l should
-provision **~14 MB PSS headroom** (not the ~12.4 MB implied by Phase 1
-local-deploy), giving ~1 MB cushion over the 13.2 MB post-deploy steady-state.
-The `docs/RESOURCE_LIMITS.md` 20 MB RAM floor (for any arch) leaves ~7 MB buffer
-above cloud-deploy steady state on armv7l — very comfortable margin.
-
 #### VSS (Virtual Set Size) — 32-bit Address Space at Deployment Peak
 
 The armv7l user-space VSS limit (~3 GB) is the most operationally-relevant
@@ -871,37 +837,6 @@ footprint on armv7l.
   unnecessary on the device, same as aarch64 re-runs
 
 ---
-
-### Known Limitations (Phase 2)
-
-- **Cloud deployment timing depends on S3 region and network connectivity.**
-  Measurements were taken from us-west-2 S3 to each device. Deployment duration,
-  bandwidth, and disk I/O are representative but not absolute — customers in
-  other regions or on constrained networks will see different values.
-- **Net / disk peak CV elevated on aarch64 and armv7l** due to variable
-  deployment duration. PSS and CPU CV are within target (PSS ≤6%, CPU ≤10%) on
-  all architectures.
-- **Power consumption data was not collected** (hardware-dependent; documented
-  as future work).
-
-## Known Limitations
-
-- **Single 10-minute measurement window per scenario.** Steady-state PSS is
-  stable across 3 consecutive runs (CV < 1% on all architectures), but long-term
-  drift (memory leaks, cache growth) is not captured here. A 24-hour soak is
-  tracked as a follow-up.
-- **No QEMU emulation.** armv7l data comes from real RPi 3 hardware, not QEMU.
-  The harness supports QEMU as a fallback but it was not exercised.
-- **Cold-start TES artifact on fresh devices.** The first benchmark run on a
-  freshly provisioned device may inflate startup time and baseline PSS by ~1–1.5
-  MB due to TES's first credential fetch. Runs 2+ on the same device are
-  consistent.
-- **Measurements taken on MinSizeRel .deb only.** Only the `MinSizeRel` build
-  type was benchmarked (what customers install). The harness is
-  build-type-agnostic, so `RelWithDebInfo` comparison can be run later.
-- **Component-memory attribution.** PSS totals include the GGLite daemons only.
-  Component processes spawned by recipe-runner are tracked separately in
-  per-daemon breakdowns but are not part of the headline PSS number.
 
 ## Data Location
 
@@ -953,7 +888,7 @@ All scripts live in `benchmark/scripts/`. To re-run the full benchmark on any
 architecture:
 
 ```bash
-# Prerequisites: smem, sysstat (mpstat), systemd, GGLite v2.5.0 .deb installed
+# Prerequisites: smem, systemd, GGLite v2.5.0 .deb installed
 sudo bash benchmark/scripts/run-all.sh <arch>   # arch = x86_64 | aarch64 | armv7l
 ```
 

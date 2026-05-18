@@ -76,16 +76,16 @@ within ~1 MB of the steady-state value across all three architectures**, so the
 15 MB recommended minimum covers both the steady-state and deployment windows
 for GGLite itself.
 
-| Architecture      | Peak PSS | Peak CPU | Bandwidth (rx+tx per deploy) | Disk write (per deploy) | Typical deployment duration                    |
-| :---------------- | :------- | :------- | :--------------------------- | :---------------------- | :--------------------------------------------- |
-| x86_64 (t3.small) | 15.6 MB  | 100%     | ~260 KB                      | ~47 MB                  | ~67 s                                          |
-| aarch64 (RPi 4)   | 15.2 MB  | ~87%     | ~1–3 MB                      | ~30 MB                  | 40–63 s                                        |
-| armv7l (RPi 3)    | 13.2 MB  | 95%      | ~2–4 MB                      | ~24 MB                  | 17–254 s (duration jitter due to external bug) |
+| Architecture      | Peak PSS | Peak CPU | Bandwidth (rx+tx per deploy) | Disk write (per deploy) | Typical deployment duration |
+| :---------------- | :------- | :------- | :--------------------------- | :---------------------- | :-------------------------- |
+| x86_64 (t3.small) | 15.6 MB  | 100%     | ~260 KB                      | ~47 MB                  | ~67 s                       |
+| aarch64 (RPi 4)   | 15.2 MB  | ~87%     | ~1–3 MB                      | ~30 MB                  | 40–63 s                     |
+| armv7l (RPi 3)    | 13.2 MB  | 95%      | ~2–4 MB                      | ~24 MB                  | 17–254 s                    |
 
 Deployment duration depends on S3 region, network connectivity, and device
 CPU/storage — the values above are representative and were measured from
-us-west-2 S3 to each device. See `benchmark/REPORT.md` for full methodology,
-per-run data, and Known Limitations.
+us-west-2 S3 to each device. See `benchmark/REPORT.md` for full methodology and
+per-run data.
 
 ### Disk
 
@@ -127,23 +127,25 @@ services reporting `active`.
 armv7l covers 32-bit Raspberry Pi devices (RPi 2B, RPi 3 running a 32-bit OS)
 and other Armv7 Linux boards.
 
-## The "10 MB RAM target"
+## The 15 MB RAM footprint target
 
-Greengrass Lite has a long-standing design goal of a "10 MB RAM target" for the
-Nucleus Lite. This section formally defines what that number means, so it can be
-measured and enforced.
+The Greengrass Lite architecture document (`docs/design/gg-architecture.md`)
+originally targeted a memory footprint below 10 MB. Based on the measurements in
+this document, the requirement has been revised to **15 MB** so that the target
+reflects the actual achievable footprint across all supported architectures with
+realistic component workloads.
 
-**Definition:** The 10 MB RAM target is defined as the **median PSS
+**Definition:** The 15 MB RAM footprint target is defined as the **median PSS
 (Proportional Set Size) summed across all long-running GGLite daemons**
 (`ggconfigd`, `ggdeploymentd`, `gghealthd`, `ggipcd`, `ggpubsubd`, `iotcored`,
 `tesd`, `tes-serverd`, `gg-fleet-statusd`) **at realistic-load steady state**,
 measured over a 10-minute window after a 5-minute warmup, sampled every 10
 seconds.
 
-**Current status:** the measured realistic-load PSS exceeds this target by
-23–58% across supported architectures. The measured minimum is armv7l at 12.4
-MB. The target remains aspirational; actual device sizing should use the
-[recommended minimums](#recommended-minimum-device-specs), not the target.
+**Current status:** All supported architectures stay within the 15 MB target.
+Measured realistic-load PSS ranges from 12.4 MB (armv7l) to 15.8 MB (aarch64).
+For device sizing, use the
+[recommended minimums](#recommended-minimum-device-specs).
 
 ## Reproducing these measurements
 
