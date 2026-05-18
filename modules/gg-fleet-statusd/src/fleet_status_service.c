@@ -52,11 +52,38 @@ static const GgBuffer ARCHITECTURE =
     { 0 };
 #endif
 
+static GgError derive_message_type(
+    GgBuffer trigger, GgBuffer *out_message_type
+) {
+    if (gg_buffer_eq(trigger, GG_STR("NUCLEUS_LAUNCH"))
+        || gg_buffer_eq(trigger, GG_STR("CADENCE"))
+        || gg_buffer_eq(trigger, GG_STR("NETWORK_RECONFIGURE"))) {
+        *out_message_type = GG_STR("COMPLETE");
+        return GG_ERR_OK;
+    }
+    if (gg_buffer_eq(trigger, GG_STR("RECONNECT"))
+        || gg_buffer_eq(trigger, GG_STR("LOCAL_DEPLOYMENT"))
+        || gg_buffer_eq(trigger, GG_STR("THING_DEPLOYMENT"))
+        || gg_buffer_eq(trigger, GG_STR("THING_GROUP_DEPLOYMENT"))
+        || gg_buffer_eq(trigger, GG_STR("COMPONENT_STATUS_CHANGE"))) {
+        *out_message_type = GG_STR("PARTIAL");
+        return GG_ERR_OK;
+    }
+    GG_LOGE("Invalid FSS trigger '%.*s'", (int) trigger.len, trigger.data);
+    return GG_ERR_INVALID;
+}
+
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GgError publish_fleet_status_update(
     GgBuffer thing_name, GgBuffer trigger, GgMap deployment_info
 ) {
+    GgBuffer message_type;
+    GgError ret = derive_message_type(trigger, &message_type);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     GG_MTX_SCOPE_GUARD(&mtx);
 
@@ -70,7 +97,7 @@ GgError publish_fleet_status_update(
 
     // retrieve running components from services config
     GgList components;
-    GgError ret = ggl_gg_config_list(
+    ret = ggl_gg_config_list(
         GG_BUF_LIST(GG_STR("services")), &alloc, &components
     );
     if (ret != GG_ERR_OK) {
@@ -279,7 +306,7 @@ GgError publish_fleet_status_update(
         gg_kv(GG_STR("thing"), gg_obj_buf(thing_name)),
         gg_kv(GG_STR("sequenceNumber"), gg_obj_i64(sequence)),
         gg_kv(GG_STR("timestamp"), gg_obj_i64(timestamp)),
-        gg_kv(GG_STR("messageType"), gg_obj_buf(GG_STR("COMPLETE"))),
+        gg_kv(GG_STR("messageType"), gg_obj_buf(message_type)),
         gg_kv(GG_STR("trigger"), gg_obj_buf(trigger)),
         gg_kv(GG_STR("overallDeviceStatus"), gg_obj_buf(overall_device_status)),
         gg_kv(GG_STR("components"), gg_obj_list(component_statuses.list)),
