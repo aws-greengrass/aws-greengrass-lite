@@ -15,6 +15,9 @@ See docs at
   reconnection.
 - [fss-6] The service reads periodic update interval from configuration.
 - [fss-7] The service initializes default configuration values at startup.
+- [fss-8] The `messageType` field of published updates is derived from the
+  trigger: `NUCLEUS_LAUNCH`, `CADENCE`, and `NETWORK_RECONFIGURE` produce
+  `COMPLETE`; the remaining listed triggers produce `PARTIAL`.
 
 ## CLI parameters
 
@@ -56,8 +59,12 @@ to send a fleet status update to IoT Core.
     - `THING_GROUP_DEPLOYMENT`
     - `COMPONENT_STATUS_CHANGE`
     - `RECONNECT`
-    - `LAUNCH`
+    - `NUCLEUS_LAUNCH`
+    - `CADENCE`
     - `NETWORK_RECONFIGURE`
+  - [gg-fleet-statusd-send_fleet_status_update-1.3] Trigger values outside the
+    listed set are rejected; the call returns an error and no update is
+    published.
 - [gg-fleet-statusd-send_fleet_status_update-2] `deployment_info` is a required
   parameter of type map
   - [gg-fleet-statusd-send_fleet_status_update-2.1] `deployment_info` includes a
