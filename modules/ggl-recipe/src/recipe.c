@@ -328,6 +328,35 @@ GgBuffer get_current_architecture(void) {
     return current_arch;
 }
 
+GgBuffer get_current_architecture_detail(void) {
+    GgBuffer arch_detail = GG_STR("");
+
+    // --- ARM 32-bit Details ---
+#if defined(__ARM_ARCH_7A__) || (defined(__ARM_ARCH) && __ARM_ARCH == 7)
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    arch_detail = GG_STR("armv7b");
+#else
+    arch_detail = GG_STR("armv7l");
+#endif
+#elif defined(__ARM_ARCH_6__) || (defined(__ARM_ARCH) && __ARM_ARCH == 6)
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    arch_detail = GG_STR("armv6b");
+#else
+    arch_detail = GG_STR("armv6l");
+#endif
+
+    // --- ARM 64-bit Details ---
+#elif defined(__ARM_ARCH_8A__) || (defined(__ARM_ARCH) && __ARM_ARCH == 8)
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    arch_detail = GG_STR("armv8b");
+#else
+    arch_detail = GG_STR("armv8l");
+#endif
+#endif
+
+    return arch_detail;
+}
+
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GgError manifest_selection(

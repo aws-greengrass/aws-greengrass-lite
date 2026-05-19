@@ -44,6 +44,8 @@ GgError select_linux_manifest(
 
 GgBuffer get_current_architecture(void);
 
+GgBuffer get_current_architecture_detail(void);
+
 GgError ggl_get_recipe_artifacts_for_platform(
     GgMap recipe_map, GgList *out_platform_artifacts
 );
