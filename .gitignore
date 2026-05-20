@@ -10,6 +10,7 @@ compile_commands.json
 *.db
 
 benchmark/scripts/cloud-setup.env
+benchmark/data/
 
 .history/
 .kiro/

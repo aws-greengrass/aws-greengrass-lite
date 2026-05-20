@@ -160,7 +160,7 @@ certificate, IoT policy, IAM role, role alias, and an S3 bucket — all set up b
 | Phase 2: cloud-initial | Same as realistic-load, deployed via `aws greengrassv2 create-deployment`     | First-time cloud deployment + 10-min steady   |
 | Phase 2: cloud-update  | Version-bump (`hello-world` 1.0.0 → 1.0.1) on an already-deployed core device | Update deployment + 10-min steady             |
 
-## Non-Goals
+## Not Covered (Future Work)
 
 The harness is intentionally scoped to in-process resource measurement. The
 following are **out of scope**:
