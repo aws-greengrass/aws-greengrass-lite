@@ -62,3 +62,11 @@ supported as mentioned in the
 - Platform Override only supports `architecture.detail`, please refer known
   issues link
   [here](https://github.com/aws-greengrass/aws-greengrass-lite/issues).
+- When `architecture.detail` is not set in `platformOverride`, the deployment
+  service will automatically detect it at compile time on ARM platforms. The
+  following values are reported based on the target architecture:
+  - `armv6l` / `armv6b` (ARMv6 little/big endian)
+  - `armv7l` / `armv7b` (ARMv7 little/big endian)
+  - `armv8l` / `armv8b` (ARMv8 little/big endian)
+  - On non-ARM platforms or unrecognized ARM versions, `architecture.detail` is
+    omitted from the component resolution request.
