@@ -1112,10 +1112,20 @@ static GgError generate_resolve_component_candidates_body(
         &architecture_detail_read_value
     );
     if (ret != GG_ERR_OK) {
-        GG_LOGD(
-            "No architecture.detail found, so not including it in the component candidates search."
-        );
-        architecture_detail_read_value = gg_obj_buf(GG_STR(""));
+        GG_LOGD("No architecture.detail found.");
+
+        GgBuffer current_arch_detail = get_current_architecture_detail();
+        if (current_arch_detail.len == 0) {
+            GG_LOGD("Not including it in the component candidates search.");
+        } else {
+            GG_LOGD(
+                "Using compiler provided architecture details %.*s.",
+                (int) current_arch_detail.len,
+                current_arch_detail.data
+            );
+        }
+
+        architecture_detail_read_value = gg_obj_buf(current_arch_detail);
     }
 
     if (gg_obj_type(architecture_detail_read_value) != GG_TYPE_BUF) {
