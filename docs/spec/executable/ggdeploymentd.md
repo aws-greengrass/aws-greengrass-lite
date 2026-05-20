@@ -19,7 +19,10 @@ deployment task processing:
 - Dependency resolution: Resolve the versions of components required by the
   deployment, including getting root components from all thing groups and
   negotiating component version with cloud. This step also gets component
-  recipes for the correct component version.
+  recipes for the correct component version. Platform attributes (os,
+  architecture, architecture.detail, runtime) are sent to the cloud during
+  component resolution. If `architecture.detail` is not configured in
+  `platformOverride`, it is auto-detected at compile time on ARM platforms.
 - Download large configuration: If the deployment configuration is large (>7KB
   for Shadow or >31KB for Jobs), download the full large configuration from
   cloud. Ensure that docker is installed if any component specifies a docker
