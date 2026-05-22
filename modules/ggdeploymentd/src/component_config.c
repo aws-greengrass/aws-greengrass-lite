@@ -17,7 +17,6 @@
 #include <ggl/json_pointer.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 static GgError apply_reset_config(
     GgBuffer component_name, GgMap component_config_map
@@ -265,39 +264,6 @@ bool is_component_config_updated(
     return true;
 }
 
-// Extract merge and reset payloads from a canonical-form per-component
-// value. The canonical form is a GG_TYPE_MAP with optional "merge" (map)
-// and "reset" (list) keys. Any other shape is invalid.
-static GgError extract_merge_and_reset_payloads(
-    GgObject *config_update_obj, GgObject **merge_out, GgObject **reset_out
-) {
-    *merge_out = NULL;
-    if (reset_out != NULL) {
-        *reset_out = NULL;
-    }
-
-    if (gg_obj_type(*config_update_obj) != GG_TYPE_MAP) {
-        GG_LOGE("component_to_configuration value must be a map.");
-        return GG_ERR_INVALID;
-    }
-
-    GgMap m = gg_obj_into_map(*config_update_obj);
-
-    GgObject *merge_obj;
-    if (gg_map_get(m, GG_STR("merge"), &merge_obj)) {
-        *merge_out = merge_obj;
-    }
-
-    if (reset_out != NULL) {
-        GgObject *reset_obj;
-        if (gg_map_get(m, GG_STR("reset"), &reset_obj)) {
-            *reset_out = reset_obj;
-        }
-    }
-
-    return GG_ERR_OK;
-}
-
 GgError apply_component_to_configuration(
     GgBuffer component_name, GgMap component_to_configuration
 ) {
@@ -308,55 +274,35 @@ GgError apply_component_to_configuration(
         return GG_ERR_OK;
     }
 
-    GgObject *merge_obj = NULL;
-    GgObject *reset_obj = NULL;
-    GgError ret = extract_merge_and_reset_payloads(
-        config_update_obj, &merge_obj, &reset_obj
-    );
-    if (ret != GG_ERR_OK) {
-        return ret;
+    if (gg_obj_type(*config_update_obj) != GG_TYPE_MAP) {
+        GG_LOGE("component_to_configuration value must be a map.");
+        return GG_ERR_INVALID;
     }
+
+    GgMap config_update_map = gg_obj_into_map(*config_update_obj);
 
     // Apply reset BEFORE merge, matching AWS IoT Greengrass Core semantics
     // (reset updates are applied before merge updates — see
     // ComponentConfigurationUpdate docs).
-    if (reset_obj != NULL) {
-        // apply_reset_config expects a wrapper map with a "reset" key so we
-        // can reuse the schema validator.
-        GgKV reset_wrapper_kv = gg_kv(GG_STR("reset"), *reset_obj);
-        GgMap reset_wrapper = (GgMap) { .pairs = &reset_wrapper_kv, .len = 1 };
-        ret = apply_reset_config(component_name, reset_wrapper);
-        if (ret != GG_ERR_OK) {
-            GG_LOGE(
-                "Failed to apply reset for %.*s from componentToConfiguration.",
-                (int) component_name.len,
-                component_name.data
-            );
-            return ret;
-        }
-    }
-
-    if (merge_obj == NULL) {
-        // No merge payload (e.g. reset-only or empty wrapper). Done.
-        return GG_ERR_OK;
-    }
-
-    ret = ggl_gg_config_write(
-        GG_BUF_LIST(
-            GG_STR("services"), component_name, GG_STR("configuration")
-        ),
-        *merge_obj,
-        &(int64_t) { 0 }
-    );
+    GgError ret = apply_reset_config(component_name, config_update_map);
     if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to merge component configuration.");
+        GG_LOGE(
+            "Failed to apply reset for %.*s from componentToConfiguration.",
+            (int) component_name.len,
+            component_name.data
+        );
         return ret;
     }
-    GG_LOGI(
-        "Applied configuration merge for %.*s.",
-        (int) component_name.len,
-        component_name.data
-    );
+
+    ret = apply_merge_config(component_name, config_update_map);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Failed to apply merge for %.*s from componentToConfiguration.",
+            (int) component_name.len,
+            component_name.data
+        );
+        return ret;
+    }
 
     return GG_ERR_OK;
 }
