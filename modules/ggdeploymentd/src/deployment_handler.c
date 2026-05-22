@@ -4064,6 +4064,15 @@ static void handle_deployment(
     // re-deploying them.
     if (deployment->component_to_configuration.len > 0) {
         GG_MAP_FOREACH (cfg_pair, deployment->component_to_configuration) {
+            // Skip components already processed in the first pass.
+            GgObject *already_handled;
+            if (gg_map_get(
+                    resolved_components_kv_vec.map,
+                    gg_kv_key(*cfg_pair),
+                    &already_handled
+                )) {
+                continue;
+            }
             GgError cfg_ret = apply_component_to_configuration(
                 gg_kv_key(*cfg_pair), deployment->component_to_configuration
             );

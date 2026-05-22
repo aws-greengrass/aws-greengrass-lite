@@ -121,6 +121,15 @@ GgError deep_copy_deployment(GglDeployment *deployment, GgArena *alloc) {
     }
     deployment->thing_group = gg_obj_into_buf(obj);
 
+    if (deployment->component_to_configuration.len > 0) {
+        obj = gg_obj_map(deployment->component_to_configuration);
+        ret = gg_arena_claim_obj(&obj, alloc);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        deployment->component_to_configuration = gg_obj_into_map(obj);
+    }
+
     return GG_ERR_OK;
 }
 
