@@ -27,13 +27,18 @@ x86_64, aarch64, and armv7l, see the
 For AI agent driven getting started please follow the instruction from the
 [greengrass-agent-context-pack github repo](https://github.com/aws-greengrass/greengrass-agent-context-pack).
 
-For easy device onboarding and example implementation, you may want to check out
-[Avnet's workshop](https://event.on24.com/wcc/r/5114804/16BB67D34A48F65741B4C0A5EA675F1A).
+For accelerated development, easy device onboarding, and sample components,
+check out Avnet's
+[hands-on workshops](https://event.on24.com/wcc/mr/6724766/6E4BE6E2CF7D23EF4BA022C2F8783E80)
+covering Device Health Monitoring and Vision AI Object Detection.
 
-Furthermore you can visit Avnet's IOTCONNECT Greengrass repository
+Furthermore you can visit Avnet's /IOTCONNECT Greengrass repository
 [on GitHub](https://github.com/avnet-iotconnect/iotc-python-greengrass-sdk) for
 SDKs and Quick Start guides that support platforms such as STM32, Renesas, NXP
 and Raspberry Pi.
+
+For a self-paced workshop, see the
+[Greengrass Nucleus Lite Workshop](https://catalog.workshops.aws/greengrass-nucleus-lite/en-US).
 
 For Yocto/OpenEmbedded integration, check out
 [meta-aws](https://github.com/aws4embeddedlinux/meta-aws) and
