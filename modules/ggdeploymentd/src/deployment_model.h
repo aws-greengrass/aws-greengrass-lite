@@ -28,6 +28,7 @@ typedef enum {
 
 typedef struct {
     GgBuffer deployment_id;
+    GgBuffer iot_job_id;
     GgBuffer recipe_directory_path;
     GgBuffer artifacts_directory_path;
     GgBuffer configuration_arn;

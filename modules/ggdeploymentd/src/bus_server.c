@@ -26,7 +26,9 @@ static GgError create_local_deployment(
 
     GgByteVec id = GG_BYTE_VEC((uint8_t[36]) { 0 });
 
-    GgError ret = ggl_deployment_enqueue(params, &id, LOCAL_DEPLOYMENT);
+    GgError ret = ggl_deployment_enqueue(
+        params, &id, (GgBuffer) { 0 }, LOCAL_DEPLOYMENT
+    );
     if (ret != GG_ERR_OK) {
         return ret;
     }

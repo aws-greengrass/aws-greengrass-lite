@@ -2748,8 +2748,11 @@ static void report_endpoint_switch_status_to_source(
     PublishToSourceCtx pub_ctx = { .deployment_id = deployment_id };
     ret = gg_backoff(1000, 60000, 8, report_success_to_source, &pub_ctx);
     if (ret != GG_ERR_OK) {
-        GG_LOGW("Failed to report SUCCEEDED to source account; "
-                "source IoT Job will time out.");
+        GG_LOGW(
+            "Failed to report SUCCEEDED to source account (%s); "
+            "source IoT Job will time out.",
+            gg_strerror(ret)
+        );
     } else {
         GG_LOGI("Reported SUCCEEDED to source account.");
     }
@@ -4053,6 +4056,8 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         if (ret != GG_ERR_OK) {
             return ret;
         }
+
+        set_current_job(deployment->iot_job_id, deployment->deployment_id);
 
         GG_LOGI("Processing incoming deployment.");
 
