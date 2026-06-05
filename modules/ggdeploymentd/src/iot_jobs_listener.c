@@ -6,6 +6,7 @@
 #include "bootstrap_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
+#include <assert.h>
 #include <gg/arena.h>
 #include <gg/backoff.h>
 #include <gg/buffer.h>
@@ -278,28 +279,21 @@ static GgError enqueue_job(GgMap deployment_doc, GgBuffer job_id) {
             GG_LOGI("Duplicate job document received. Skipping.");
             return GG_ERR_OK;
         }
+    }
 
-        current_job_id = GG_BYTE_VEC(current_job_id_buf);
-        ret = gg_byte_vec_append(&current_job_id, job_id);
-        if (ret != GG_ERR_OK) {
-            GG_LOGE("Job ID too long.");
-            return ret;
-        }
+    GgByteVec deployment_id_vec = GG_BYTE_VEC((uint8_t[64]) { 0 });
 
-        current_deployment_id = GG_BYTE_VEC(current_deployment_id_buf);
-
-        // TODO: backoff algorithm
-        int64_t retries = 1;
-        while (
-            (ret = ggl_deployment_enqueue(
-                 deployment_doc, &current_deployment_id, THING_GROUP_DEPLOYMENT
-             ))
-            == GG_ERR_BUSY
-        ) {
-            int64_t sleep_for = 1 << MIN(7, retries);
-            (void) gg_sleep(sleep_for);
-            ++retries;
-        }
+    // TODO: backoff algorithm
+    int64_t retries = 1;
+    while (
+        (ret = ggl_deployment_enqueue(
+             deployment_doc, &deployment_id_vec, job_id, THING_GROUP_DEPLOYMENT
+         ))
+        == GG_ERR_BUSY
+    ) {
+        int64_t sleep_for = 1 << MIN(7, retries);
+        (void) gg_sleep(sleep_for);
+        ++retries;
     }
 
     if (ret != GG_ERR_OK) {
@@ -504,10 +498,12 @@ GgError update_current_jobs_deployment_to(
         if (!gg_buffer_eq(deployment_id, current_deployment_id.buf)) {
             return GG_ERR_NOENTRY;
         }
-        memcpy(
-            job_id.data, current_job_id.buf.data, current_deployment_id.buf.len
-        );
-        job_id.len = current_deployment_id.buf.len;
+        if (current_job_id.buf.len == 0) {
+            // Local deployments have no IoT Job — nothing to publish.
+            return GG_ERR_OK;
+        }
+        memcpy(job_id.data, current_job_id.buf.data, current_job_id.buf.len);
+        job_id.len = current_job_id.buf.len;
     }
 
     return update_job_to(job_id, status, socket_name);
@@ -544,4 +540,16 @@ GgError set_jobs_deployment_for_bootstrap(
         }
     }
     return GG_ERR_OK;
+}
+
+void set_current_job(GgBuffer job_id, GgBuffer deployment_id) {
+    GG_MTX_SCOPE_GUARD(&current_job_id_mutex);
+    current_job_id = GG_BYTE_VEC(current_job_id_buf);
+    if (job_id.len > 0) {
+        GgError ret = gg_byte_vec_append(&current_job_id, job_id);
+        assert(ret == GG_ERR_OK);
+    }
+    current_deployment_id = GG_BYTE_VEC(current_deployment_id_buf);
+    GgError ret = gg_byte_vec_append(&current_deployment_id, deployment_id);
+    assert(ret == GG_ERR_OK);
 }

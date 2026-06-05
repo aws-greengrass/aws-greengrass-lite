@@ -19,7 +19,10 @@
 /// replaceable state. Otherwise, do not add the deployment to the queue and
 /// return an error.
 GgError ggl_deployment_enqueue(
-    GgMap deployment_doc, GgByteVec *id, GglDeploymentType type
+    GgMap deployment_doc,
+    GgByteVec *id,
+    GgBuffer iot_job_id,
+    GglDeploymentType type
 );
 
 /// Get the deployment queue for the next deployment.

@@ -22,4 +22,8 @@ GgError set_jobs_deployment_for_bootstrap(
     GgBuffer job_id, GgBuffer deployment_id
 );
 
+/// Set the current job/deployment IDs for status reporting. Called at dequeue
+/// time so the IDs reflect the job being actively processed.
+void set_current_job(GgBuffer job_id, GgBuffer deployment_id);
+
 #endif

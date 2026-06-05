@@ -81,6 +81,15 @@ GgError deep_copy_deployment(GglDeployment *deployment, GgArena *alloc) {
     }
     deployment->deployment_id = gg_obj_into_buf(obj);
 
+    if (deployment->iot_job_id.len > 0) {
+        obj = gg_obj_buf(deployment->iot_job_id);
+        ret = gg_arena_claim_obj(&obj, alloc);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+        deployment->iot_job_id = gg_obj_into_buf(obj);
+    }
+
     ret = null_terminate_buffer(&deployment->recipe_directory_path, alloc);
     if (ret != GG_ERR_OK) {
         return ret;
@@ -439,7 +448,10 @@ static GgError parse_deployment_obj(
 }
 
 GgError ggl_deployment_enqueue(
-    GgMap deployment_doc, GgByteVec *id, GglDeploymentType type
+    GgMap deployment_doc,
+    GgByteVec *id,
+    GgBuffer iot_job_id,
+    GglDeploymentType type
 ) {
     GG_MTX_SCOPE_GUARD(&queue_mtx);
 
@@ -461,6 +473,7 @@ GgError ggl_deployment_enqueue(
     }
 
     new.type = type;
+    new.iot_job_id = iot_job_id;
 
     if (id != NULL) {
         ret = gg_byte_vec_append(id, new.deployment_id);
