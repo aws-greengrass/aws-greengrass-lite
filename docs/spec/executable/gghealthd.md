@@ -194,3 +194,35 @@ becoming available.
 - [gghealthd-bus-deployment-updates-error-3] `GGL_ERR_FATAL` shall be returned
   in the event that `gghealthd` is not permitted to view a root component's
   status.
+
+### subscribe_to_all_component_state_changes
+
+A broadcast subscription that streams lifecycle state changes for every
+Greengrass (`ggl.*`) component. It is intended for `ggdeploymentd`, which
+forwards changes to `gg-fleet-statusd` so the cloud reflects component status as
+it changes (outside of deployments). A single global systemd `PropertiesChanged`
+match drives this subscription.
+
+#### Parameters
+
+- [gghealthd-bus-all-state-changes-1] All parameters shall be ignored.
+
+#### Response
+
+- [gghealthd-bus-all-state-changes-resp-1] Each response shall be a map with the
+  following schema:
+  - [gghealthd-bus-all-state-changes-resp-1.1] Required key `component_name`
+    shall be present with value type Buffer, containing the bare component name
+    (the systemd unit's `ggl.` prefix and `.service` suffix removed).
+  - [gghealthd-bus-all-state-changes-resp-1.2] Required key `lifecycle_state`
+    shall be present with value type Buffer.
+- [gghealthd-bus-all-state-changes-resp-2] A response shall be sent only when a
+  component's systemd `ActiveState` actually changes and the resulting
+  Greengrass lifecycle state is terminal (`RUNNING`, `FINISHED`, or `BROKEN`).
+- [gghealthd-bus-all-state-changes-resp-3] Only Greengrass (`ggl.*`) component
+  units shall be reported; all other units shall be ignored.
+
+#### Errors
+
+- [gghealthd-bus-all-state-changes-error-1] `GGL_ERR_NOMEM` shall be returned if
+  the subscription cannot be accepted.
