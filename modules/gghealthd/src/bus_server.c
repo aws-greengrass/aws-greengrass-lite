@@ -176,6 +176,14 @@ static GgError subscribe_to_lifecycle_completion(
     return GG_ERR_OK;
 }
 
+static GgError subscribe_to_all_component_state_changes(
+    void *ctx, GgMap params, uint32_t handle
+) {
+    (void) ctx;
+    (void) params;
+    return gghealthd_register_all_component_state_changes_subscription(handle);
+}
+
 static GgError restart_component(void *ctx, GgMap params, uint32_t handle) {
     (void) ctx;
     GgObject *component_name_obj;
@@ -222,6 +230,10 @@ GgError run_gghealthd(void) {
             { GG_STR("subscribe_to_lifecycle_completion"),
               true,
               subscribe_to_lifecycle_completion,
+              NULL },
+            { GG_STR("subscribe_to_all_component_state_changes"),
+              true,
+              subscribe_to_all_component_state_changes,
               NULL } };
     static const size_t HANDLERS_LEN = sizeof(handlers) / sizeof(handlers[0]);
 

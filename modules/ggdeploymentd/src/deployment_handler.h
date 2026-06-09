@@ -6,6 +6,7 @@
 #define GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 
 #include <gg/types.h>
+#include <stdbool.h>
 
 typedef struct {
     int root_path_fd;
@@ -14,5 +15,9 @@ typedef struct {
 } GglDeploymentHandlerThreadArgs;
 
 void *ggl_deployment_handler_thread(void *ctx);
+
+/// Returns true while the handler thread is actively processing a deployment.
+/// Thread-safe.
+bool ggl_deployment_in_progress(void);
 
 #endif
