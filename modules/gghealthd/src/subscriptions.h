@@ -15,6 +15,16 @@ GgError gghealthd_register_lifecycle_subscription(
 
 void gghealthd_unregister_lifecycle_subscription(void *ctx, uint32_t handle);
 
+// Register a broadcast subscription that receives the lifecycle state changes
+// of every Greengrass (`ggl.*`) component. Accepts the subscription on success.
+GgError gghealthd_register_all_component_state_changes_subscription(
+    uint32_t handle
+);
+
+void gghealthd_unregister_all_component_state_changes_subscription(
+    void *ctx, uint32_t handle
+);
+
 void init_health_events(void);
 
 #endif

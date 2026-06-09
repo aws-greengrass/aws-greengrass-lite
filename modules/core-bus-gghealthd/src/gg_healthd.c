@@ -65,3 +65,22 @@ GgError ggl_gghealthd_retrieve_component_status(
 
     return GG_ERR_OK;
 }
+
+GgError ggl_gghealthd_subscribe_to_all_component_state_changes(
+    GglSubscribeCallback on_response,
+    GglSubscribeCloseCallback on_close,
+    void *ctx,
+    GgError *remote_error,
+    uint32_t *handle
+) {
+    return ggl_subscribe(
+        GG_STR("gg_health"),
+        GG_STR("subscribe_to_all_component_state_changes"),
+        GG_MAP(),
+        on_response,
+        on_close,
+        ctx,
+        remote_error,
+        handle
+    );
+}

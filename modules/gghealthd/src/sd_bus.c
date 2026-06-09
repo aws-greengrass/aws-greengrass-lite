@@ -15,6 +15,7 @@
 #include <ggl/nucleus/constants.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <string.h>
 #include <sys/types.h>
 #include <systemd/sd-bus.h>
 #include <time.h>
@@ -163,6 +164,52 @@ GgError get_service_name(GgBuffer component_name, GgBuffer *qualified_name) {
         GG_LOGD("Service name: %s", qualified_name->data);
     }
     return ret;
+}
+
+GgError get_component_name_from_unit(
+    sd_bus *bus, const char *unit_path, GgBuffer *component_name
+) {
+    assert(
+        (bus != NULL) && (unit_path != NULL) && (component_name != NULL)
+        && (component_name->data != NULL)
+    );
+
+    char *unit_id = NULL;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    int ret = sd_bus_get_property_string(
+        bus,
+        DEFAULT_DESTINATION,
+        unit_path,
+        UNIT_INTERFACE,
+        "Id",
+        &error,
+        &unit_id
+    );
+    GG_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(cleanup_free, unit_id);
+    if (ret < 0) {
+        return translate_dbus_call_error(ret);
+    }
+
+    GgBuffer id = gg_buffer_from_null_term(unit_id);
+    // only Greengrass component units (ggl.<name>.service)
+    if (!gg_buffer_has_prefix(id, GG_STR(SERVICE_PREFIX))
+        || !gg_buffer_has_suffix(id, GG_STR(SERVICE_SUFFIX))
+        || (id.len < SERVICE_PREFIX_LEN + SERVICE_SUFFIX_LEN)) {
+        return GG_ERR_NOENTRY;
+    }
+
+    GgBuffer name
+        = gg_buffer_substr(id, SERVICE_PREFIX_LEN, id.len - SERVICE_SUFFIX_LEN);
+    if (name.len == 0) {
+        return GG_ERR_NOENTRY;
+    }
+    if (component_name->len < name.len) {
+        return GG_ERR_NOMEM;
+    }
+    memcpy(component_name->data, name.data, name.len);
+    component_name->len = name.len;
+    return GG_ERR_OK;
 }
 
 static GgError get_component_result(

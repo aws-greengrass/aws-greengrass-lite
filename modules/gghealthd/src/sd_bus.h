@@ -42,6 +42,14 @@ GgError open_bus(sd_bus **bus);
 
 GgError get_service_name(GgBuffer component_name, GgBuffer *qualified_name);
 
+// Reads the systemd unit `Id` for `unit_path`; if it is a Greengrass
+// (`ggl.*.service`) unit, writes the bare component name into `component_name`
+// (`component_name->data` must have capacity `component_name->len`). Returns
+// GG_ERR_NOENTRY for non-Greengrass units.
+GgError get_component_name_from_unit(
+    sd_bus *bus, const char *unit_path, GgBuffer *component_name
+);
+
 GgError get_lifecycle_state(
     sd_bus *bus, const char *unit_path, GgBuffer *state
 );

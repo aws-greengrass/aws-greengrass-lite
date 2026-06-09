@@ -54,6 +54,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -72,6 +73,16 @@ static struct DeploymentConfiguration {
     char region[24];
     char port[16];
 } config;
+
+// Set while a deployment is actively being processed by the handler thread.
+// Read from the component-status listener (running on a different thread) to
+// suppress per-component cloud status updates during a deployment, since the
+// deployment path already reports to the fleet status service itself.
+static atomic_bool deployment_in_progress;
+
+bool ggl_deployment_in_progress(void) {
+    return atomic_load(&deployment_in_progress);
+}
 
 typedef struct TesCredentials {
     GgBuffer aws_region;
@@ -3994,12 +4005,16 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
                ));
 
         bool bootstrap_deployment_succeeded = false;
+        atomic_store(&deployment_in_progress, true);
+        GG_LOGD("Deployment in progress (resuming bootstrap deployment).");
         handle_deployment(
             &bootstrap_deployment,
             args,
             &bootstrap_ctx,
             &bootstrap_deployment_succeeded
         );
+        atomic_store(&deployment_in_progress, false);
+        GG_LOGD("Bootstrap deployment processing complete.");
 
         if (bootstrap_ctx.source_iot_data_endpoint.len > 0
             && !bootstrap_deployment_succeeded) {
@@ -4047,7 +4062,11 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         bool deployment_succeeded = false;
         DeploymentContext ctx = { 0 };
+        atomic_store(&deployment_in_progress, true);
+        GG_LOGD("Deployment in progress.");
         handle_deployment(deployment, args, &ctx, &deployment_succeeded);
+        atomic_store(&deployment_in_progress, false);
+        GG_LOGD("Deployment processing complete.");
 
         if (ctx.source_iot_data_endpoint.len > 0 && !deployment_succeeded) {
             rollback_config(deployment->deployment_id);
