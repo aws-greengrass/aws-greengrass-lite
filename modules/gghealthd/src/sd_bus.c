@@ -165,6 +165,47 @@ GgError get_service_name(GgBuffer component_name, GgBuffer *qualified_name) {
     return ret;
 }
 
+GgError get_component_name_from_unit(
+    sd_bus *bus, const char *unit_path, GgBuffer *component_name
+) {
+    assert(
+        (bus != NULL) && (unit_path != NULL) && (component_name != NULL)
+        && (component_name->data != NULL)
+    );
+
+    char *unit_id = NULL;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    int ret = sd_bus_get_property_string(
+        bus,
+        DEFAULT_DESTINATION,
+        unit_path,
+        UNIT_INTERFACE,
+        "Id",
+        &error,
+        &unit_id
+    );
+    GG_CLEANUP(sd_bus_error_free, error);
+    GG_CLEANUP(cleanup_free, unit_id);
+    if (ret < 0) {
+        return translate_dbus_call_error(ret);
+    }
+
+    GgBuffer id = gg_buffer_from_null_term(unit_id);
+    // only Greengrass component units (ggl.<name>.service)
+    if ((id.len <= SERVICE_PREFIX_LEN + SERVICE_SUFFIX_LEN)
+        || !gg_buffer_has_prefix(id, GG_STR(SERVICE_PREFIX))
+        || !gg_buffer_has_suffix(id, GG_STR(SERVICE_SUFFIX))) {
+        return GG_ERR_NOENTRY;
+    }
+
+    GgBuffer name
+        = gg_buffer_substr(id, SERVICE_PREFIX_LEN, id.len - SERVICE_SUFFIX_LEN);
+    assert(name.len != 0);
+
+    GgByteVec component_name_vec = gg_byte_vec_init(*component_name);
+    return gg_byte_vec_append(&component_name_vec, name);
+}
+
 static GgError get_component_result(
     sd_bus *bus, const char *unit_path, GgBuffer *state
 ) {

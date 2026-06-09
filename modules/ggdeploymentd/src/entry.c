@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
+#include "component_status_listener.h"
 #include "deployment_handler.h"
 #include "iot_jobs_listener.h"
 #include <errno.h>
@@ -73,6 +74,10 @@ GgError run_ggdeploymentd(const char *bin_path) {
     pthread_t ptid_handler;
     pthread_create(&ptid_handler, NULL, &ggl_deployment_handler_thread, &args);
     pthread_detach(ptid_handler);
+
+    // Forward gghealthd component lifecycle state changes to the fleet status
+    // service when no deployment is in progress.
+    ggl_start_component_status_listener();
 
     ggdeploymentd_start_server();
 
