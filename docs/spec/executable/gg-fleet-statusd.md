@@ -18,6 +18,11 @@ See docs at
 - [fss-8] The `messageType` field of published updates is derived from the
   trigger: `NUCLEUS_LAUNCH`, `CADENCE`, and `NETWORK_RECONFIGURE` produce
   `COMPLETE`; the remaining listed triggers produce `PARTIAL`.
+- [fss-9] A `COMPONENT_STATUS_CHANGE` update is triggered by `ggdeploymentd`
+  when a component's lifecycle state changes outside of a deployment. These
+  changes are detected by `gghealthd`'s event loop and forwarded by
+  `ggdeploymentd` (which suppresses them while a deployment is in progress, as
+  the deployment path reports status itself).
 
 ## CLI parameters
 

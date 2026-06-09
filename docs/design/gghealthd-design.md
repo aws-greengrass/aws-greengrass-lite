@@ -26,6 +26,12 @@ behalf.
   `ggdeploymentd`. In response, gghealthd shall connect to the core device
   orchestrator and await Greengrass component completions or failures,
   forwarding the overall result back to ggdeploymentd.
+- `gghealthd` shall offer a broadcast subscription
+  (`subscribe_to_all_component_state_changes`) that streams every Greengrass
+  component's terminal lifecycle state changes, driven by a single global
+  systemd `PropertiesChanged` match. `ggdeploymentd` uses this to report
+  component status changes to the cloud via `gg-fleet-statusd`. See the
+  [component status updates design](../../../component-udpates-design.md).
 - On request by `gg-fleet-statusd`, `gghealthd` shall report individual
   component lifecycle states. This will be used to report the overall device
   health as well as what components are installed on the device.
