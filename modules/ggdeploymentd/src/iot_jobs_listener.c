@@ -340,6 +340,14 @@ static GgError enqueue_job(GgMap deployment_doc, GgBuffer job_id) {
         ++retries;
     }
 
+    // A new deployment supersedes any status still pending for a previous one.
+    // greengrass lite tracks a single deployment at a time ($next), so reaching
+    // here with a new job_id means the prior deployment has finalized and any
+    // held status is stale -- drop it so we never re-publish a superseded job's
+    // status. status_keeper_clear() self-gates on the pending hint, so this is
+    // a no-op when nothing is pending.
+    (void) status_keeper_clear();
+
     if (ret != GG_ERR_OK) {
         (void) update_job(job_id, GG_STR("FAILURE"));
     }
