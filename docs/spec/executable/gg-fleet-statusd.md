@@ -74,3 +74,19 @@ to send a fleet status update to IoT Core.
   parameter of type map
   - [gg-fleet-statusd-send_fleet_status_update-2.1] `deployment_info` includes a
     map of deployment information to send to cloud after a deployment
+- [gg-fleet-statusd-send_fleet_status_update-3] `removed_components` is an
+  optional parameter of type list
+  - [gg-fleet-statusd-send_fleet_status_update-3.1] Each entry shall be of type
+    Buffer holding a component name. Calls with non-buffer entries shall be
+    rejected with an error and no update is published.
+  - [gg-fleet-statusd-send_fleet_status_update-3.2] An absent or empty list
+    means no components were uninstalled by the triggering event.
+  - [gg-fleet-statusd-send_fleet_status_update-3.3] Each listed component shall
+    appear in the published payload's `components[]` array with
+    `status: "UNINSTALLED"`, `version: ""`, `fleetConfigArns: []`, and
+    `isRoot: true`. This signals the cloud to prune the component from its
+    inventory even when `messageType` is `PARTIAL`.
+  - [gg-fleet-statusd-send_fleet_status_update-3.4] When the combined number of
+    running and removed components would exceed the configured component cap,
+    extra UNINSTALLED entries are dropped from the current update and a warning
+    is logged.

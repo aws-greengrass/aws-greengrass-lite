@@ -97,6 +97,49 @@ the following requirements.
    - [ggdeploymentd-4.2] Stale components are removed from the device on a new
      deployment handling. A component is considered stale if it was not part of
      the list of resolved component versions.
+     - [ggdeploymentd-4.2.1] The names of components that are fully removed
+       (i.e. not part of any thing group's resolved component set, so their
+       systemd unit, recipe, artifacts, and `services/<name>` config tree are
+       deleted) are recorded for the post-deployment fleet status update so the
+       cloud can prune them from its inventory. See [ggdeploymentd-5.1.4] below.
+5. [ggdeploymentd-5] The deployment service reports outcomes to
+   `gg-fleet-statusd` so the cloud reflects the post-deployment state of the
+   device.
+   - [ggdeploymentd-5.1] After every deployment (including resumed bootstrap
+     deployments), the deployment service shall invoke
+     `gg_fleet_status/send_fleet_status_update`.
+     - [ggdeploymentd-5.1.1] The `trigger` shall be `LOCAL_DEPLOYMENT` for
+       deployments of type LOCAL and `THING_GROUP_DEPLOYMENT` for deployments of
+       type THING_GROUP. Other deployment types are not currently emitted.
+     - [ggdeploymentd-5.1.2] The `deployment_info` map shall include `status`
+       (`SUCCEEDED` or `FAILED`), `fleetConfigurationArnForStatus`,
+       `deploymentId`, `statusDetails.detailedStatus` (`SUCCESSFUL` or
+       `FAILED_ROLLBACK_NOT_REQUESTED`), and `unchangedRootComponents`.
+     - [ggdeploymentd-5.1.3] When the deployment did not fully remove any
+       components, `removed_components` shall be an empty list.
+     - [ggdeploymentd-5.1.4] When stale-component cleanup fully removed one or
+       more components, `removed_components` shall contain each removed
+       component name (deduplicated). This causes `gg-fleet-statusd` to report
+       each name with `status: "UNINSTALLED"` so the cloud prunes them on the
+       same `PARTIAL` update, instead of waiting for the next `COMPLETE` update
+       (`NUCLEUS_LAUNCH`, `CADENCE`, or `NETWORK_RECONFIGURE`).
+     - [ggdeploymentd-5.1.5] When the number of removed components in a single
+       deployment exceeds the per-update component cap
+       (`GGL_MAX_GENERIC_COMPONENTS`), entries beyond the cap may be dropped
+       from the update; the affected components will instead be reconciled by
+       the next `COMPLETE` update.
+   - [ggdeploymentd-5.2] While a deployment is being processed, the deployment
+     service shall suppress event-based fleet status updates so that
+     per-component lifecycle transitions caused by the deployment are not
+     reported separately. The post-deployment update in [ggdeploymentd-5.1]
+     supersedes them.
+   - [ggdeploymentd-5.3] Outside of deployments, the deployment service shall
+     forward Greengrass component lifecycle state changes to `gg-fleet-statusd`
+     with `trigger = COMPONENT_STATUS_CHANGE` so that unexpected restarts,
+     failures (`BROKEN`), and similar events are reflected in the cloud without
+     waiting for the next `CADENCE` update. Lifecycle changes are sourced from
+     `gghealthd`'s broadcast subscription
+     `subscribe_to_all_component_state_changes`.
 
 ### Future-Looking Possibilities
 
@@ -175,6 +218,15 @@ device following a deployment.
 - Remove any components that does not match the exact component name and version
 - Will also support deactivating services related to the component as well as
   unit files, script files, artifacts and recipe files
+- When a component is fully removed (its name is not present in the resolved
+  component set, i.e. its `services/<name>` config tree, systemd units, and
+  recipe/artifact files are deleted), its name is captured and forwarded to
+  `gg-fleet-statusd` via the `removed_components` argument of
+  `send_fleet_status_update`. `gg-fleet-statusd` then includes the component in
+  the published payload with `status: "UNINSTALLED"`, so the cloud prunes it
+  from the device's installed-components inventory on the same update.
+  Components whose only change is a version bump are not reported as removed,
+  even though their old recipe/artifact files on disk are deleted.
 
 - Note: Currently excludes local deployments and might result to removal of all
   those components
