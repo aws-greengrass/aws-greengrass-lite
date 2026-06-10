@@ -18,4 +18,11 @@ bool is_component_config_updated(
     GglDeployment *deployment, GgBuffer component_name
 );
 
+/// Apply a single component's entry from the deployment's
+/// componentToConfiguration map. Writes the merge payload into
+/// services.<component_name>.configuration in ggconfigd.
+GgError apply_component_to_configuration(
+    GgBuffer component_name, GgMap component_to_configuration
+);
+
 #endif

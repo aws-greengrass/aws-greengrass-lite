@@ -263,3 +263,46 @@ bool is_component_config_updated(
     }
     return true;
 }
+
+GgError apply_component_to_configuration(
+    GgBuffer component_name, GgMap component_to_configuration
+) {
+    GgObject *config_update_obj;
+    if (!gg_map_get(
+            component_to_configuration, component_name, &config_update_obj
+        )) {
+        return GG_ERR_OK;
+    }
+
+    if (gg_obj_type(*config_update_obj) != GG_TYPE_MAP) {
+        GG_LOGE("component_to_configuration value must be a map.");
+        return GG_ERR_INVALID;
+    }
+
+    GgMap config_update_map = gg_obj_into_map(*config_update_obj);
+
+    // Apply reset BEFORE merge, matching AWS IoT Greengrass Core semantics
+    // (reset updates are applied before merge updates — see
+    // ComponentConfigurationUpdate docs).
+    GgError ret = apply_reset_config(component_name, config_update_map);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Failed to apply reset for %.*s from componentToConfiguration.",
+            (int) component_name.len,
+            component_name.data
+        );
+        return ret;
+    }
+
+    ret = apply_merge_config(component_name, config_update_map);
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Failed to apply merge for %.*s from componentToConfiguration.",
+            (int) component_name.len,
+            component_name.data
+        );
+        return ret;
+    }
+
+    return GG_ERR_OK;
+}
