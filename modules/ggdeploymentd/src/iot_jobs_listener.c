@@ -27,11 +27,16 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
 
 #define MAX_THING_NAME_LEN 128
+
+// Re-publish a persisted status at most this often while one is pending, so a
+// publish that failed without an MQTT disconnect still recovers.
+#define STATUS_FLUSH_RETRY_SECONDS 60
 
 typedef enum QualityOfService {
     QOS_FIRE_AND_FORGET = 0,
@@ -69,8 +74,23 @@ static uint8_t current_deployment_id_buf[64];
 static GgByteVec current_deployment_id;
 
 static pthread_mutex_t listener_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t listener_cond = PTHREAD_COND_INITIALIZER;
+// listener_cond uses CLOCK_MONOTONIC so the flush retry timeout is immune to
+// wall-clock changes. It is initialized exactly once via listener_cond_once:
+// both the listener thread (before waiting) and update_job_to on the
+// deployment-handler thread (before signaling) run pthread_once, since either
+// may reach the cond first after startup.
+static pthread_cond_t listener_cond;
+static pthread_once_t listener_cond_once = PTHREAD_ONCE_INIT;
 static bool needs_describe = false;
+static bool needs_flush = false;
+
+static void init_listener_cond(void) {
+    pthread_condattr_t cond_attr;
+    pthread_condattr_init(&cond_attr);
+    pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+    pthread_cond_init(&listener_cond, &cond_attr);
+    pthread_condattr_destroy(&cond_attr);
+}
 
 static void listen_for_jobs_deployments(void);
 
@@ -207,6 +227,12 @@ static GgError update_job_to(
         // or restart.
         if (track_pending) {
             (void) status_keeper_persist(job_id, job_status);
+            // Wake the job listener so it starts the periodic flush retry even
+            // when no MQTT reconnect follows (e.g. a throttle reject or
+            // response timeout while the connection stays up).
+            pthread_once(&listener_cond_once, init_listener_cond);
+            GG_MTX_SCOPE_GUARD(&listener_mutex);
+            pthread_cond_signal(&listener_cond);
         }
         return GG_ERR_FAILURE;
     }
@@ -424,21 +450,82 @@ static GgError next_job_execution_changed_callback(
     return GG_ERR_OK;
 }
 
+// Re-send the persisted pending status (if any) by re-running update_job with
+// the slot's contents. On success update_job_to clears the slot; on failure it
+// re-persists. Reads from config each time, so a status persisted before a
+// restart is recovered.
+static void flush_pending_status(void) {
+    static uint8_t slot_scratch[512];
+    GgArena alloc = gg_arena_init(GG_BUF(slot_scratch));
+    GgBuffer job_id = { 0 };
+    GgBuffer job_status = { 0 };
+    GgError ret = status_keeper_read(&alloc, &job_id, &job_status);
+    if (ret != GG_ERR_OK) {
+        // Nothing pending to flush (or the slot was unreadable).
+        return;
+    }
+    GG_LOGI(
+        "Re-sending pending deployment status %.*s for job %.*s.",
+        (int) job_status.len,
+        job_status.data,
+        (int) job_id.len,
+        job_id.data
+    );
+    (void) update_job(job_id, job_status);
+}
+
 noreturn void *job_listener_thread(void *ctx) {
     (void) ctx;
+
+    pthread_once(&listener_cond_once, init_listener_cond);
+
     (void) gg_backoff(1, 1000, 0, get_thing_name, NULL);
+
+    // Sync the pending-status hint with on-disk state before subscribing, so a
+    // status persisted before a restart is tracked (and re-sent on connect).
+    {
+        static uint8_t slot_scratch[512];
+        GgArena slot_alloc = gg_arena_init(GG_BUF(slot_scratch));
+        (void) status_keeper_read(&slot_alloc, NULL, NULL);
+    }
+
     listen_for_jobs_deployments();
 
     // coverity[infinite_loop]
     while (true) {
+        bool do_describe = false;
+        bool do_flush = false;
         {
             GG_MTX_SCOPE_GUARD(&listener_mutex);
-            while (!needs_describe) {
-                pthread_cond_wait(&listener_cond, &listener_mutex);
+            while (!needs_describe && !needs_flush) {
+                if (status_keeper_has_pending()) {
+                    // A status is awaiting delivery: wake periodically to retry
+                    // the flush even with no reconnect (covers a publish that
+                    // failed while the connection stayed up).
+                    struct timespec deadline;
+                    clock_gettime(CLOCK_MONOTONIC, &deadline);
+                    deadline.tv_sec += STATUS_FLUSH_RETRY_SECONDS;
+                    (void) pthread_cond_timedwait(
+                        &listener_cond, &listener_mutex, &deadline
+                    );
+                    if (status_keeper_has_pending()) {
+                        needs_flush = true;
+                    }
+                } else {
+                    pthread_cond_wait(&listener_cond, &listener_mutex);
+                }
             }
+            do_describe = needs_describe;
             needs_describe = false;
+            do_flush = needs_flush;
+            needs_flush = false;
         }
-        (void) gg_backoff(10, 10000, 0, describe_next_job, NULL);
+        if (do_describe) {
+            (void) gg_backoff(10, 10000, 0, describe_next_job, NULL);
+        }
+        if (do_flush) {
+            flush_pending_status();
+        }
     }
 }
 
@@ -479,6 +566,7 @@ static GgError iot_jobs_on_reconnect(
         GG_LOGD("Reconnected to MQTT; requesting new job query publish.");
         GG_MTX_SCOPE_GUARD(&listener_mutex);
         needs_describe = true;
+        needs_flush = true;
         pthread_cond_signal(&listener_cond);
     }
     return GG_ERR_OK;
