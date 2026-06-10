@@ -6,6 +6,7 @@
 #include "bootstrap_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
+#include "status_keeper.h"
 #include <assert.h>
 #include <gg/arena.h>
 #include <gg/backoff.h>
@@ -182,6 +183,11 @@ static GgError update_job_to(
         return ret;
     }
 
+    // The pending-status slot is only tracked for the primary MQTT socket.
+    // The endpoint-switch path uses a temporary "iotcoreddeploy" socket with
+    // its own retry; persisting that would later flush via the wrong account.
+    bool track_pending = gg_buffer_eq(socket_name, GG_STR("aws_iot_mqtt"));
+
     // expectedVersion omitted to avoid VersionMismatch errors on MQTT
     // reconnect races; only one ggdeploymentd updates a given job.
     GgObject payload_object = gg_obj_map(GG_MAP(
@@ -197,7 +203,19 @@ static GgError update_job_to(
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to publish on update job topic.");
+        // Persist so the job listener can re-send the status after reconnect
+        // or restart.
+        if (track_pending) {
+            (void) status_keeper_persist(job_id, job_status);
+        }
         return GG_ERR_FAILURE;
+    }
+
+    // Publish succeeded: drop any previously-persisted pending status (it is
+    // now delivered, or superseded by this newer one). Self-gated in
+    // status_keeper, so the happy path issues no config call.
+    if (track_pending) {
+        (void) status_keeper_clear();
     }
 
     // save jobs ID to config in case of bootstrap
