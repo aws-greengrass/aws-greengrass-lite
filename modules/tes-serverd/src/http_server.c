@@ -276,6 +276,13 @@ GgError http_server(void) {
         return ret;
     }
 
+    // Seed an empty fleet configuration ARN list at the lowest possible
+    // timestamp (0). This guarantees the component always has a list-typed
+    // configArn (so gg-fleet-statusd includes TES in its status reports), while
+    // letting ggdeploymentd overwrite it with the real deployment configuration
+    // ARN (written at a higher timestamp). Using the default current-time
+    // timestamp here would clobber that deployment-assigned ARN on every
+    // restart, leaving fleetConfigArns empty so the cloud never displays TES.
     ret = ggl_gg_config_write(
         GG_BUF_LIST(
             GG_STR("services"),
@@ -283,7 +290,7 @@ GgError http_server(void) {
             GG_STR("configArn")
         ),
         gg_obj_list(GG_LIST()),
-        NULL
+        &(int64_t) { 0 }
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to write configuration arn list for TES to the config."

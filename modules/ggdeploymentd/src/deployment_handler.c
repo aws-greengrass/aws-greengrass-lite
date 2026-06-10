@@ -1554,9 +1554,16 @@ static GgError resolve_dependencies(
     GglDeploymentType deployment_type,
     GglDeploymentHandlerThreadArgs *args,
     GgArena *alloc,
-    GgKVVec *resolved_components_kv_vec
+    GgKVVec *resolved_components_kv_vec,
+    bool *out_depends_on_token_exchange_service
 ) {
     GgError ret;
+
+    // Built-in components (e.g. TokenExchangeService) are skipped below and
+    // never enter the resolved set. Report whether the device's merged
+    // dependency closure needs TES so the caller can keep its fleet
+    // configuration ARN in sync for gg-fleet-statusd reporting.
+    *out_depends_on_token_exchange_service = false;
 
     // TODO: Decide on size
     GgKVVec components_to_resolve = GG_KV_VEC((GgKV[64]) { 0 });
@@ -2078,6 +2085,20 @@ static GgError resolve_dependencies(
                     || gg_buffer_eq(
                         gg_kv_key(*dependency), GG_STR("aws.greengrass.Cli")
                     )) {
+                    // TokenExchangeService is a built-in component that is
+                    // never resolved or installed through a deployment, so the
+                    // component-processing loop never tags it with this
+                    // deployment's configuration ARN. Record that the device's
+                    // dependency closure includes TES so the caller can keep
+                    // its fleet configuration ARN in sync; otherwise
+                    // gg-fleet-statusd reports TES with an empty
+                    // fleetConfigArns and the cloud will not display it.
+                    if (gg_buffer_eq(
+                            gg_kv_key(*dependency),
+                            GG_STR("aws.greengrass.TokenExchangeService")
+                        )) {
+                        *out_depends_on_token_exchange_service = true;
+                    }
                     GG_LOGD(
                         "Skipping a dependency during resolution as it is %.*s",
                         (int) gg_kv_key(*dependency).len,
@@ -3049,19 +3070,55 @@ static void handle_deployment(
     static uint8_t resolve_dependencies_mem[8192] = { 0 };
     GgArena resolve_dependencies_alloc
         = gg_arena_init(GG_BUF(resolve_dependencies_mem));
+    bool depends_on_token_exchange_service;
     ret = resolve_dependencies(
         deployment->components,
         deployment->thing_group,
         deployment->type,
         args,
         &resolve_dependencies_alloc,
-        &resolved_components_kv_vec
+        &resolved_components_kv_vec,
+        &depends_on_token_exchange_service
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE(
             "Failed to do dependency resolution for deployment, failing deployment."
         );
         return;
+    }
+
+    // aws.greengrass.TokenExchangeService is a built-in component that is
+    // skipped during dependency resolution, so the component-processing loop
+    // below never tags it with this deployment's configuration ARN. Keep its
+    // fleet configuration ARN in sync here so gg-fleet-statusd reports it (and
+    // the cloud displays it) exactly while some component on the device depends
+    // on it. resolve_dependencies merges every thing group and local deployment
+    // into the resolved set, so depends_on_token_exchange_service is a
+    // device-wide signal: associate TES with this deployment's configuration
+    // ARN when it is needed, and clear the association when nothing depends on
+    // it anymore. Written at timestamp 3 so it overrides the lowest-priority
+    // empty seed written by tes-serverd and persists across restarts. This is
+    // best-effort cloud-reporting metadata, so a failure must not fail the
+    // deployment.
+    GgObject tes_config_arn = gg_obj_buf(deployment->configuration_arn);
+    GgObject tes_config_arn_list = gg_obj_list(GG_LIST());
+    if (depends_on_token_exchange_service) {
+        tes_config_arn_list
+            = gg_obj_list((GgList) { .items = &tes_config_arn, .len = 1 });
+    }
+    GgError tes_arn_ret = ggl_gg_config_write(
+        GG_BUF_LIST(
+            GG_STR("services"),
+            GG_STR("aws.greengrass.TokenExchangeService"),
+            GG_STR("configArn")
+        ),
+        tes_config_arn_list,
+        &(int64_t) { 3 }
+    );
+    if (tes_arn_ret != GG_ERR_OK) {
+        GG_LOGW(
+            "Failed to update aws.greengrass.TokenExchangeService fleet configuration ARN; its console visibility may be stale."
+        );
     }
 
     GgByteVec region = GG_BYTE_VEC(config.region);
