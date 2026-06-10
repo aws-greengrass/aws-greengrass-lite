@@ -194,6 +194,29 @@ static GgError deserialize_payload(
     return GG_ERR_OK;
 }
 
+// True if an IoT Jobs UpdateJobExecution rejection won't succeed on retry, per
+// the Jobs ErrorResponse "code" contract. InternalError and RequestThrottled
+// are transient, and any unrecognized code is treated as transient too, so
+// those fall through to the persist/retry path.
+static bool reject_is_permanent(GgObject result) {
+    if (gg_obj_type(result) != GG_TYPE_MAP) {
+        return false;
+    }
+    GgObject *code_obj;
+    if (!gg_map_get(gg_obj_into_map(result), GG_STR("code"), &code_obj)
+        || (gg_obj_type(*code_obj) != GG_TYPE_BUF)) {
+        return false;
+    }
+    GgBuffer code = gg_obj_into_buf(*code_obj);
+    return gg_buffer_eq(code, GG_STR("InvalidTopic"))
+        || gg_buffer_eq(code, GG_STR("InvalidJson"))
+        || gg_buffer_eq(code, GG_STR("InvalidRequest"))
+        || gg_buffer_eq(code, GG_STR("InvalidStateTransition"))
+        || gg_buffer_eq(code, GG_STR("ResourceNotFound"))
+        || gg_buffer_eq(code, GG_STR("VersionMismatch"))
+        || gg_buffer_eq(code, GG_STR("TerminalStateReached"));
+}
+
 static GgError update_job_to(
     GgBuffer job_id, GgBuffer job_status, GgBuffer socket_name
 ) {
@@ -215,7 +238,9 @@ static GgError update_job_to(
         gg_kv(GG_STR("clientToken"), gg_obj_buf(GG_STR("jobs-nucleus-lite")))
     ));
 
-    static uint8_t response_scratch[512];
+    // Holds the decoded /accepted or /rejected response. Sized to fit a
+    // rejection's executionState payload so the reject code can be classified.
+    static uint8_t response_scratch[1024];
     GgArena call_alloc = gg_arena_init(GG_BUF(response_scratch));
     GgObject result = { 0 };
     ret = ggl_aws_iot_call(
@@ -223,16 +248,30 @@ static GgError update_job_to(
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to publish on update job topic.");
-        // Persist so the job listener can re-send the status after reconnect
-        // or restart.
         if (track_pending) {
-            (void) status_keeper_persist(job_id, job_status);
-            // Wake the job listener so it starts the periodic flush retry even
-            // when no MQTT reconnect follows (e.g. a throttle reject or
-            // response timeout while the connection stays up).
-            pthread_once(&listener_cond_once, init_listener_cond);
-            GG_MTX_SCOPE_GUARD(&listener_mutex);
-            pthread_cond_signal(&listener_cond);
+            if ((ret == GG_ERR_REMOTE) && reject_is_permanent(result)) {
+                // Cloud permanently rejected this update (e.g. the job already
+                // reached a terminal state, or was superseded). Retrying can't
+                // succeed, so drop any pending slot instead of re-sending it
+                // indefinitely.
+                GG_LOGW(
+                    "Update permanently rejected; clearing pending status for "
+                    "job %.*s.",
+                    (int) job_id.len,
+                    job_id.data
+                );
+                (void) status_keeper_clear();
+            } else {
+                // Transport failure / timeout / retryable reject
+                // (InternalError, RequestThrottled): persist so the job
+                // listener can re-send the status after reconnect or restart,
+                // and wake it to start the periodic flush retry even when no
+                // MQTT reconnect follows.
+                (void) status_keeper_persist(job_id, job_status);
+                pthread_once(&listener_cond_once, init_listener_cond);
+                GG_MTX_SCOPE_GUARD(&listener_mutex);
+                pthread_cond_signal(&listener_cond);
+            }
         }
         return GG_ERR_FAILURE;
     }
