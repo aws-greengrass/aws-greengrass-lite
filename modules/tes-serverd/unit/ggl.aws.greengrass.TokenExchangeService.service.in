@@ -19,7 +19,7 @@ StateDirectory=greengrass
 WorkingDirectory=%S/greengrass
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=greengrass-lite.target
 
 [Unit]
 After=ggl.core.ggconfigd.service
