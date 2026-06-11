@@ -96,7 +96,7 @@ static GgError connection_status_callback(
             connection_trigger.data
         );
         ret = publish_fleet_status_update(
-            thing_name, connection_trigger, GG_MAP()
+            thing_name, connection_trigger, GG_MAP(), GG_LIST()
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to publish fleet status update.");
@@ -209,7 +209,7 @@ static void *ggl_fleet_status_service_thread(void *ctx) {
         }
 
         ret = publish_fleet_status_update(
-            thing_name, GG_STR("CADENCE"), GG_MAP()
+            thing_name, GG_STR("CADENCE"), GG_MAP(), GG_LIST()
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to publish fleet status update.");
@@ -239,8 +239,35 @@ static GgError send_fleet_status_update(
         return GG_ERR_INVALID;
     }
 
+    // `removed_components` is optional. When present it must be a list of
+    // buffers; we validate the type up front so publish_fleet_status_update
+    // can rely on each item being a GG_TYPE_BUF.
+    GgList removed_components = GG_LIST();
+    GgObject *removed_obj = NULL;
+    found = gg_map_get(params, GG_STR("removed_components"), &removed_obj);
+    if (found) {
+        if (gg_obj_type(*removed_obj) != GG_TYPE_LIST) {
+            GG_LOGE("Optional `removed_components` must be a list.");
+            return GG_ERR_INVALID;
+        }
+        removed_components = gg_obj_into_list(*removed_obj);
+        for (size_t i = 0; i < removed_components.len; i++) {
+            if (gg_obj_type(removed_components.items[i]) != GG_TYPE_BUF) {
+                GG_LOGE(
+                    "`removed_components[%zu]` is not a buffer; rejecting "
+                    "update.",
+                    i
+                );
+                return GG_ERR_INVALID;
+            }
+        }
+    }
+
     GgError ret = publish_fleet_status_update(
-        thing_name, gg_obj_into_buf(*trigger), gg_obj_into_map(*deployment_info)
+        thing_name,
+        gg_obj_into_buf(*trigger),
+        gg_obj_into_map(*deployment_info),
+        removed_components
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to publish fleet status update.");

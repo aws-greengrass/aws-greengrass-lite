@@ -2373,7 +2373,9 @@ static GgError add_arn_list_to_config(
 }
 
 static GgError send_fss_update(
-    GglDeployment *deployment, bool deployment_succeeded
+    GglDeployment *deployment,
+    bool deployment_succeeded,
+    GgBufList removed_components
 ) {
     GgBuffer server = GG_STR("gg_fleet_status");
     static uint8_t buffer[10 * sizeof(GgObject)] = { 0 };
@@ -2414,9 +2416,32 @@ static GgError send_fss_update(
         trigger = GG_STR("THING_GROUP_DEPLOYMENT");
     }
 
+    // Project the bufs into GgObjects so we can pass them as a list. The
+    // backing storage for the names is owned by the caller and outlives this
+    // call.
+    GgObject removed_objs[GGL_MAX_GENERIC_COMPONENTS];
+    size_t removed_count = removed_components.len;
+    if (removed_count > GGL_MAX_GENERIC_COMPONENTS) {
+        GG_LOGW(
+            "Truncating removed component list from %zu to %d for fleet "
+            "status update.",
+            removed_count,
+            GGL_MAX_GENERIC_COMPONENTS
+        );
+        removed_count = GGL_MAX_GENERIC_COMPONENTS;
+    }
+    for (size_t i = 0; i < removed_count; i++) {
+        removed_objs[i] = gg_obj_buf(removed_components.bufs[i]);
+    }
+    GgList removed_list
+        = (GgList) { .items = removed_objs, .len = removed_count };
+
+    // Always pass the key so the receiver does not need to special-case its
+    // absence; an empty list is the no-removals signal.
     GgMap args = GG_MAP(
         gg_kv(GG_STR("trigger"), gg_obj_buf(trigger)),
-        gg_kv(GG_STR("deployment_info"), gg_obj_map(deployment_info))
+        gg_kv(GG_STR("deployment_info"), gg_obj_map(deployment_info)),
+        gg_kv(GG_STR("removed_components"), gg_obj_list(removed_list))
     );
 
     GgArena alloc = gg_arena_init(GG_BUF(buffer));
@@ -3995,7 +4020,11 @@ static void handle_deployment(
     }
 
     GG_LOGI("Performing cleanup of stale components");
-    ret = cleanup_stale_versions(resolved_components_kv_vec.map);
+    ret = cleanup_stale_versions(
+        resolved_components_kv_vec.map,
+        ctx->removed_names_storage,
+        ctx->removed_components
+    );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Error while cleaning up stale components after deployment.");
     }
@@ -4044,7 +4073,20 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     GglDeployment bootstrap_deployment = { 0 };
     uint8_t jobs_id_resp_mem[64] = { 0 };
     GgBuffer jobs_id = GG_BUF(jobs_id_resp_mem);
-    DeploymentContext bootstrap_ctx = { 0 };
+
+    // Storage for components fully removed during cleanup_stale_versions.
+    // Bytes for each name go into the byte vec; the bufvec holds slices into
+    // those bytes. Both must outlive the FSS call below.
+    static uint8_t bootstrap_removed_names_mem[MAX_COMP_NAME_BUF_SIZE];
+    GgByteVec bootstrap_removed_names_storage
+        = GG_BYTE_VEC(bootstrap_removed_names_mem);
+    static GgBuffer bootstrap_removed_bufs[GGL_MAX_GENERIC_COMPONENTS];
+    GgBufVec bootstrap_removed_components = GG_BUF_VEC(bootstrap_removed_bufs);
+
+    DeploymentContext bootstrap_ctx = {
+        .removed_names_storage = &bootstrap_removed_names_storage,
+        .removed_components = &bootstrap_removed_components,
+    };
 
     GgError ret = retrieve_in_progress_deployment(
         &bootstrap_deployment, &jobs_id, &bootstrap_ctx
@@ -4082,7 +4124,9 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         }
 
         (void) send_fss_update(
-            &bootstrap_deployment, bootstrap_deployment_succeeded
+            &bootstrap_deployment,
+            bootstrap_deployment_succeeded,
+            bootstrap_removed_components.buf_list
         );
 
         if (send_deployment_update) {
@@ -4123,7 +4167,18 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         );
 
         bool deployment_succeeded = false;
-        DeploymentContext ctx = { 0 };
+
+        // Per-deployment storage for components that get fully removed
+        // during cleanup_stale_versions. Reset for each deployment.
+        static uint8_t removed_names_mem[MAX_COMP_NAME_BUF_SIZE];
+        GgByteVec removed_names_storage = GG_BYTE_VEC(removed_names_mem);
+        static GgBuffer removed_bufs[GGL_MAX_GENERIC_COMPONENTS];
+        GgBufVec removed_components = GG_BUF_VEC(removed_bufs);
+
+        DeploymentContext ctx = {
+            .removed_names_storage = &removed_names_storage,
+            .removed_components = &removed_components,
+        };
         atomic_store(&deployment_in_progress, true);
         GG_LOGD("Deployment in progress.");
         handle_deployment(deployment, args, &ctx, &deployment_succeeded);
@@ -4134,7 +4189,9 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             rollback_config(deployment->deployment_id);
         }
 
-        (void) send_fss_update(deployment, deployment_succeeded);
+        (void) send_fss_update(
+            deployment, deployment_succeeded, removed_components.buf_list
+        );
 
         // TODO: need error details from handle_deployment
         report_deployment_status(

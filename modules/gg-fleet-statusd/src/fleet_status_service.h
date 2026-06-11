@@ -10,8 +10,16 @@
 
 #define MAX_THING_NAME_LEN 128
 
+/// Publishes a fleet status update to the cloud. @p removed_components lists
+/// component names (as buffers) that have just been uninstalled by a
+/// deployment, if any; each is reported with status=UNINSTALLED so the cloud
+/// can prune them from its inventory even on PARTIAL updates. Pass an empty
+/// list when there are no removals.
 GgError publish_fleet_status_update(
-    GgBuffer thing_name, GgBuffer trigger, GgMap deployment_info
+    GgBuffer thing_name,
+    GgBuffer trigger,
+    GgMap deployment_info,
+    GgList removed_components
 );
 
 #endif // GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H

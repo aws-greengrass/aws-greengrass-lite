@@ -6,6 +6,7 @@
 #define GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 
 #include <gg/types.h>
+#include <gg/vector.h>
 #include <stdbool.h>
 
 #define MAX_COMP_NAME_BUF_SIZE 10000
@@ -45,6 +46,13 @@ typedef struct {
 typedef struct {
     bool is_bootstrap;
     GgBuffer source_iot_data_endpoint;
+    /// Optional output: components that cleanup_stale_versions fully removed
+    /// during this deployment. The caller owns the backing buffers; the
+    /// handler appends names so the post-deployment fleet status update can
+    /// report them as UNINSTALLED. Both pointers must be NULL or both must
+    /// be non-NULL.
+    GgByteVec *removed_names_storage;
+    GgBufVec *removed_components;
 } DeploymentContext;
 
 #endif
