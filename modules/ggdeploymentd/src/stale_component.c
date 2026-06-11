@@ -510,7 +510,59 @@ GgError disable_and_unlink_service(
     return GG_ERR_OK;
 }
 
-GgError cleanup_stale_versions(GgMap latest_components_map) {
+// Records @p component_name in @p removed_components_out (with bytes copied
+// into @p removed_names_storage), deduplicating against names already
+// recorded. A no-op if either output pointer is NULL. On overflow of either
+// storage, logs a warning and rolls back the partial byte copy without
+// aborting the surrounding cleanup pass.
+static void record_removed_component(
+    GgBuffer component_name,
+    GgByteVec *removed_names_storage,
+    GgBufVec *removed_components_out
+) {
+    if ((removed_names_storage == NULL) || (removed_components_out == NULL)) {
+        return;
+    }
+
+    for (size_t i = 0; i < removed_components_out->buf_list.len; i++) {
+        if (gg_buffer_eq(
+                component_name, removed_components_out->buf_list.bufs[i]
+            )) {
+            return;
+        }
+    }
+
+    size_t name_offset = removed_names_storage->buf.len;
+    GgError ret = gg_byte_vec_append(removed_names_storage, component_name);
+    if (ret == GG_ERR_OK) {
+        GgBuffer slice
+            = { .data = removed_names_storage->buf.data + name_offset,
+                .len = component_name.len };
+        ret = gg_buf_vec_push(removed_components_out, slice);
+    }
+    if (ret != GG_ERR_OK) {
+        // Roll back the partial copy so the storage offset stays consistent
+        // with the bufvec.
+        removed_names_storage->buf.len = name_offset;
+        GG_LOGW(
+            "Could not record removed component %.*s for fleet status update "
+            "(ret=%d).",
+            (int) component_name.len,
+            component_name.data,
+            (int) ret
+        );
+    }
+}
+
+GgError cleanup_stale_versions(
+    GgMap latest_components_map,
+    GgByteVec *removed_names_storage,
+    GgBufVec *removed_components_out
+) {
+    // Both must be NULL or both must be non-NULL: the bufvec stores slices
+    // into the byte vec, so they share a lifetime.
+    assert((removed_names_storage == NULL) == (removed_components_out == NULL));
+
     int recipe_dir_fd;
     GgError ret = get_recipe_dir_fd(&recipe_dir_fd);
     if (ret != GG_ERR_OK) {
@@ -582,6 +634,16 @@ GgError cleanup_stale_versions(GgMap latest_components_map) {
             // Cannot find this component at all. Delete it!
             (void) delete_component(
                 component_name_buffer_iterator, version_buffer_iterator, true
+            );
+
+            // Record the removal so the caller can report UNINSTALLED to the
+            // cloud. Multiple installed versions of the same removed
+            // component reach this branch once each, so the helper
+            // deduplicates against names already recorded.
+            record_removed_component(
+                component_name_buffer_iterator,
+                removed_names_storage,
+                removed_components_out
             );
 
             // Also stop any running service for this component.
