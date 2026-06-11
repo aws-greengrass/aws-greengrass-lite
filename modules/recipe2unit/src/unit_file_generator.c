@@ -65,12 +65,26 @@ static GgError parse_dependency_type(
                 &ret, out, gg_kv_key(component_dependency)
             );
             gg_byte_vec_chain_append(&ret, out, GG_STR(".service\n"));
+            // BindsTo= does not order startup (systemd.unit(5)); add After=
+            // so the Type=notify dependency is READY before dependents start.
+            gg_byte_vec_chain_append(&ret, out, GG_STR("After=ggl."));
+            gg_byte_vec_chain_append(
+                &ret, out, gg_kv_key(component_dependency)
+            );
+            gg_byte_vec_chain_append(&ret, out, GG_STR(".service\n"));
             if (ret != GG_ERR_OK) {
                 return ret;
             }
 
         } else {
             GgError ret = gg_byte_vec_append(out, GG_STR("Wants=ggl."));
+            gg_byte_vec_chain_append(
+                &ret, out, gg_kv_key(component_dependency)
+            );
+            gg_byte_vec_chain_append(&ret, out, GG_STR(".service\n"));
+            // Wants= does not order startup either; add After= (see HARD
+            // branch above).
+            gg_byte_vec_chain_append(&ret, out, GG_STR("After=ggl."));
             gg_byte_vec_chain_append(
                 &ret, out, gg_kv_key(component_dependency)
             );
