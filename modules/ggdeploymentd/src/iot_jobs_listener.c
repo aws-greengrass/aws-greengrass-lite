@@ -24,12 +24,12 @@
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdnoreturn.h>
 
 #define MAX_THING_NAME_LEN 128
@@ -72,6 +72,9 @@ static uint8_t current_job_id_buf[64];
 static GgByteVec current_job_id;
 static uint8_t current_deployment_id_buf[64];
 static GgByteVec current_deployment_id;
+static uint8_t last_queue_job_id_buf[64];
+static GgByteVec last_queue_job_id;
+static int64_t last_queue_at;
 
 static pthread_mutex_t listener_mutex = PTHREAD_MUTEX_INITIALIZER;
 // listener_cond uses CLOCK_MONOTONIC so the flush retry timeout is immune to
@@ -354,14 +357,27 @@ static GgError describe_next_job(void *ctx) {
     return process_job_execution(gg_obj_into_map(*execution));
 }
 
-static GgError enqueue_job(GgMap deployment_doc, GgBuffer job_id) {
+static GgError enqueue_job(
+    GgMap deployment_doc, GgBuffer job_id, int64_t queued_at
+) {
     GgError ret;
     {
         GG_MTX_SCOPE_GUARD(&current_job_id_mutex);
-        if (gg_buffer_eq(current_job_id.buf, job_id)) {
-            GG_LOGI("Duplicate job document received. Skipping.");
+        if (gg_buffer_eq(last_queue_job_id.buf, job_id)
+            && (queued_at <= last_queue_at)) {
+            GG_LOGI(
+                "Duplicate job notification for %.*s "
+                "(queuedAt=%" PRId64 "). Skipping.",
+                (int) job_id.len,
+                job_id.data,
+                queued_at
+            );
             return GG_ERR_OK;
         }
+        last_queue_job_id = GG_BYTE_VEC(last_queue_job_id_buf);
+        GgError append_ret = gg_byte_vec_append(&last_queue_job_id, job_id);
+        assert(append_ret == GG_ERR_OK);
+        last_queue_at = queued_at;
     }
 
     GgByteVec deployment_id_vec = GG_BYTE_VEC((uint8_t[64]) { 0 });
@@ -398,12 +414,17 @@ static GgError process_job_execution(GgMap job_execution) {
     GgObject *job_id = NULL;
     GgObject *status = NULL;
     GgObject *deployment_doc = NULL;
+    GgObject *queued_at_obj = NULL;
     GgError err = gg_map_validate(
         job_execution,
         GG_MAP_SCHEMA(
             { GG_STR("jobId"), GG_OPTIONAL, GG_TYPE_BUF, &job_id },
             { GG_STR("status"), GG_OPTIONAL, GG_TYPE_BUF, &status },
-            { GG_STR("jobDocument"), GG_OPTIONAL, GG_TYPE_MAP, &deployment_doc }
+            { GG_STR("jobDocument"),
+              GG_OPTIONAL,
+              GG_TYPE_MAP,
+              &deployment_doc },
+            { GG_STR("queuedAt"), GG_REQUIRED, GG_TYPE_I64, &queued_at_obj }
         )
     );
     if (err != GG_ERR_OK) {
@@ -441,13 +462,14 @@ static GgError process_job_execution(GgMap job_execution) {
 
     case DSA_ENQUEUE_JOB: {
         if (deployment_doc == NULL) {
-            GG_LOGE(
-                "Job status is queued/in progress, but no deployment doc was given."
-            );
+            GG_LOGE("Job status is queued/in progress, but no deployment doc "
+                    "was given.");
             return GG_ERR_INVALID;
         }
         (void) enqueue_job(
-            gg_obj_into_map(*deployment_doc), gg_obj_into_buf(*job_id)
+            gg_obj_into_map(*deployment_doc),
+            gg_obj_into_buf(*job_id),
+            gg_obj_into_i64(*queued_at_obj)
         );
         break;
     }
@@ -692,6 +714,11 @@ GgError set_jobs_deployment_for_bootstrap(
             return ret;
         }
     }
+
+    last_queue_job_id = GG_BYTE_VEC(last_queue_job_id_buf);
+    GgError ret = gg_byte_vec_append(&last_queue_job_id, job_id);
+    assert(ret == GG_ERR_OK);
+
     return GG_ERR_OK;
 }
 
