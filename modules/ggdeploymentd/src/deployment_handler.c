@@ -33,6 +33,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/trace.h>
 #include <gg/utils.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/client.h>
@@ -4183,6 +4184,14 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
                ));
 
         bool bootstrap_deployment_succeeded = false;
+
+        GG_TRACE_ROOT_SCOPE(
+            "deployment_jobs",
+            "job_id=%.*s",
+            (int) bootstrap_deployment.deployment_id.len,
+            (char *) bootstrap_deployment.deployment_id.data
+        );
+
         atomic_store(&deployment_in_progress, true);
         GG_LOGD("Deployment in progress (resuming bootstrap deployment).");
         handle_deployment(
@@ -4233,6 +4242,13 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         if (ret != GG_ERR_OK) {
             return ret;
         }
+
+        GG_TRACE_ROOT_SCOPE(
+            "deployment_jobs",
+            "job_id=%.*s",
+            (int) deployment->deployment_id.len,
+            (char *) deployment->deployment_id.data
+        );
 
         set_current_job(deployment->iot_job_id, deployment->deployment_id);
 
