@@ -25,6 +25,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/trace.h>
 #include <ggipc/auth.h>
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
@@ -388,6 +389,12 @@ static GgError handle_stream_operation(
     if (ret != GG_ERR_OK) {
         return ret;
     }
+
+    // ggipcd is a trace root: inbound IPC carries no trace context, so start a
+    // fresh trace per operation (cleared automatically on scope exit).
+    GG_TRACE_ROOT_SCOPE(
+        "ipc_request", "op=%.*s", (int) operation.len, (char *) operation.data
+    );
 
     return ggl_ipc_handle_operation(
         operation, payload_data, handle, common_headers.stream_id, ipc_error
