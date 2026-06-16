@@ -10,6 +10,7 @@
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
+#include <gg/trace.h>
 #include <gg/types.h>
 #include <gg/utils.h>
 #include <gg_fleet_statusd.h>
@@ -207,6 +208,8 @@ static void *ggl_fleet_status_service_thread(void *ctx) {
             GG_LOGE("Fleet status service thread failed to sleep, exiting.");
             return NULL;
         }
+
+        GG_TRACE_ROOT_SCOPE("fleet_status_tick", NULL);
 
         ret = publish_fleet_status_update(
             thing_name, GG_STR("CADENCE"), GG_MAP(), GG_LIST()
