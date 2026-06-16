@@ -13,4 +13,3 @@ runtime:test_Runtime_1_T4
 runtime:test_Runtime_1_T5
 security:test_Security_6_T2_T3_T4_T5_mqtt
 security:test_Security_6_T2_T3_T4_T5_T10
-fleet-status:test_FleetStatus_1_T3
