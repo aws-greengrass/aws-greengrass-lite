@@ -17,7 +17,7 @@
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/socket.h>
-#include <gg/trace.h>
+#include <gg/trace.h> // IWYU pragma: keep (used only under GG_TRACE_ENABLED)
 #include <gg/vector.h>
 #include <ggl/core_bus/constants.h>
 #include <pthread.h>
