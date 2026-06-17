@@ -24,30 +24,53 @@ as much information as you can. Details like these are incredibly useful:
 
 ## Contributing via Pull Requests
 
-Contributions via pull requests are much appreciated. Before sending us a pull
-request, please ensure that:
+Contributions via pull requests are much appreciated. Before starting any work,
+please:
 
-1. You are working against the latest source on the _main_ branch.
-2. You check existing open, and recently merged, pull requests to make sure
-   someone else hasn't addressed the problem already.
-3. You open an issue to discuss any significant work - we would hate for your
-   time to be wasted.
+1. Make sure you are working against the latest source on the _main_ branch.
+2. Check existing open, and recently merged, pull requests to make sure someone
+   else hasn't addressed the problem already.
 
-To send us a pull request, please:
+The exact workflow depends on whether you are an AWS-internal developer or an
+external contributor.
 
-1. Fork the repository.
-2. Modify the source; please focus on the specific change you are contributing.
+### AWS-internal developers
+
+Internal developers work directly in this repository:
+
+1. Create a branch off `main` prefixed with `dev/`, for example
+   `dev/<your-alias>/<short-description>` or `dev/<feature-name>`.
+2. Make your change; please focus on the specific change you are contributing.
    If you also reformat all the code, it will be hard for us to focus on your
    change.
-3. Ensure local tests pass.
-4. Commit to your fork using clear commit messages.
-5. Send us a pull request, answering any default questions in the pull request
-   interface.
+3. Ensure local tests pass and confirm the CI UAT run on your `dev/` branch is
+   green.
+4. Commit using clear commit messages. Start the subject line with a verb (e.g.
+   `Add`, `Remove`, `Update`, `Fix`) followed by a short overview. Use the
+   commit body to provide additional detail on the change.
+5. Open a pull request from your `dev/` branch into `main`, answering any
+   default questions in the pull request interface.
 6. Pay attention to any automated CI failures reported in the pull request, and
    stay involved in the conversation.
 
-GitHub provides additional document on
-[forking a repository](https://help.github.com/articles/fork-a-repo/) and
+### External contributors
+
+External contributors cannot create branches in this repository. Instead, work
+from your own fork:
+
+1. (Recommended) Open an issue describing the bug or feature you want to work
+   on, so we can discuss the approach - we would hate for your time to be
+   wasted.
+2. Once the work is agreed upon, a member of the internal team will create a
+   `dev/` branch for the change. Fork the repository and develop in your fork,
+   then raise a pull request against that `dev/` branch so the UAT suite runs in
+   CI.
+3. Focus on the specific change you are contributing, ensure local tests pass,
+   and commit using clear commit messages (see format guidance above).
+4. Pay attention to any automated CI failures reported in the pull request, and
+   stay involved in the conversation.
+
+GitHub provides additional documentation on
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
 ## Finding contributions to work on
