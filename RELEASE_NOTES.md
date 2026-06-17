@@ -1,3 +1,22 @@
+# Release Notes v2.6.0
+
+New features:
+
+- Components are now restarted when a deployment changes their configuration.
+- EventBridge notifications for deployments and component status changes now
+  trigger.
+- The `architecture.detail` platform checks now work without explicit
+  configuration.
+- Component status changes are now immediately reported.
+- TokenExchangeService now appears in GG console component list.
+- CreateLocalDeployment IPC calls now support componentToConfiguration.
+
+Bug fixes:
+
+- Fixed race condition between component startup and TES HTTP server.
+- Fixed reporting deployment completion through network interruptions.
+- Fix re-executed continuous deployments getting stuck.
+
 # Release Notes v2.5.1
 
 This release contains the following bug fixes:
