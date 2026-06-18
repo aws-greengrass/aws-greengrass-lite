@@ -491,7 +491,8 @@ static int32_t transport_send(
     GgError ret = iotcored_tls_write(
         network_context->tls_ctx,
         (GgBuffer) { .data = (void *) buffer, .len = bytes },
-        &has_pending
+        &has_pending,
+        IOTCORED_KEEP_ALIVE_PERIOD * 1000
     );
 
     // Best-effort wakeup; failure means recv thread will catch it

@@ -27,6 +27,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -47,6 +48,14 @@ struct IotcoredTlsCtx {
 IotcoredTlsCtx conn;
 
 static pthread_mutex_t ssl_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+static int64_t get_current_timestamp_ms(void) {
+    struct timespec ts;
+    int ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+    assert(ret == 0);
+    (void) ret;
+    return ((int64_t) ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+}
 
 static GgError make_nonblocking(BIO *bio) {
     int fd = -1;
@@ -676,7 +685,7 @@ GgError iotcored_tls_read(IotcoredTlsCtx *ctx, GgBuffer *buf) {
 }
 
 GgError iotcored_tls_write(
-    IotcoredTlsCtx *ctx, GgBuffer buf, bool *has_pending
+    IotcoredTlsCtx *ctx, GgBuffer buf, bool *has_pending, int timeout_ms
 ) {
     assert(ctx != NULL);
 
@@ -692,7 +701,11 @@ GgError iotcored_tls_write(
     int fd = -1;
     BIO_get_fd(ctx->bio, &fd);
 
-    // Hold mutex for entire write — OpenSSL does not allow SSL_read
+    // Absolute deadline so that a socket which repeatedly wakes poll() but
+    // never accepts the write cannot extend the wait indefinitely.
+    int64_t deadline_ms = get_current_timestamp_ms() + timeout_ms;
+
+    // Hold mutex for entire write -- OpenSSL does not allow SSL_read
     // to interleave with a partial SSL_write.
     GG_MTX_SCOPE_GUARD(&ssl_mtx);
     do {
@@ -704,15 +717,32 @@ GgError iotcored_tls_write(
         int error_code = SSL_get_error(ssl, ret);
         if ((error_code == SSL_ERROR_WANT_WRITE)
             || (error_code == SSL_ERROR_WANT_READ)) {
-            // Wait for socket to become ready.
-            // Must hold mutex — can't let SSL_read interleave
-            // with a partial SSL_write.
+            int64_t remaining_ms = deadline_ms - get_current_timestamp_ms();
+            if (remaining_ms <= 0) {
+                GG_LOGE(
+                    "Write timed out after %d ms; closing connection.",
+                    timeout_ms
+                );
+                ctx->connected = false;
+                return GG_ERR_TIMEOUT;
+            }
+            if (remaining_ms > INT_MAX) {
+                remaining_ms = INT_MAX;
+            }
+            // Wait for the socket to become ready, bounded by the deadline.
+            // The mutex is intentionally held across the wait -- can't let
+            // SSL_read interleave with a partial SSL_write.
             struct pollfd pfd = {
                 .fd = fd,
                 .events
                 = (error_code == SSL_ERROR_WANT_WRITE) ? POLLOUT : POLLIN,
             };
-            poll(&pfd, 1, -1);
+            int poll_ret = poll(&pfd, 1, (int) remaining_ms);
+            if ((poll_ret < 0) && (errno != EINTR)) {
+                GG_LOGE("poll failed during write: %m.");
+                ctx->connected = false;
+                return GG_ERR_FAILURE;
+            }
             continue;
         }
         ERR_print_errors_cb(ssl_error_callback, NULL);
