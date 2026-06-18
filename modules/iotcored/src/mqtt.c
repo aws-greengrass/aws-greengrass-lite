@@ -401,49 +401,51 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
                     GG_LOGE("poll failed: %m.");
                     break;
                 }
-            }
 
-            if (fds[1].revents & POLLIN) {
-                // Keepalive timer fired.
-                // Consume timer expiration count; error is non-fatal.
-                uint64_t expirations;
-                while ((read(keepalive_tfd, &expirations, sizeof(expirations))
-                        < 0)
-                       && (errno == EINTR)) { }
+                if (fds[1].revents & POLLIN) {
+                    // Keepalive timer fired.
+                    // Consume timer expiration count; error is non-fatal.
+                    uint64_t expirations;
+                    while (
+                        (read(keepalive_tfd, &expirations, sizeof(expirations))
+                         < 0)
+                        && (errno == EINTR)
+                    ) { }
 
-                if (ping_pending) {
-                    GG_LOGE(
-                        "Server did not respond to ping within Keep Alive period."
+                    if (ping_pending) {
+                        GG_LOGE(
+                            "Server did not respond to ping within Keep Alive period."
+                        );
+                        break;
+                    }
+                    GG_LOGD("Sending pingreq.");
+                    ping_pending = true;
+                    MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
+                    if (mqtt_ret != MQTTSuccess) {
+                        GG_LOGE("Sending pingreq failed.");
+                        break;
+                    }
+                }
+
+                if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+                    GG_LOGE("Socket error detected.");
+                    break;
+                }
+
+                // Drain the write-notification eventfd.
+                if (fds[2].revents & POLLIN) {
+                    uint64_t val;
+                    while ((read(write_event_fd, &val, sizeof(val)) < 0)
+                           && (errno == EINTR)) { }
+                }
+
+                // Reconnect requested via iotcored_mqtt_disconnect().
+                if (fds[3].revents & POLLIN) {
+                    GG_LOGI(
+                        "Reconnect requested, disconnecting from current endpoint."
                     );
                     break;
                 }
-                GG_LOGD("Sending pingreq.");
-                ping_pending = true;
-                MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
-                if (mqtt_ret != MQTTSuccess) {
-                    GG_LOGE("Sending pingreq failed.");
-                    break;
-                }
-            }
-
-            if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-                GG_LOGE("Socket error detected.");
-                break;
-            }
-
-            // Drain the write-notification eventfd.
-            if (fds[2].revents & POLLIN) {
-                uint64_t val;
-                while ((read(write_event_fd, &val, sizeof(val)) < 0)
-                       && (errno == EINTR)) { }
-            }
-
-            // Reconnect requested via iotcored_mqtt_disconnect().
-            if (fds[3].revents & POLLIN) {
-                GG_LOGI(
-                    "Reconnect requested, disconnecting from current endpoint."
-                );
-                break;
             }
 
             MQTTStatus_t mqtt_ret;
