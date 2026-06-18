@@ -16,7 +16,7 @@ GgError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx);
 
 GgError iotcored_tls_read(IotcoredTlsCtx *ctx, GgBuffer *buf);
 GgError iotcored_tls_write(
-    IotcoredTlsCtx *ctx, GgBuffer buf, bool *has_pending
+    IotcoredTlsCtx *ctx, GgBuffer buf, bool *has_pending, int timeout_ms
 );
 
 /// Get the underlying socket fd for use with poll().
