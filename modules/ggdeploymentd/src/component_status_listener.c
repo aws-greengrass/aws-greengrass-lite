@@ -51,8 +51,7 @@ static void forward_to_fleet_status(void) {
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE(
-            "Failed to forward component status change to fleet status "
-            "service (ret=%d).",
+            "Failed to forward component status change to fleet status service (ret=%d).",
             (int) ret
         );
     }
@@ -102,8 +101,7 @@ static GgError on_state_change(void *ctx, uint32_t handle, GgObject data) {
     }
 
     GG_LOGD(
-        "Forwarding component state change to fleet status service: "
-        "%.*s -> %.*s.",
+        "Forwarding component state change to fleet status service: %.*s -> %.*s.",
         (int) component_name.len,
         component_name.data,
         (int) status.len,
@@ -132,8 +130,7 @@ static void *listener_thread(void *ctx) {
         );
         if (ret != GG_ERR_OK) {
             GG_LOGW(
-                "Failed to subscribe to gghealthd component state changes "
-                "(ret=%d, remote=%d). Retrying in %ds.",
+                "Failed to subscribe to gghealthd component state changes (ret=%d, remote=%d). Retrying in %ds.",
                 (int) ret,
                 (int) remote_err,
                 RESUBSCRIBE_BACKOFF_SECONDS
@@ -152,8 +149,9 @@ static void *listener_thread(void *ctx) {
             (void) gg_sleep(RESUBSCRIBE_BACKOFF_SECONDS);
         }
 
-        GG_LOGW("gghealthd component state change subscription closed; "
-                "resubscribing.");
+        GG_LOGW(
+            "gghealthd component state change subscription closed; resubscribing."
+        );
         (void) gg_sleep(RESUBSCRIBE_BACKOFF_SECONDS);
     }
 

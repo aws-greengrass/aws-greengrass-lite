@@ -2424,8 +2424,7 @@ static GgError send_fss_update(
     size_t removed_count = removed_components.len;
     if (removed_count > GGL_MAX_GENERIC_COMPONENTS) {
         GG_LOGW(
-            "Truncating removed component list from %zu to %d for fleet "
-            "status update.",
+            "Truncating removed component list from %zu to %d for fleet status update.",
             removed_count,
             GGL_MAX_GENERIC_COMPONENTS
         );
@@ -2796,8 +2795,7 @@ static void report_endpoint_switch_status_to_source(
     ret = gg_backoff(1000, 60000, 8, report_success_to_source, &pub_ctx);
     if (ret != GG_ERR_OK) {
         GG_LOGW(
-            "Failed to report SUCCEEDED to source account (%s); "
-            "source IoT Job will time out.",
+            "Failed to report SUCCEEDED to source account (%s); source IoT Job will time out.",
             gg_strerror(ret)
         );
     } else {
@@ -2985,8 +2983,9 @@ static GgError validate_endpoint_switch_deployment(
 
         if (cred_ep_changed || role_alias_changed) {
             if (effective_role_alias.len == 0) {
-                GG_LOGE("Cannot validate credential endpoint: "
-                        "failed to read iotRoleAlias.");
+                GG_LOGE(
+                    "Cannot validate credential endpoint: failed to read iotRoleAlias."
+                );
                 return GG_ERR_FAILURE;
             }
 
@@ -4074,8 +4073,9 @@ static void handle_deployment(
             GG_STR("aws_iot_mqtt"), MQTT_CONNECTIVITY_CHECK_TIMEOUT_SECONDS
         );
         if (ret != GG_ERR_OK) {
-            GG_LOGE("MQTT reconnection to new IoT data endpoint failed "
-                    "after config merge; rolling back.");
+            GG_LOGE(
+                "MQTT reconnection to new IoT data endpoint failed after config merge; rolling back."
+            );
             return;
         }
         GG_LOGD("MQTT reconnected to new IoT data endpoint.");

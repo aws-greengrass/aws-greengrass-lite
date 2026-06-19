@@ -254,8 +254,7 @@ static GgError send_fleet_status_update(
         for (size_t i = 0; i < removed_components.len; i++) {
             if (gg_obj_type(removed_components.items[i]) != GG_TYPE_BUF) {
                 GG_LOGE(
-                    "`removed_components[%zu]` is not a buffer; rejecting "
-                    "update.",
+                    "`removed_components[%zu]` is not a buffer; rejecting update.",
                     i
                 );
                 return GG_ERR_INVALID;

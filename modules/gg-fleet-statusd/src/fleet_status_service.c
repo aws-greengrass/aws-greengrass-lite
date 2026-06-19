@@ -251,8 +251,7 @@ GgError publish_fleet_status_update(
     GG_LIST_FOREACH (removed_obj, removed_components) {
         if (component_count >= GGL_MAX_GENERIC_COMPONENTS) {
             GG_LOGW(
-                "Reached component cap (%d); dropping remaining UNINSTALLED "
-                "entries from this fleet status update.",
+                "Reached component cap (%d); dropping remaining UNINSTALLED entries from this fleet status update.",
                 GGL_MAX_GENERIC_COMPONENTS
             );
             break;
@@ -283,8 +282,7 @@ GgError publish_fleet_status_update(
         ret = gg_obj_vec_push(&component_statuses, gg_obj_map(removed_info));
         if (ret != GG_ERR_OK) {
             GG_LOGE(
-                "Failed to add UNINSTALLED entry for %.*s to component list "
-                "with error %s.",
+                "Failed to add UNINSTALLED entry for %.*s to component list with error %s.",
                 (int) removed.len,
                 removed.data,
                 gg_strerror(ret)

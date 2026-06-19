@@ -457,8 +457,7 @@ static GgError parse_deployment_obj(
             GG_MAP_FOREACH (comp_entry, doc->component_to_configuration) {
                 if (gg_obj_type(*gg_kv_val(comp_entry)) != GG_TYPE_MAP) {
                     GG_LOGE(
-                        "component_to_configuration entry for %.*s is not a "
-                        "map.",
+                        "component_to_configuration entry for %.*s is not a map.",
                         (int) gg_kv_key(*comp_entry).len,
                         gg_kv_key(*comp_entry).data
                     );
@@ -470,8 +469,7 @@ static GgError parse_deployment_obj(
                 if (gg_map_get(comp_map, GG_STR("merge"), &merge_val)
                     && gg_obj_type(*merge_val) != GG_TYPE_MAP) {
                     GG_LOGE(
-                        "componentToConfiguration[%.*s].merge must be a "
-                        "map, got type %d.",
+                        "componentToConfiguration[%.*s].merge must be a map, got type %d.",
                         (int) gg_kv_key(*comp_entry).len,
                         gg_kv_key(*comp_entry).data,
                         (int) gg_obj_type(*merge_val)
@@ -481,8 +479,7 @@ static GgError parse_deployment_obj(
                 if (gg_map_get(comp_map, GG_STR("reset"), &reset_val)
                     && gg_obj_type(*reset_val) != GG_TYPE_LIST) {
                     GG_LOGE(
-                        "componentToConfiguration[%.*s].reset must be a "
-                        "list, got type %d.",
+                        "componentToConfiguration[%.*s].reset must be a list, got type %d.",
                         (int) gg_kv_key(*comp_entry).len,
                         gg_kv_key(*comp_entry).data,
                         (int) gg_obj_type(*reset_val)
