@@ -591,6 +591,7 @@ void ggl_deployment_release(GglDeployment *deployment) {
     assert(gg_buffer_eq(
         deployment->deployment_id, deployments[queue_index].deployment_id
     ));
+    (void) deployment;
 
     GG_LOGD("Removing deployment from queue.");
 

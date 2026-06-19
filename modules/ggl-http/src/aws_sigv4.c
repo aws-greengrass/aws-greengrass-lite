@@ -188,6 +188,7 @@ static GgError aws_sigv4_generate_header(
 size_t aws_sigv4_get_iso8601_time(char *buffer, size_t len) {
     assert(buffer != NULL);
     assert(len >= 17);
+    (void) len;
     struct timeval tv;
     struct tm tm_info;
 

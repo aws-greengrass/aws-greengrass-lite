@@ -524,6 +524,7 @@ GgError iotcored_mqtt_connect(const IotcoredArgs *args) {
                                .size = sizeof(network_buffer) }
     );
     assert(mqtt_ret == MQTTSuccess);
+    (void) mqtt_ret;
 
     mqtt_ret = MQTT_InitStatefulQoS(
         &mqtt_ctx,

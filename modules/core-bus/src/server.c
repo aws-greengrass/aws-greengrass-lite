@@ -443,13 +443,16 @@ void ggl_sub_respond(uint32_t handle, GgObject value) {
     GG_LOGT("Responding to %d.", handle);
 
 #ifndef NDEBUG
-    GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
-    GgError ret
-        = ggl_socket_handle_protected(get_request_type, &type, &pool, handle);
-    if (ret != GG_ERR_OK) {
-        return;
+    {
+        GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
+        GgError ret = ggl_socket_handle_protected(
+            get_request_type, &type, &pool, handle
+        );
+        if (ret != GG_ERR_OK) {
+            return;
+        }
+        assert(type == GGL_CORE_BUS_SUBSCRIBE);
     }
-    assert(type == GGL_CORE_BUS_SUBSCRIBE);
 #endif
 
     wait_while_current_handle(handle);
@@ -460,7 +463,7 @@ void ggl_sub_respond(uint32_t handle, GgObject value) {
 
     GgBuffer send_buffer = GG_BUF(encode_array);
 
-    ret = eventstream_encode(
+    GgError ret = eventstream_encode(
         &send_buffer, NULL, 0, ggl_serialize_reader(&value)
     );
     if (ret != GG_ERR_OK) {
