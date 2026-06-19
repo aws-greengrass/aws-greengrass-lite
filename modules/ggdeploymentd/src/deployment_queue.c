@@ -184,6 +184,28 @@ static GgError push_component_version(
     return gg_kv_vec_push(vec, gg_kv(name, gg_obj_map(info_map)));
 }
 
+// Component names must be `[a-zA-Z0-9-_.]+`, length 1-128
+static GgError validate_component_name(GgBuffer name) {
+    if ((name.len < 1) || (name.len > 128)) {
+        GG_LOGE(
+            "Component name has invalid length %zu (must be 1-128 characters).",
+            name.len
+        );
+        return GG_ERR_INVALID;
+    }
+    for (size_t i = 0; i < name.len; i++) {
+        uint8_t c = name.data[i];
+        bool allowed = ((c >= 'A') && (c <= 'Z')) || ((c >= 'a') && (c <= 'z'))
+            || ((c >= '0') && (c <= '9')) || (c == '.') || (c == '_')
+            || (c == '-');
+        if (!allowed) {
+            GG_LOGE("Component name contains an invalid character.");
+            return GG_ERR_INVALID;
+        }
+    }
+    return GG_ERR_OK;
+}
+
 static GgError parse_local_deployment_components(
     GgObject *root_component_versions_to_add,
     GgObject *root_component_versions_to_remove,
@@ -334,6 +356,7 @@ static GgError parse_local_deployment_components(
     return GG_ERR_OK;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GgError parse_deployment_obj(
     GgMap args,
     GglDeployment *doc,
@@ -394,6 +417,49 @@ static GgError parse_deployment_obj(
     if (ret != GG_ERR_OK) {
         GG_LOGE("Received invalid argument.");
         return GG_ERR_INVALID;
+    }
+
+    if (root_component_versions_to_add != NULL) {
+        GG_MAP_FOREACH (
+            pair, gg_obj_into_map(*root_component_versions_to_add)
+        ) {
+            ret = validate_component_name(gg_kv_key(*pair));
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+        }
+    }
+    if (root_component_versions_to_remove != NULL) {
+        GgList component_list
+            = gg_obj_into_list(*root_component_versions_to_remove);
+        for (size_t i = 0; i < component_list.len; i++) {
+            if (gg_obj_type(component_list.items[i]) != GG_TYPE_BUF) {
+                GG_LOGE("Component removal list entry is not a string.");
+                return GG_ERR_INVALID;
+            }
+            ret = validate_component_name(
+                gg_obj_into_buf(component_list.items[i])
+            );
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+        }
+    }
+    if (cloud_components != NULL) {
+        GG_MAP_FOREACH (pair, gg_obj_into_map(*cloud_components)) {
+            ret = validate_component_name(gg_kv_key(*pair));
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+        }
+    }
+    if (component_to_configuration != NULL) {
+        GG_MAP_FOREACH (pair, gg_obj_into_map(*component_to_configuration)) {
+            ret = validate_component_name(gg_kv_key(*pair));
+            if (ret != GG_ERR_OK) {
+                return ret;
+            }
+        }
     }
 
     if (recipe_directory_path != NULL) {
