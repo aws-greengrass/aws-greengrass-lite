@@ -23,6 +23,7 @@
 #include <openssl/store.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <poll.h>
 #include <pthread.h>
 #include <string.h>
@@ -348,6 +349,12 @@ static GgError do_handshake(char *host, BIO *bio) {
             GG_LOGE("Failed to configure SNI.");
             return GG_ERR_FATAL;
         }
+
+        SSL_set_hostflags(ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+        if (SSL_set1_host(ssl, host) != 1) {
+            GG_LOGE("Failed to set TLS verification hostname.");
+            return GG_ERR_FATAL;
+        }
     }
 
     if (SSL_do_handshake(ssl) != 1) {
@@ -475,7 +482,7 @@ static GgError iotcored_tls_connect_https_proxy(
         return GG_ERR_FATAL;
     }
     GG_LOGD("Connecting to HTTPS proxy.");
-    ret = do_handshake(NULL, mtls_proxy_bio);
+    ret = do_handshake((char *) info.host.data, mtls_proxy_bio);
     if (ret != GG_ERR_OK) {
         GG_LOGE("Failed to connect and handshake with proxy.");
         return ret;
