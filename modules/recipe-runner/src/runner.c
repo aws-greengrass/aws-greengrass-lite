@@ -40,7 +40,13 @@
 
 pid_t child_pid = -1; // To store child process ID
 
-static GgError write_escaped_char(int out_fd, uint8_t c) {
+static GgError write_escaped_char(int out_fd, uint8_t c, bool single_quote) {
+    if (single_quote) {
+        if (c == '\'') {
+            return gg_file_write(out_fd, GG_STR("'\\''"));
+        }
+        return gg_file_write(out_fd, (GgBuffer) { &c, 1 });
+    }
     if (c == '"' || c == '\\' || c == '$' || c == '`') {
         GgError ret = gg_file_write(out_fd, GG_STR("\\"));
         if (ret != GG_ERR_OK) {
@@ -50,9 +56,11 @@ static GgError write_escaped_char(int out_fd, uint8_t c) {
     return gg_file_write(out_fd, (GgBuffer) { &c, 1 });
 }
 
-static GgError write_escaped_value(int out_fd, GgBuffer value) {
+static GgError write_escaped_value(
+    int out_fd, GgBuffer value, bool single_quote
+) {
     for (size_t i = 0; i < value.len; i++) {
-        GgError ret = write_escaped_char(out_fd, value.data[i]);
+        GgError ret = write_escaped_char(out_fd, value.data[i], single_quote);
         if (ret != GG_ERR_OK) {
             return ret;
         }
@@ -61,7 +69,9 @@ static GgError write_escaped_value(int out_fd, GgBuffer value) {
     return GG_ERR_OK;
 }
 
-static GgError insert_config_value(int out_fd, GgBuffer json_ptr) {
+static GgError insert_config_value(
+    int out_fd, GgBuffer json_ptr, bool single_quote
+) {
     static GgBuffer key_path_mem[GG_MAX_OBJECT_DEPTH];
     GgBufVec key_path = GG_BUF_VEC(key_path_mem);
 
@@ -95,7 +105,7 @@ static GgError insert_config_value(int out_fd, GgBuffer json_ptr) {
         final_result = gg_obj_into_buf(result);
     }
 
-    return write_escaped_value(out_fd, final_result);
+    return write_escaped_value(out_fd, final_result, single_quote);
 }
 
 static GgError split_escape_seq(
@@ -121,7 +131,8 @@ static GgError substitute_escape(
     GgBuffer root_path,
     GgBuffer component_name,
     GgBuffer component_version,
-    GgBuffer thing_name
+    GgBuffer thing_name,
+    bool single_quote
 ) {
     GgBuffer type;
     GgBuffer arg;
@@ -220,7 +231,7 @@ static GgError substitute_escape(
             return gg_file_write(out_fd, GG_STR("/"));
         }
     } else if (gg_buffer_eq(type, GG_STR("configuration"))) {
-        return insert_config_value(out_fd, arg);
+        return insert_config_value(out_fd, arg, single_quote);
     }
 
     GG_LOGE(
@@ -238,7 +249,8 @@ static GgError handle_escape(
     GgBuffer root_path,
     GgBuffer component_name,
     GgBuffer component_version,
-    GgBuffer thing_name
+    GgBuffer thing_name,
+    bool single_quote
 ) {
     static uint8_t escape_contents[256];
     GgByteVec vec = GG_BYTE_VEC(escape_contents);
@@ -263,10 +275,32 @@ static GgError handle_escape(
                 root_path,
                 component_name,
                 component_version,
-                thing_name
+                thing_name,
+                single_quote
             );
         }
     }
+}
+
+static bool setenv_key_is_valid(GgBuffer key) {
+    if (key.len == 0) {
+        return false;
+    }
+    uint8_t first = key.data[0];
+    bool first_ok = (first >= 'A' && first <= 'Z')
+        || (first >= 'a' && first <= 'z') || (first == '_');
+    if (!first_ok) {
+        return false;
+    }
+    for (size_t i = 1; i < key.len; i++) {
+        uint8_t c = key.data[i];
+        bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+            || (c >= '0' && c <= '9') || (c == '_');
+        if (!ok) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static GgError process_set_env(
@@ -279,6 +313,10 @@ static GgError process_set_env(
 ) {
     GG_LOGT("Lifecycle Setenv, is a map");
     GG_MAP_FOREACH (pair, env_values_as_map) {
+        if (!setenv_key_is_valid(gg_kv_key(*pair))) {
+            GG_LOGE("Invalid lifecycle Setenv key");
+            return GG_ERR_INVALID;
+        }
         GgError ret = gg_file_write(out_fd, GG_STR("export "));
         if (ret != GG_ERR_OK) {
             return ret;
@@ -303,21 +341,16 @@ static GgError process_set_env(
         }
         GgBuffer val = gg_obj_into_buf(*gg_kv_val(pair));
         GG_LOGT("Lifecycle Setenv, map value: %.*s", (int) val.len, val.data);
-        uint8_t *current_pointer = &val.data[0];
-        uint8_t *end_pointer = &val.data[val.len];
-        if (val.len == 0) {
-            // Add in a new line if no value is provided
-            ret = gg_file_write(out_fd, GG_STR("\n"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
+
+        ret = gg_file_write(out_fd, GG_STR("'"));
+        if (ret != GG_ERR_OK) {
+            return ret;
         }
-        while (true) {
-            if (current_pointer == end_pointer) {
-                break;
-            }
+        uint8_t *current_pointer = val.data;
+        uint8_t *end_pointer = &val.data[val.len];
+        while (current_pointer != end_pointer) {
             if (*current_pointer != '{') {
-                ret = write_escaped_char(out_fd, *current_pointer);
+                ret = write_escaped_char(out_fd, *current_pointer, true);
                 if (ret != GG_ERR_OK) {
                     return ret;
                 }
@@ -330,14 +363,15 @@ static GgError process_set_env(
                     root_path,
                     component_name,
                     component_version,
-                    thing_name
+                    thing_name,
+                    true
                 );
                 if (ret != GG_ERR_OK) {
                     return ret;
                 }
             }
         }
-        ret = gg_file_write(out_fd, GG_STR("\n"));
+        ret = gg_file_write(out_fd, GG_STR("'\n"));
         if (ret != GG_ERR_OK) {
             return ret;
         }
@@ -458,7 +492,8 @@ static GgError process_lifecycle_phase(
                 root_path,
                 component_name,
                 component_version,
-                thing_name
+                thing_name,
+                false
             );
             if (ret != GG_ERR_OK) {
                 return ret;
