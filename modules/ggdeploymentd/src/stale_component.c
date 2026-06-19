@@ -545,8 +545,7 @@ static void record_removed_component(
         // with the bufvec.
         removed_names_storage->buf.len = name_offset;
         GG_LOGW(
-            "Could not record removed component %.*s for fleet status update "
-            "(ret=%d).",
+            "Could not record removed component %.*s for fleet status update (ret=%d).",
             (int) component_name.len,
             component_name.data,
             (int) ret

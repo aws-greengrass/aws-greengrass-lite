@@ -258,8 +258,7 @@ static GgError update_job_to(
                 // succeed, so drop any pending slot instead of re-sending it
                 // indefinitely.
                 GG_LOGW(
-                    "Update permanently rejected; clearing pending status for "
-                    "job %.*s.",
+                    "Update permanently rejected; clearing pending status for job %.*s.",
                     (int) job_id.len,
                     job_id.data
                 );
@@ -462,8 +461,9 @@ static GgError process_job_execution(GgMap job_execution) {
 
     case DSA_ENQUEUE_JOB: {
         if (deployment_doc == NULL) {
-            GG_LOGE("Job status is queued/in progress, but no deployment doc "
-                    "was given.");
+            GG_LOGE(
+                "Job status is queued/in progress, but no deployment doc was given."
+            );
             return GG_ERR_INVALID;
         }
         (void) enqueue_job(

@@ -481,8 +481,7 @@ GgError process_bootstrap_phase(
             );
             if (ret != GG_ERR_OK) {
                 GG_LOGD(
-                    "Component %.*s does not have the relevant bootstrap "
-                    "service file",
+                    "Component %.*s does not have the relevant bootstrap service file",
                     (int) component_name.len,
                     component_name.data
                 );
@@ -503,8 +502,9 @@ GgError process_bootstrap_phase(
                     bootstrap_comp_name_buf_vec, component_name
                 );
                 if (ret != GG_ERR_OK) {
-                    GG_LOGE("Failed to add the bootstrap component name "
-                            "into vector");
+                    GG_LOGE(
+                        "Failed to add the bootstrap component name into vector"
+                    );
                     return ret;
                 }
                 bootstrap_component_count++;
@@ -546,8 +546,7 @@ GgError process_bootstrap_phase(
                         return ret;
                     }
                     GG_LOGI(
-                        "systemctl link exited for %.*s with child status "
-                        "%d\n",
+                        "systemctl link exited for %.*s with child status %d\n",
                         (int) bootstrap_service_file_path_vec.buf.len,
                         bootstrap_service_file_path_vec.buf.data,
                         WEXITSTATUS(system_ret)
@@ -598,8 +597,9 @@ GgError process_bootstrap_phase(
                     GG_STR("bootstrap")
                 );
                 if (ret != GG_ERR_OK) {
-                    GG_LOGE("Failed to save component info to config after "
-                            "completing bootstrap steps.");
+                    GG_LOGE(
+                        "Failed to save component info to config after completing bootstrap steps."
+                    );
                     return ret;
                 }
 

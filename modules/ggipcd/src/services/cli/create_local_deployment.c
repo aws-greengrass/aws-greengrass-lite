@@ -47,8 +47,7 @@ static GgError normalize_component_config(GgKV *comp_pair, GgArena *alloc) {
                 );
                 if (parse_ret != GG_ERR_OK) {
                     GG_LOGE(
-                        "Failed to parse componentToConfiguration %.*s value "
-                        "as JSON.",
+                        "Failed to parse componentToConfiguration %.*s value as JSON.",
                         (int) gg_kv_key(*op2).len,
                         gg_kv_key(*op2).data
                     );
