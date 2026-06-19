@@ -782,6 +782,24 @@ GgError generate_systemd_unit(
     GgObject **component_name,
     PhaseSelection phase
 ) {
+    GgObject *recipe_component_name;
+    if (!gg_map_get(
+            recipe_map, GG_STR("ComponentName"), &recipe_component_name
+        )) {
+        return GG_ERR_INVALID;
+    }
+    if (gg_obj_type(*recipe_component_name) != GG_TYPE_BUF) {
+        return GG_ERR_INVALID;
+    }
+    if (!gg_buffer_eq(
+            gg_obj_into_buf(*recipe_component_name), args->component_name
+        )) {
+        GG_LOGE(
+            "Component name in recipe does not match deployment component name."
+        );
+        return GG_ERR_INVALID;
+    }
+
     GgByteVec concat_unit_vector = gg_byte_vec_init(*unit_file_buffer);
 
     GgError ret = fill_unit_section(recipe_map, &concat_unit_vector, phase);

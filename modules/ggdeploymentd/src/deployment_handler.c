@@ -2073,6 +2073,12 @@ static GgError resolve_dependencies(
                     return GG_ERR_INVALID;
                 }
 
+                ret = ggl_validate_component_name(gg_kv_key(*dependency));
+                if (ret != GG_ERR_OK) {
+                    GG_LOGE("Component dependency has an invalid name.");
+                    return ret;
+                }
+
                 // If the component is aws.greengrass.Nucleus or
                 // aws.greengrass.TokenExchangeService or aws.greengrass.Cli
                 // ignore it and never add it as a dependency to check or parse.
@@ -3597,13 +3603,6 @@ static void handle_deployment(
         );
 
         if (err != GG_ERR_OK) {
-            return;
-        }
-
-        if (!gg_buffer_eq(gg_obj_into_buf(*component_name), gg_kv_key(*pair))) {
-            GG_LOGE(
-                "Component name from recipe does not match component name from recipe file."
-            );
             return;
         }
 
