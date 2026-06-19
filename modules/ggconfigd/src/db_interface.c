@@ -1504,11 +1504,10 @@ GgError ggconfig_backup(void) {
 
 /// Resolve a keyid to its full key path by walking relationTable upward.
 /// Populates key_path with buffer objects (root first).
-static GgError resolve_key_path(int64_t keyid, GgList *key_path) {
-    GgObject path_items_rev[GG_MAX_OBJECT_DEPTH];
-    uint8_t path_buf[GG_MAX_OBJECT_DEPTH * 128];
-    size_t buf_offset = 0;
-    size_t depth = 0;
+static GgError resolve_key_path(
+    int64_t keyid, GgObjVec *key_path, GgArena *alloc
+) {
+    GgObjVec path_rev = GG_OBJ_VEC((GgObject[GG_MAX_OBJECT_DEPTH]) { 0 });
     int64_t current = keyid;
 
     sqlite3_stmt *key_stmt = NULL;
@@ -1544,7 +1543,7 @@ static GgError resolve_key_path(int64_t keyid, GgList *key_path) {
     }
     GG_CLEANUP(cleanup_sqlite3_finalize, parent_stmt);
 
-    while (depth < GG_MAX_OBJECT_DEPTH) {
+    while (true) {
         sqlite3_reset(key_stmt);
         sqlite3_bind_int64(key_stmt, 1, current);
         if (sqlite3_step(key_stmt) != SQLITE_ROW) {
@@ -1553,15 +1552,26 @@ static GgError resolve_key_path(int64_t keyid, GgList *key_path) {
         }
         const char *val = (const char *) sqlite3_column_text(key_stmt, 0);
         int val_len = sqlite3_column_bytes(key_stmt, 0);
-        if (buf_offset + (size_t) val_len > sizeof(path_buf)) {
-            GG_LOGE("Path buffer overflow resolving keyid %" PRId64, keyid);
+        uint8_t *name = GG_ARENA_ALLOCN(alloc, uint8_t, (size_t) val_len);
+        if (name == NULL) {
+            GG_LOGE(
+                "Out of memory resolving key path for keyid %" PRId64, keyid
+            );
             return GG_ERR_NOMEM;
         }
-        memcpy(&path_buf[buf_offset], val, (size_t) val_len);
-        path_items_rev[depth] = gg_obj_buf((GgBuffer
-        ) { .data = &path_buf[buf_offset], .len = (size_t) val_len });
-        buf_offset += (size_t) val_len;
-        depth++;
+        memcpy(name, val, (size_t) val_len);
+        GgError ret = gg_obj_vec_push(
+            &path_rev,
+            gg_obj_buf((GgBuffer) { .data = name, .len = (size_t) val_len })
+        );
+        if (ret != GG_ERR_OK) {
+            GG_LOGE(
+                "Key path for keyid %" PRId64 " exceeds maximum depth %d",
+                keyid,
+                GG_MAX_OBJECT_DEPTH
+            );
+            return ret;
+        }
 
         sqlite3_reset(parent_stmt);
         sqlite3_bind_int64(parent_stmt, 1, current);
@@ -1571,10 +1581,12 @@ static GgError resolve_key_path(int64_t keyid, GgList *key_path) {
         current = sqlite3_column_int64(parent_stmt, 0);
     }
 
-    for (size_t i = 0; i < depth; i++) {
-        key_path->items[i] = path_items_rev[depth - 1 - i];
+    for (size_t i = path_rev.list.len; i > 0; i--) {
+        GgError ret = gg_obj_vec_push(key_path, path_rev.list.items[i - 1]);
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
     }
-    key_path->len = depth;
     return GG_ERR_OK;
 }
 
@@ -1613,9 +1625,10 @@ static GgError notify_all_subscribers(void) {
         int64_t keyid = sqlite3_column_int64(stmt, 0);
         uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 1);
 
-        GgObject path_items[GG_MAX_OBJECT_DEPTH];
-        GgList key_path = { .items = path_items, .len = 0 };
-        GgError err = resolve_key_path(keyid, &key_path);
+        GgObjVec key_path = GG_OBJ_VEC((GgObject[GG_MAX_OBJECT_DEPTH]) { 0 });
+        uint8_t path_bufs_mem[GG_MAX_OBJECT_DEPTH * 128];
+        GgArena alloc = gg_arena_init(GG_BUF(path_bufs_mem));
+        GgError err = resolve_key_path(keyid, &key_path, &alloc);
         if (err != GG_ERR_OK) {
             GG_LOGW(
                 "Failed to resolve key path for keyid %" PRId64
@@ -1625,7 +1638,7 @@ static GgError notify_all_subscribers(void) {
             continue;
         }
 
-        ggl_sub_respond(handle, gg_obj_list(key_path));
+        ggl_sub_respond(handle, gg_obj_list(key_path.list));
     }
 
     if (rc != SQLITE_DONE) {
