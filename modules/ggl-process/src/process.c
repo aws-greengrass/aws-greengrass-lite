@@ -13,6 +13,7 @@
 #include <ggl/process.h>
 #include <limits.h>
 #include <pthread.h>
+#include <sched.h>
 #include <signal.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -45,30 +46,48 @@ __attribute__((constructor(101))) static void setup_sigalrm(void) {
     sigaction(SIGALRM, &act, NULL);
 }
 
-#ifdef SYS_close_range
-static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
-    return (int) syscall(SYS_close_range, first, last, flags);
-}
-#else
-
+#ifndef CLOSE_RANGE_UNSHARE
 #define CLOSE_RANGE_UNSHARE 2
+#endif
+#ifndef CLOSE_RANGE_CLOEXEC
+#define CLOSE_RANGE_CLOEXEC 4
+#endif
 
-static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
+static int close_range_fallback(unsigned first, unsigned last, unsigned flags) {
     if (flags & CLOSE_RANGE_UNSHARE) {
         unshare(CLONE_FILES);
     }
     int max_fd = (int) sysconf(_SC_OPEN_MAX) - 1;
     int range_last = (last < (unsigned) max_fd) ? (int) last : max_fd;
-    for (int i = (int) first; i <= range_last; i++) {
-        close(i);
+    if (flags & CLOSE_RANGE_CLOEXEC) {
+        for (int i = (int) first; i <= range_last; i++) {
+            int fd_flags = fcntl(i, F_GETFD);
+            if (fd_flags >= 0) {
+                (void) fcntl(i, F_SETFD, fd_flags | FD_CLOEXEC);
+            }
+        }
+    } else {
+        for (int i = (int) first; i <= range_last; i++) {
+            close(i);
+        }
     }
     return 0;
 }
 
+#ifdef SYS_close_range
+static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
+    int ret = (int) syscall(SYS_close_range, first, last, flags);
+    if ((ret < 0) && ((errno == ENOSYS) || (errno == EINVAL))) {
+        return close_range_fallback(first, last, flags);
+    }
+    return ret;
+}
+#else
+#define sys_close_range close_range_fallback
 #endif
 
-void ggl_close_fds_from(unsigned int first) {
-    sys_close_range(first, UINT_MAX, CLOSE_RANGE_UNSHARE);
+void ggl_cloexec_fds_from(unsigned int first) {
+    sys_close_range(first, UINT_MAX, CLOSE_RANGE_UNSHARE | CLOSE_RANGE_CLOEXEC);
 }
 
 static GgError child_setup_and_exec(
@@ -100,7 +119,7 @@ static GgError child_setup_and_exec(
     }
 
     if (!cfg.keep_fds) {
-        ggl_close_fds_from(3);
+        ggl_cloexec_fds_from(3);
     }
 
     execvp(argv[0], (char **) argv);

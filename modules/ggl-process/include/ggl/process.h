@@ -57,7 +57,7 @@ GgError ggl_process_wait(GglProcessHandle handle, bool *exit_status);
 /// Cleans up handle and child zombie.
 GgError ggl_process_kill(GglProcessHandle handle, uint32_t term_timeout);
 
-/// Unshares all fds and closes fds >= first.
-void ggl_close_fds_from(unsigned int first);
+/// Unshares all fds and makes fds >= first FD_CLOEXEC.
+void ggl_cloexec_fds_from(unsigned int first);
 
 #endif
