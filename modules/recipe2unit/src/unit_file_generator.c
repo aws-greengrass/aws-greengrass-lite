@@ -732,7 +732,7 @@ static GgError fill_service_section(
         GG_LOGE("Failed to look up group %s: %d.", args->group, sys_ret);
         return GG_ERR_FAILURE;
     }
-    if (user_info == NULL) {
+    if (grp == NULL) {
         GG_LOGE("No group with name %s.", args->group);
         return GG_ERR_FAILURE;
     }
