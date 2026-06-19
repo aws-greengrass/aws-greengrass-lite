@@ -185,7 +185,7 @@ static GgError push_component_version(
 }
 
 // Component names must be `[a-zA-Z0-9-_.]+`, length 1-128
-static GgError validate_component_name(GgBuffer name) {
+GgError ggl_validate_component_name(GgBuffer name) {
     if ((name.len < 1) || (name.len > 128)) {
         GG_LOGE(
             "Component name has invalid length %zu (must be 1-128 characters).",
@@ -423,7 +423,7 @@ static GgError parse_deployment_obj(
         GG_MAP_FOREACH (
             pair, gg_obj_into_map(*root_component_versions_to_add)
         ) {
-            ret = validate_component_name(gg_kv_key(*pair));
+            ret = ggl_validate_component_name(gg_kv_key(*pair));
             if (ret != GG_ERR_OK) {
                 return ret;
             }
@@ -437,7 +437,7 @@ static GgError parse_deployment_obj(
                 GG_LOGE("Component removal list entry is not a string.");
                 return GG_ERR_INVALID;
             }
-            ret = validate_component_name(
+            ret = ggl_validate_component_name(
                 gg_obj_into_buf(component_list.items[i])
             );
             if (ret != GG_ERR_OK) {
@@ -447,7 +447,7 @@ static GgError parse_deployment_obj(
     }
     if (cloud_components != NULL) {
         GG_MAP_FOREACH (pair, gg_obj_into_map(*cloud_components)) {
-            ret = validate_component_name(gg_kv_key(*pair));
+            ret = ggl_validate_component_name(gg_kv_key(*pair));
             if (ret != GG_ERR_OK) {
                 return ret;
             }
@@ -455,7 +455,7 @@ static GgError parse_deployment_obj(
     }
     if (component_to_configuration != NULL) {
         GG_MAP_FOREACH (pair, gg_obj_into_map(*component_to_configuration)) {
-            ret = validate_component_name(gg_kv_key(*pair));
+            ret = ggl_validate_component_name(gg_kv_key(*pair));
             if (ret != GG_ERR_OK) {
                 return ret;
             }

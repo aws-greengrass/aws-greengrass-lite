@@ -35,4 +35,9 @@ void ggl_deployment_release(GglDeployment *deployment);
 
 GgError deep_copy_deployment(GglDeployment *deployment, GgArena *alloc);
 
+/// Validate a component name.
+///
+/// Names must match `[a-zA-Z0-9._-]+` and be 1-128 characters long
+GgError ggl_validate_component_name(GgBuffer name);
+
 #endif
