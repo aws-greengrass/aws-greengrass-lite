@@ -14,6 +14,7 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/policy_validation.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -77,11 +78,16 @@ GgError ggl_ipc_auth(
 ) {
     assert(info != NULL);
 
+    GgError ret = ggl_validate_policy_resource(resource);
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
     static uint8_t policy_mem[4096];
     GgArena alloc = gg_arena_init(GG_BUF(policy_mem));
 
     GgObject policies;
-    GgError ret = ggl_gg_config_read(
+    ret = ggl_gg_config_read(
         GG_BUF_LIST(
             GG_STR("services"),
             info->component,

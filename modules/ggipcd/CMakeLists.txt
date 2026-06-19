@@ -8,6 +8,7 @@ ggl_init_module(
   LIBS gg-sdk
        ggl-common
        ggl-constants
+       ggl-policy-validation
        core-bus
        core-bus-gg-config
        core-bus-aws-iot-mqtt
