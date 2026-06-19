@@ -28,7 +28,6 @@
 
 #define WORKING_DIR_LEN 4096
 #define MAX_SCRIPT_SIZE 10000
-#define MAX_UNIT_SIZE 10000
 
 #define MAX_RETRIES_BEFORE_BROKEN "3"
 #define MAX_RETRIES_INTERVAL_SECONDS "3600"
@@ -783,9 +782,7 @@ GgError generate_systemd_unit(
     GgObject **component_name,
     PhaseSelection phase
 ) {
-    GgByteVec concat_unit_vector
-        = { .buf = { .data = unit_file_buffer->data, .len = 0 },
-            .capacity = MAX_UNIT_SIZE };
+    GgByteVec concat_unit_vector = gg_byte_vec_init(*unit_file_buffer);
 
     GgError ret = fill_unit_section(recipe_map, &concat_unit_vector, phase);
     if (ret != GG_ERR_OK) {
