@@ -470,6 +470,7 @@ static GgError get_key_ids(GgList *key_path, GgObjVec *key_ids_output) {
         );
         GgError ret = gg_obj_vec_push(key_ids_output, gg_obj_i64(id));
         assert(ret == GG_ERR_OK);
+        (void) ret;
     }
 
     return GG_ERR_OK;

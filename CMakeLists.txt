@@ -189,6 +189,7 @@ add_compile_definitions(_GNU_SOURCE)
 add_compile_definitions(CURL_NO_OLDIES)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>)
+add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:NDEBUG>)
 
 file(READ version GGL_VERSION)
 string(STRIP "${GGL_VERSION}" GGL_VERSION)

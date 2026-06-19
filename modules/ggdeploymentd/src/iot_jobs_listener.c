@@ -376,6 +376,7 @@ static GgError enqueue_job(
         last_queue_job_id = GG_BYTE_VEC(last_queue_job_id_buf);
         GgError append_ret = gg_byte_vec_append(&last_queue_job_id, job_id);
         assert(append_ret == GG_ERR_OK);
+        (void) append_ret;
         last_queue_at = queued_at;
     }
 
@@ -718,6 +719,7 @@ GgError set_jobs_deployment_for_bootstrap(
     last_queue_job_id = GG_BYTE_VEC(last_queue_job_id_buf);
     GgError ret = gg_byte_vec_append(&last_queue_job_id, job_id);
     assert(ret == GG_ERR_OK);
+    (void) ret;
 
     return GG_ERR_OK;
 }
@@ -728,8 +730,10 @@ void set_current_job(GgBuffer job_id, GgBuffer deployment_id) {
     if (job_id.len > 0) {
         GgError ret = gg_byte_vec_append(&current_job_id, job_id);
         assert(ret == GG_ERR_OK);
+        (void) ret;
     }
     current_deployment_id = GG_BYTE_VEC(current_deployment_id_buf);
     GgError ret = gg_byte_vec_append(&current_deployment_id, deployment_id);
     assert(ret == GG_ERR_OK);
+    (void) ret;
 }
