@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "access_control_validation.h"
 #include "artifact_permission.h"
 #include "bootstrap_manager.h"
 #include "component_config.h"
@@ -3438,6 +3439,17 @@ static void handle_deployment(
                     GG_STR("DefaultConfiguration"),
                     &default_config_obj
                 )) {
+                ret = validate_access_control_policies(default_config_obj);
+                if (ret != GG_ERR_OK) {
+                    GG_LOGE(
+                        "Deployment rejected: invalid accessControl policy "
+                        "in component %.*s.",
+                        (int) gg_kv_key(*pair).len,
+                        gg_kv_key(*pair).data
+                    );
+                    return;
+                }
+
                 ret = ggl_gg_config_write(
                     GG_BUF_LIST(
                         GG_STR("services"),
@@ -3465,6 +3477,17 @@ static void handle_deployment(
                 (int) gg_kv_key(*pair).len,
                 gg_kv_key(*pair).data
             );
+        }
+
+        ret = validate_merge_access_control(deployment, gg_kv_key(*pair));
+        if (ret != GG_ERR_OK) {
+            GG_LOGE(
+                "Deployment rejected: invalid accessControl policy in "
+                "component %.*s.",
+                (int) gg_kv_key(*pair).len,
+                gg_kv_key(*pair).data
+            );
+            return;
         }
 
         ret = apply_configurations(

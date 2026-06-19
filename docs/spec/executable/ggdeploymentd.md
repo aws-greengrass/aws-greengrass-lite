@@ -15,7 +15,10 @@ A (very) brief overview of the key steps that should be executed during a
 deployment task processing:
 
 - Deployment validation: includes verifying that the deployment is not stale,
-  and checking that any kernel required capabilities are satisfied.
+  checking that any kernel required capabilities are satisfied, and validating
+  that all `accessControl` policy `resources` strings in component
+  `DefaultConfiguration` and in deployment `configurationUpdate.merge` are
+  well-formed.
 - Dependency resolution: Resolve the versions of components required by the
   deployment, including getting root components from all thing groups and
   negotiating component version with cloud. This step also gets component
@@ -89,6 +92,24 @@ the following requirements.
      configuration.
    - [ggdeploymentd-3.2] The deployment service may handle configuration updates
      and merge/reset configuration from a deployment document.
+   - [ggdeploymentd-3.3] The deployment service rejects deployments whose
+     `accessControl` policy resources are malformed. See the public docs for
+     [IPC authorization policies](https://docs.aws.amazon.com/greengrass/v2/developerguide/interprocess-communication.html#ipc-authorization-policies)
+     for the user-facing description of `accessControl` and the supported
+     wildcard / escape syntax.
+     - [ggdeploymentd-3.3.1] A resource string is malformed if it contains a
+       bare `?`, or a `${...}` escape other than `${*}`, `${?}`, or `${$}`.
+     - [ggdeploymentd-3.3.2] Both the recipe `DefaultConfiguration` and the
+       deployment `configurationUpdate.merge` are checked.
+     - [ggdeploymentd-3.3.3] A deployment that contains any malformed
+       `accessControl` resource is reported as FAILED, and the malformed
+       configuration is not persisted to the config store.
+     - [ggdeploymentd-3.3.4] The same well-formedness rule is enforced at IPC
+       call time by `ggipcd` against the request resource (the topic being
+       published or subscribed to). The shared check lives in the
+       `ggl-policy-validation` module so the deploy-time and call-time gates
+       cannot drift. See
+       [`policy-validation` design](../../design/policy-validation.md).
 4. [ggdeploymentd-4] The deployment service is aware of device membership within
    multiple thing groups when executing a new deployment.
    - [ggdeploymentd-4.1] If the device has multiple deployments from different

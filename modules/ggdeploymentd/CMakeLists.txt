@@ -7,6 +7,7 @@ ggl_init_module(
   LIBS gg-sdk
        ggl-constants
        ggl-common
+       ggl-policy-validation
        core-bus
        ggl-docker-client
        ggl-http
