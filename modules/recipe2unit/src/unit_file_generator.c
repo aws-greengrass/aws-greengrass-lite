@@ -17,6 +17,7 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/recipe.h>
 #include <ggl/recipe2unit.h>
+#include <ggl/semver.h>
 #include <grp.h>
 #include <limits.h>
 #include <pwd.h>
@@ -263,6 +264,11 @@ static GgError concat_exec_start_section_vec(
         return GG_ERR_INVALID;
     }
     GgBuffer component_version = gg_obj_into_buf(*component_version_obj);
+
+    if (!is_valid_semver(component_version)) {
+        GG_LOGE("ComponentVersion in recipe is not a valid semantic version.");
+        return GG_ERR_INVALID;
+    }
 
     // build the path for ExecStart section in unit file
     ret = gg_byte_vec_append(

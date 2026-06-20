@@ -72,6 +72,108 @@ static bool process_version(
     return return_status;
 }
 
+static bool is_digit_byte(uint8_t c) {
+    return (c >= '0') && (c <= '9');
+}
+
+static bool is_identifier_byte(uint8_t c) {
+    return is_digit_byte(c) || ((c >= 'A') && (c <= 'Z'))
+        || ((c >= 'a') && (c <= 'z')) || (c == '-');
+}
+
+// Parse a numeric identifier (major/minor/patch). Advances *i. A numeric
+// identifier is one or more digits with no leading zero unless it is "0".
+static bool parse_numeric_identifier(GgBuffer version, size_t *i) {
+    size_t start = *i;
+    while ((*i < version.len) && is_digit_byte(version.data[*i])) {
+        (*i)++;
+    }
+    size_t len = *i - start;
+    if (len == 0) {
+        return false;
+    }
+    if ((len > 1) && (version.data[start] == '0')) {
+        return false;
+    }
+    return true;
+}
+
+// Parse dot-separated pre-release or build identifiers starting at *i until
+// the end of the buffer or, for pre-release, the '+' that begins build
+// metadata. Each identifier must be non-empty and contain only [0-9A-Za-z-].
+// When numeric_no_leading_zero is set (pre-release), an all-digit identifier
+// must not have a leading zero.
+static bool parse_dot_separated_identifiers(
+    GgBuffer version, size_t *i, bool prerelease
+) {
+    for (;;) {
+        size_t start = *i;
+        bool all_digits = true;
+        while (*i < version.len) {
+            uint8_t c = version.data[*i];
+            if ((c == '.') || (prerelease && (c == '+'))) {
+                break;
+            }
+            if (!is_identifier_byte(c)) {
+                return false;
+            }
+            if (!is_digit_byte(c)) {
+                all_digits = false;
+            }
+            (*i)++;
+        }
+        size_t len = *i - start;
+        if (len == 0) {
+            return false;
+        }
+        if (prerelease && all_digits && (len > 1)
+            && (version.data[start] == '0')) {
+            return false;
+        }
+        if ((*i < version.len) && (version.data[*i] == '.')) {
+            (*i)++;
+            continue;
+        }
+        return true;
+    }
+}
+
+bool is_valid_semver(GgBuffer version) {
+    size_t i = 0;
+
+    // Version core: major.minor.patch
+    if (!parse_numeric_identifier(version, &i)) {
+        return false;
+    }
+    for (int part = 0; part < 2; part++) {
+        if ((i >= version.len) || (version.data[i] != '.')) {
+            return false;
+        }
+        i++;
+        if (!parse_numeric_identifier(version, &i)) {
+            return false;
+        }
+    }
+
+    // Optional pre-release: '-' identifiers, terminated by end or '+'
+    if ((i < version.len) && (version.data[i] == '-')) {
+        i++;
+        if (!parse_dot_separated_identifiers(version, &i, true)) {
+            return false;
+        }
+    }
+
+    // Optional build metadata: '+' identifiers, terminated by end
+    if ((i < version.len) && (version.data[i] == '+')) {
+        i++;
+        if (!parse_dot_separated_identifiers(version, &i, false)) {
+            return false;
+        }
+    }
+
+    return i == version.len;
+}
+
 bool is_in_range(GgBuffer version, GgBuffer requirements_range) {
     char *requirements_range_as_char = (char *) requirements_range.data;
 
@@ -172,6 +274,28 @@ GG_TEST_DEFINE(semver_lt) {
 GG_TEST_DEFINE(semver_range) {
     TEST_ASSERT_TRUE(is_in_range(GG_STR("1.5.0"), GG_STR(">=1.0.0 <=2.0.0")));
     TEST_ASSERT_FALSE(is_in_range(GG_STR("3.0.0"), GG_STR(">=1.0.0 <=2.0.0")));
+}
+
+GG_TEST_DEFINE(semver_valid_basic) {
+    TEST_ASSERT_TRUE(is_valid_semver(GG_STR("0.0.0")));
+    TEST_ASSERT_TRUE(is_valid_semver(GG_STR("1.2.3")));
+    TEST_ASSERT_TRUE(is_valid_semver(GG_STR("10.20.30")));
+    TEST_ASSERT_TRUE(is_valid_semver(GG_STR("1.2.3-alpha.1")));
+    TEST_ASSERT_TRUE(is_valid_semver(GG_STR("1.2.3+build.5")));
+    TEST_ASSERT_TRUE(is_valid_semver(GG_STR("1.2.3-rc.1+exp.sha.5114f85")));
+}
+
+GG_TEST_DEFINE(semver_valid_rejects_malformed) {
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2.3.4")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("01.2.3")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2.3-")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2.3-01")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2.x")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2.3 ")));
+    TEST_ASSERT_FALSE(is_valid_semver(GG_STR("1.2.3\nfoo")));
 }
 
 #endif

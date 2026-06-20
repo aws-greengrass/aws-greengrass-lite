@@ -2008,6 +2008,16 @@ static GgError resolve_dependencies(
             }
         }
 
+        if (!is_valid_semver(resolved_version)) {
+            GG_LOGE(
+                "Resolved version for component %.*s is not a valid semantic "
+                "version.",
+                (int) gg_kv_key(*pair).len,
+                gg_kv_key(*pair).data
+            );
+            return GG_ERR_INVALID;
+        }
+
         // Add resolved component to list of resolved components
         ret = gg_arena_claim_buf(&resolved_version, alloc);
         if (ret != GG_ERR_OK) {
