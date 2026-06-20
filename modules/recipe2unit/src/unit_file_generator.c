@@ -156,8 +156,22 @@ static GgError fill_unit_section(
             return GG_ERR_PARSE;
         }
 
+        // Truncate ComponentDescription at the first newline, carriage
+        // return, or backslash so a recipe cannot inject additional systemd
+        // directives. A trailing backslash continues a line in systemd unit
+        // files (\<newline>), so it is treated as a terminator too.
+        GgBuffer desc = gg_obj_into_buf(*val);
+        size_t safe_len = desc.len;
+        for (size_t i = 0; i < desc.len; i++) {
+            if (desc.data[i] == '\n' || desc.data[i] == '\r'
+                || desc.data[i] == '\\') {
+                safe_len = i;
+                break;
+            }
+        }
+
         gg_byte_vec_chain_append(
-            &ret, concat_unit_vector, gg_obj_into_buf(*val)
+            &ret, concat_unit_vector, gg_buffer_substr(desc, 0, safe_len)
         );
         gg_byte_vec_chain_push(&ret, concat_unit_vector, '\n');
     }
