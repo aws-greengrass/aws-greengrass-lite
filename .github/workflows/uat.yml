@@ -84,6 +84,12 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      # Spread initial API load across the shared account so parallel matrix
+      # jobs don't all hit AWS simultaneously and trigger synchronized throttling.
+      - name: Stagger start to decorrelate parallel AWS API bursts
+        run: sleep $(( RANDOM % 30 ))
+        shell: bash
+
       - name: Checkout lite repository
         uses: actions/checkout@v6
 
