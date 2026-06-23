@@ -15,6 +15,14 @@ on:
         description: "Ref (branch) on the testing repo to use"
         required: false
 
+# Serialize UAT runs so multiple PRs/merges don't hammer the shared AWS
+# account concurrently and trip IoT Core / IoT
+# Jobs API rate quotas. Only one UAT run executes at a time; newer runs queue.
+# cancel-in-progress: false => let the in-flight run finish (don't lose coverage).
+concurrency:
+  group: uat-component-tests
+  cancel-in-progress: false
+
 jobs:
   list-tests:
     if:
@@ -62,6 +70,11 @@ jobs:
     needs: list-tests
     strategy:
       fail-fast: false
+      # Cap how many test jobs hit the shared AWS account at once within a
+      # single run. Combined with the run-level `concurrency` lane above, the
+      # account never sees more than this many UAT jobs concurrently. Tune up
+      # if throttling stays clear; tune down if ThrottlingExceptions persist.
+      max-parallel: 4
       matrix:
         test: ${{ fromJson(needs.list-tests.outputs.tests) }}
     permissions:
