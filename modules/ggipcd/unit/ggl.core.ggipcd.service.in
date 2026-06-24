@@ -18,5 +18,5 @@ Group=@GGL_SYSTEMD_SYSTEM_GROUP@
 WorkingDirectory=/var/lib/greengrass
 
 [Unit]
-Description=Proxy service between core-bus and GG Classic IPC
+Description=Proxy service between core-bus and Greengrass nucleus IPC
 After=ggl.core.ggconfigd.service

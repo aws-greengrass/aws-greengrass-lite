@@ -11,7 +11,7 @@ to learn how to create appropriate policies and claim certificates.
 
 Greengrass nucleus lite's fleet provisioning generates CSR and private keys
 locally and then sends the CSR to IoT Core to generate a certificate. This
-behavior is different from the default behavior of Greengrass classic's fleet
+behavior is different from the default behavior of Greengrass nucleus's fleet
 provisioning. Therefore, make sure your claim certificate has connect, publish,
 subscribe, and receive access to `CreateCertificateFromCsr` and `RegisterThing`
 topics mentioned in the

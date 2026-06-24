@@ -1,8 +1,9 @@
 # `ggdeploymentd` spec
 
-The GG-Lite deployment daemon (`ggdeploymentd`) is a service that is responsible
-for receiving and processing deployments. It should be able to receive
-deployments from multiple sources and maintain a queue of deployment tasks.
+The Greengrass nucleus lite deployment daemon (`ggdeploymentd`) is a service
+that is responsible for receiving and processing deployments. It should be able
+to receive deployments from multiple sources and maintain a queue of deployment
+tasks.
 
 The deployment daemon will need to receive deployments (can be from a local
 deployment, AWS IoT Shadow, or AWS IoT Jobs), placing them into a queue so that
@@ -44,8 +45,9 @@ deployment task processing:
   at the end of the deployment process.
 
 A deployment is considered cancellable anytime before the merge configuration
-step begins merging the configuration. The GG-Lite implementation may choose to
-change this to allow cancellation at any step (TBD).
+step begins merging the configuration. The Greengrass nucleus lite
+implementation may choose to change this to allow cancellation at any step
+(TBD).
 
 It is possible for a deployment to require a bootstrap. This means that Nucleus
 will need to restart during the deployment. In these deployments, the merge
@@ -254,7 +256,8 @@ device following a deployment.
 
 ## NucleusLite Bootstrap
 
-GG-Lite supports bootstrap deployments for the NucleusLite component.
+Greengrass nucleus lite supports bootstrap deployments for the NucleusLite
+component.
 
 - Upon receiving a deployment, all deployment info will be stored in the config
   database under services -> DeploymentService -> deploymentState

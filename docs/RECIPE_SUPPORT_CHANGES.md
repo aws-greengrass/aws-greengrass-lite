@@ -1,8 +1,8 @@
-# Types of Recipes Supported by GG nucleus lite
+# Types of Recipes Supported by Greengrass nucleus lite
 
-For GG nucleus lite we only support basic recipe format and support for more
-complex recipe will be delivered with future release. Below is the summary of
-what's not supported. If it's not mentioned in the list then that case is
+For Greengrass nucleus lite we only support basic recipe format and support for
+more complex recipe will be delivered with future release. Below is the summary
+of what's not supported. If it's not mentioned in the list then that case is
 supported as mentioned in the
 [aws docs](https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html).
 
@@ -18,7 +18,7 @@ supported as mentioned in the
 - Only linux lifecycles are supported with the current release.
 
 - Only generic component (`aws.greengrass.generic`) recipe types are supported
-  with lite.
+  with Greengrass nucleus lite.
 
 - Some lifecycle steps are not currently supported:
 
@@ -31,8 +31,9 @@ supported as mentioned in the
 - Refering to global lifecycle requires mentioning `all` field for it to work.
   Refer to [sample recipe 3](./examples/supported_lifecyle_types/3.yaml).
 
-- "runtime": "\*"(for classic and lite) or "runtime": "aws_nucleus_lite" is
-  required new field that needs to be added for it to work with lite. See
+- "runtime": "\*"(for Greengrass V2) or "runtime": "aws_nucleus_lite" is
+  required new field that needs to be added for it to work with Greengrass
+  nucleus lite. See
   [sample recipe 1](./examples/supported_lifecyle_types/1.json).
 
   ```yaml
@@ -44,7 +45,7 @@ supported as mentioned in the
 
 - Regex support is not available within recipe.
 
-- GG nucleus lite only support variable replacement for following cases:
+- Greengrass nucleus lite only support variable replacement for following cases:
 
   - artifacts:path
   - artifacts:decompressedPath

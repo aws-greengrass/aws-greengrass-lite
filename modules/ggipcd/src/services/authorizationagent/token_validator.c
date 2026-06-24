@@ -79,7 +79,7 @@ GgError ggl_handle_token_validation(
                 "Invalid token used by stream manager when trying to authorize."
             ) };
 
-        // Greengrass Classic returns an error to the caller instead of setting
+        // Greengrass nucleus returns an error to the caller instead of setting
         // the value to 'false'.
         // https://github.com/aws-greengrass/aws-greengrass-nucleus/blob/b003cf0db575f546456bef69530126cf3e0b6a68/src/main/java/com/aws/greengrass/authorization/AuthorizationIPCAgent.java#L83
         return GG_ERR_FAILURE;

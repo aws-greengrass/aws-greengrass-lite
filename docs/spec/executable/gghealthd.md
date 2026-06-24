@@ -117,7 +117,7 @@ then the device is unhealthy, else healthy.
 ### update_status
 
 Updates a component to a new lifecycle state, replicating this state update to
-the orchestrator. This API is intended to bridge the Greengrass Classic
+the orchestrator. This API is intended to bridge the Greengrass nucleus
 `UpdateState` API which is used for `start` generic component lifecycle steps
 which allow component-managed state transitions over IPC.
 

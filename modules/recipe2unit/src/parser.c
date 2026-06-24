@@ -199,11 +199,11 @@ GgError convert_to_unit(
         && existing_phases->has_install == false
         && existing_phases->has_run_startup == false) {
         GG_LOGE(
-            "Recipes without at least 1 valid lifecycle step aren't currently supported by GGLite"
+            "Recipes without at least 1 valid lifecycle step aren't currently supported by Greengrass nucleus lite"
         );
 
         GG_LOGW(
-            "Note that in GG Lite, keys are case sensitive. Check the recipe reference for the correct casing."
+            "Note that in Greengrass nucleus lite, keys are case sensitive. Check the recipe reference for the correct casing."
         );
         return GG_ERR_INVALID;
     }

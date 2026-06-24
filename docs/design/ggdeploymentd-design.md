@@ -1,11 +1,11 @@
-# GG-Lite `ggdeploymentd`: Initial Implementation Design
+# Greengrass nucleus lite `ggdeploymentd`: Initial Implementation Design
 
 ## Overview
 
-The GG-Lite deployment daemon (`ggdeploymentd`) is a service that is responsible
-for receiving and processing deployments. It should be able to receive
-deployments from all possible sources and execute the deployment tasks from a
-queue.
+The Greengrass nucleus lite deployment daemon (`ggdeploymentd`) is a service
+that is responsible for receiving and processing deployments. It should be able
+to receive deployments from all possible sources and execute the deployment
+tasks from a queue.
 
 As an initial goal toward complete deployment implementation, a subset of
 deployments is being considered for this document. The user story for this

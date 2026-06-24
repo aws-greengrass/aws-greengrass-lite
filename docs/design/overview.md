@@ -1,4 +1,4 @@
-# Greengrass Nucleus Lite Design Overview
+# Greengrass nucleus lite Design Overview
 
 Greengrass nucleus lite is a collection of small systemd-managed daemons that
 implement the AWS IoT Greengrass v2 runtime for resource-constrained Linux

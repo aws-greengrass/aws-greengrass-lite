@@ -111,9 +111,9 @@ adduser -g <gid from previous command> gg_component
 
 ## (Optional) Using Podman
 
-Instead of installing Greengrass Lite directly on a system, you can use a
-container. The provided container has the build dependencies, system users
-already provided, as well as Greengrass Lite built and installed.
+Instead of installing Greengrass nucleus lite directly on a system, you can use
+a container. The provided container has the build dependencies, system users
+already provided, as well as Greengrass nucleus lite built and installed.
 
 The following steps assume you want to use `./run` for persistent state, you
 place your Greengrass config file in `./run/config.yaml`, and certs/keys in
@@ -149,7 +149,7 @@ podman run -it -v $PWD/run/config.yaml:/etc/greengrass/config.yaml \
   --replace --name ggl ggl:latest
 ```
 
-To persist the Greengrass Lite run dir, you can bind a host directory to
+To persist the Greengrass nucleus lite run dir, you can bind a host directory to
 `/var/lib/greengrass` (assuming certs/keys are in `./run/rootPath/certs`):
 
 ```sh
@@ -214,12 +214,12 @@ The following configuration flags may be set with cmake (with `-D`):
 
 - `GGL_SYSTEMD_SYSTEM_USER`
 
-  The system user to use for Greengrass Lite nucleus services (not components).
+  The system user to use for Greengrass nucleus lite services (not components).
   Must exist on system.
 
 - `GGL_SYSTEMD_SYSTEM_GROUP`
 
-  The system group to use for Greengrass Lite nucleus services (not components).
+  The system group to use for Greengrass nucleus lite services (not components).
   Must exist on system.
 
 - `GGL_SYSTEMD_SYSTEM_DIR`

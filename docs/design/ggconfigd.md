@@ -25,7 +25,7 @@ The structure of the configuration hierarchy is as follows:
 |  ├─ rootCaPath
 |  └─ certificateFilePath
 └─ services/              # component-specific configurations
-   ├─ NucleusLite/         # A reserved component section shared by GG-Lite core components
+   ├─ NucleusLite/         # A reserved component section shared by Greengrass nucleus lite core components
    │  ├─ iotRoleAlias
    │  ├─ iotDataEndpoint
    |  ├─ iotCredEndpoint
@@ -199,7 +199,7 @@ Some options for implementing notification grouping are:
 1. Have a separate task which sends out notifications. This would be separate
    from the write handler, which currently sends out notifications as part of a
    write operation.
-1. See how the V2 Classic nucleus does it, and do something similar.
+1. See how the Greengrass nucleus does it, and do something similar.
 
 ### Suppressing Notifications when the value is written to but has not changed
 
@@ -218,7 +218,7 @@ values to suppress unnecessary notifications.
 
 ### Subscription behavior for keys which become deleted
 
-In GG Classic, if a key is deleted (e.g. via reset config paths during
+In Greengrass nucleus, if a key is deleted (e.g. via reset config paths during
 deployment), then all subscriptions to that key are also deleted. Even if the
 key is re-created later, the previous subscriptions are gone and they will not
 be notified anymore. This is an undesirable situation for component writers to
@@ -255,14 +255,14 @@ no values were written to notify on.
 
 ### (Not) considering timestamps when deleting keys
 
-With GG Classic, if deployments that reset (delete) parts of the config are
-applied out of order, they can result in a different resulting config state, and
-deployment ordering behavior does not apply to configs which were deleted.
+With Greengrass nucleus, if deployments that reset (delete) parts of the config
+are applied out of order, they can result in a different resulting config state,
+and deployment ordering behavior does not apply to configs which were deleted.
 Config deletes are always applied at the time of deployment processing. This is
-because with GG classic, deleted keys do not have any state (notably a timestamp
-of a potential previous deletion) associated with them, and timestamps are not
-checked before resetting config keys. Lite replicates this, and also does not
-store any state about deleted keys currently.
+because with Greengrass nucleus, deleted keys do not have any state (notably a
+timestamp of a potential previous deletion) associated with them, and timestamps
+are not checked before resetting config keys. Greengrass nucleus lite replicates
+this, and also does not store any state about deleted keys currently.
 
 In the future it would be good to add in this deleted-key state with the
 associated timestamp, and check timestamps before deleting keys. This would

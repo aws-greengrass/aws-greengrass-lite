@@ -102,7 +102,8 @@ results as nucleus when used with the AWS IoT Device SDKs. Users of
 aws-greengrass-sdk-lite will need to update to version 0.3.0 of the SDK.
 
 Recipe manifests must now have the platform runtime set to `aws_nucleus_lite` or
-`*`. A missing platform runtime is now correctly handled as classic only.
+`*`. A missing platform runtime is now correctly handled as Greengrass nucleus
+only.
 
 ## New with this release
 

@@ -1,11 +1,11 @@
 # PKCS#11 Support
 
-Greengrass Lite supports PKCS#11 URIs for `privateKeyPath` and
+Greengrass nucleus lite supports PKCS#11 URIs for `privateKeyPath` and
 `certificateFilePath`. This allows the device private key (and optionally the
 certificate) to be stored in a hardware security module or software token rather
 than as files on disk.
 
-Greengrass Lite uses the OpenSSL
+Greengrass nucleus lite uses the OpenSSL
 [OSSL_STORE](https://www.openssl.org/docs/man3.0/man7/ossl_store.html) API to
 load keys and certificates. When an OpenSSL PKCS#11 provider is configured, any
 `pkcs11:` URI is handled transparently.
@@ -98,8 +98,8 @@ aws iot create-certificate-from-csr \
 
 Import the certificate into the token using your HSM's tooling.
 
-The user running Greengrass Lite (`ggcore`) must have read/write access to the
-token files. For SoftHSM, add `ggcore` to the `softhsm` group:
+The user running Greengrass nucleus lite (`ggcore`) must have read/write access
+to the token files. For SoftHSM, add `ggcore` to the `softhsm` group:
 
 ```bash
 sudo usermod -aG softhsm ggcore
@@ -148,7 +148,7 @@ If `openssl list -providers` does not show the pkcs11 provider:
 
 ### Permission Denied
 
-If Greengrass Lite fails to access the token:
+If Greengrass nucleus lite fails to access the token:
 
 - Verify `ggcore` can access the PKCS#11 module's token storage
 - For SoftHSM, ensure `ggcore` is in the `softhsm` group and that token files

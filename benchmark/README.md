@@ -1,7 +1,7 @@
-# GGLite Resource Benchmark Harness
+# Greengrass nucleus lite Resource Benchmark Harness
 
-Reproducible benchmark harness for measuring AWS Greengrass Nucleus Lite
-(GGLite) resource consumption across x86_64, aarch64, and armv7l architectures.
+Reproducible benchmark harness for measuring Greengrass nucleus lite resource
+consumption across x86_64, aarch64, and armv7l architectures.
 
 The harness covers two scenarios:
 
@@ -25,7 +25,7 @@ benchmark/
 ├── scripts/
 │   ├── cloud-setup.env.example      # Template for AWS resource env vars
 │   ├── provision-account.sh         # One-time account setup (idempotent)
-│   ├── provision-device.sh          # Install GGLite on a target device
+│   ├── provision-device.sh          # Install Greengrass nucleus lite on a target device
 │   ├── run-all.sh                   # Orchestrator: smoke → scenarios → report
 │   ├── smoke-test.sh                # 6-test go/no-go gate
 │   ├── measure.sh                   # Phase 1 concurrent PSS/RSS/CPU/startup sampling
@@ -82,7 +82,8 @@ cp cloud-setup.env.example cloud-setup.env
 
 ### 2. Provision a target device (host)
 
-Installs GGLite on the device and writes its certificates / config:
+Installs Greengrass nucleus lite on the device and writes its certificates /
+config:
 
 ```bash
 ./provision-device.sh <device-ip> <arch>
@@ -167,13 +168,13 @@ following are **out of scope**:
 
 - **CI integration for automated regression detection.** The harness runs on
   demand; wiring it into a scheduled CI workflow is a separate effort.
-- **Network degradation testing.** Measuring GGLite behavior under flaky MQTT /
-  TES connectivity is out of scope (Phase 2 measures network _utilization_, not
-  degradation).
+- **Network degradation testing.** Measuring Greengrass nucleus lite behavior
+  under flaky MQTT / TES connectivity is out of scope (Phase 2 measures network
+  _utilization_, not degradation).
 - **Flash wear and IOPS.** Constrained devices can fail from write amplification
   on embedded flash; not measured here.
-- **riscv64.** Architecture is experimental in GGLite and not part of the
-  primary benchmark matrix.
+- **riscv64.** Architecture is experimental in Greengrass nucleus lite and not
+  part of the primary benchmark matrix.
 - **Concurrent-deployment stress testing.** Unusual failure mode.
 - **`RelWithDebInfo` build comparison.** Only `MinSizeRel` is measured; the
   harness is build-type-agnostic so this can be repeated later.
