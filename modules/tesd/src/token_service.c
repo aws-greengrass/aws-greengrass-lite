@@ -12,7 +12,6 @@
 #include <gg/map.h>
 #include <gg/object.h>
 #include <gg/vector.h>
-#include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/http.h>
 #include <limits.h>
@@ -65,107 +64,6 @@ static void rebuild_url(void) {
         return;
     }
     GG_LOGD("Credential URL: %s", global_cred_details.url);
-}
-
-/// Compare old and new credential config values, update changed fields,
-/// and rebuild the URL. Caller must hold cred_details_mtx.
-static void apply_cred_config_changes(
-    const char *old_ep,
-    const char *new_ep,
-    size_t new_ep_len,
-    const char *old_alias,
-    const char *new_alias,
-    size_t new_alias_len
-) {
-    if ((strncmp(old_ep, new_ep, MAX_CRED_ENDPOINT_LEN) == 0)
-        && (strncmp(old_alias, new_alias, MAX_ROLE_ALIAS_LEN) == 0)) {
-        return;
-    }
-
-    if (strncmp(old_ep, new_ep, MAX_CRED_ENDPOINT_LEN) != 0) {
-        GG_LOGI(
-            "iotCredEndpoint updated from %s to %.*s",
-            old_ep,
-            (int) new_ep_len,
-            new_ep
-        );
-        memcpy(global_cred_details.cred_endpoint, new_ep, new_ep_len + 1);
-    }
-
-    if (strncmp(old_alias, new_alias, MAX_ROLE_ALIAS_LEN) != 0) {
-        GG_LOGI(
-            "iotRoleAlias updated from %s to %.*s",
-            old_alias,
-            (int) new_alias_len,
-            new_alias
-        );
-        memcpy(global_cred_details.role_alias, new_alias, new_alias_len + 1);
-    }
-
-    rebuild_url();
-}
-
-void tes_update_cred_url(void) {
-    GG_MTX_SCOPE_GUARD(&cred_details_mtx);
-
-    char old_endpoint[MAX_CRED_ENDPOINT_LEN + 1];
-    char old_alias[MAX_ROLE_ALIAS_LEN + 1];
-    memcpy(
-        old_endpoint, global_cred_details.cred_endpoint, sizeof(old_endpoint)
-    );
-    memcpy(old_alias, global_cred_details.role_alias, sizeof(old_alias));
-
-    uint8_t ep_mem[MAX_CRED_ENDPOINT_LEN + 1] = { 0 };
-    GgArena ep_alloc = gg_arena_init(
-        gg_buffer_substr(GG_BUF(ep_mem), 0, MAX_CRED_ENDPOINT_LEN)
-    );
-    GgBuffer new_ep;
-    GgError ret = ggl_gg_config_read_str(
-        GG_BUF_LIST(
-            GG_STR("services"),
-            GG_STR("aws.greengrass.NucleusLite"),
-            GG_STR("configuration"),
-            GG_STR("iotCredEndpoint")
-        ),
-        &ep_alloc,
-        &new_ep
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGW("Failed to read updated iotCredEndpoint: %d.", ret);
-        return;
-    }
-
-    uint8_t alias_mem[MAX_ROLE_ALIAS_LEN + 1] = { 0 };
-    GgArena alias_alloc = gg_arena_init(
-        gg_buffer_substr(GG_BUF(alias_mem), 0, MAX_ROLE_ALIAS_LEN)
-    );
-    GgBuffer new_alias;
-    ret = ggl_gg_config_read_str(
-        GG_BUF_LIST(
-            GG_STR("services"),
-            GG_STR("aws.greengrass.NucleusLite"),
-            GG_STR("configuration"),
-            GG_STR("iotRoleAlias")
-        ),
-        &alias_alloc,
-        &new_alias
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGW("Failed to read updated iotRoleAlias: %d.", ret);
-        return;
-    }
-
-    ep_mem[new_ep.len] = '\0';
-    alias_mem[new_alias.len] = '\0';
-
-    apply_cred_config_changes(
-        old_endpoint,
-        (char *) ep_mem,
-        new_ep.len,
-        old_alias,
-        (char *) alias_mem,
-        new_alias.len
-    );
 }
 
 static GgError request_token_from_aws(GgBuffer *response) {

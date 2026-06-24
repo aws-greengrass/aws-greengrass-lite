@@ -18,8 +18,4 @@ GgError initiate_request(
     GgBuffer interface_name
 );
 
-/// Update the credential URL at runtime. Thread-safe.
-/// Re-reads both endpoint and role_alias from ggconfigd under a mutex.
-void tes_update_cred_url(void);
-
 #endif
