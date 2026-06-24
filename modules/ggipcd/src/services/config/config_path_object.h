@@ -8,6 +8,12 @@
 #include <gg/error.h>
 #include <gg/types.h>
 
+/// Returns the configuration component name to use for a request, applying the
+/// classic-compatibility alias: a request for "aws.greengrass.Nucleus" is
+/// served from the "aws.greengrass.NucleusLite" configuration tree. Any other
+/// name is returned unchanged.
+GgBuffer ggl_alias_component_name(GgBuffer component_name);
+
 /// Combine the component name and key path and returns a new configuration path
 /// result uses static memory owned by this function which is valid until the
 /// next call. Not re-entrant.

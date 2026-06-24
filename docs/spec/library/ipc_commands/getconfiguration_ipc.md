@@ -9,6 +9,12 @@ at the nucleus level using the `gg_config` core-bus interface.
 - [get-config-3] It does not require access control policy in recipe to work.
 - [get-config-4] It cannot retrieve any values under the `system` section of
   nucleus config.
+- [get-config-5] A request with `componentName` `aws.greengrass.Nucleus` is
+  served from the `aws.greengrass.NucleusLite` configuration tree (a
+  classic-compatibility alias), and the response echoes the requested
+  `componentName`. This lets components read nucleus configuration using a
+  single, nucleus-agnostic name on both the Greengrass nucleus and Greengrass
+  Lite. The same alias applies to `SubscribeToConfigurationUpdate`.
 
 ## Parameters
 
@@ -122,6 +128,18 @@ Case 6: Get Configuration key path does not exist.
   `{"componentName": "com.example.ConfigUpdater", "keyPath": ["randomKey"]}`
 - Response:
   `{"message":"Key not found","_service":"aws.greengrass#GreengrassCoreIPC","_message":"Key not found","_errorCode":"ResourceNotFoundError"}`
+
+Case 7: Get Configuration forwarded from the classic Nucleus name
+
+Nucleus configuration on Greengrass Lite is stored under
+`aws.greengrass.NucleusLite`. A request using the classic
+`aws.greengrass.Nucleus` name is served from the `aws.greengrass.NucleusLite`
+tree, and the response echoes the requested name.
+
+- Request:
+  `{"componentName": "aws.greengrass.Nucleus", "keyPath": ["iotDataEndpoint"]}`
+- Response:
+  `{"componentName":"aws.greengrass.Nucleus","value":{"iotDataEndpoint":"example-ats.iot.us-east-1.amazonaws.com"}}`
 
 ### RAW on wire:
 

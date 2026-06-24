@@ -14,6 +14,18 @@
 // e.g. `myComponent`'s config path in the database
 #define GGL_MAX_COMPONENT_CONFIG_DEPTH (GG_MAX_OBJECT_DEPTH - 3)
 
+GgBuffer ggl_alias_component_name(GgBuffer component_name) {
+    // Classic Greengrass stores nucleus configuration under
+    // "aws.greengrass.Nucleus", whereas Greengrass Lite uses
+    // "aws.greengrass.NucleusLite". Forward requests for the classic name to
+    // the Lite tree so a component can read nucleus configuration using a
+    // single, nucleus-agnostic name on both runtimes.
+    if (gg_buffer_eq(component_name, GG_STR("aws.greengrass.Nucleus"))) {
+        return GG_STR("aws.greengrass.NucleusLite");
+    }
+    return component_name;
+}
+
 GgError ggl_make_config_path_object(
     GgBuffer component_name, GgList key_path, GgBufList *result
 ) {

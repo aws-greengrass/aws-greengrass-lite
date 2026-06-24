@@ -21,8 +21,13 @@
 #include <stdlib.h>
 
 static GgError subscribe_to_topic_callback(
-    GgObject data, uint32_t resp_handle, int32_t stream_id, GgArena *alloc
+    void *ctx,
+    GgObject data,
+    uint32_t resp_handle,
+    int32_t stream_id,
+    GgArena *alloc
 ) {
+    (void) ctx;
     (void) alloc;
 
     if (gg_obj_type(data) != GG_TYPE_MAP) {
@@ -136,6 +141,7 @@ GgError ggl_handle_subscribe_to_topic(
         GG_STR("subscribe"),
         call_args,
         subscribe_to_topic_callback,
+        NULL,
         NULL
     );
     if (ret != GG_ERR_OK) {
