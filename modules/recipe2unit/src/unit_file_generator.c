@@ -453,10 +453,14 @@ static GgError update_unit_file_buffer(
 
 static void compatibility_check(GgMap selected_lifecycle_map) {
     if (gg_map_get(selected_lifecycle_map, GG_STR("shutdown"), NULL)) {
-        GG_LOGI("'shutdown' phase isn't currently supported by GGLite");
+        GG_LOGI(
+            "'shutdown' phase isn't currently supported by Greengrass nucleus lite"
+        );
     }
     if (gg_map_get(selected_lifecycle_map, GG_STR("recover"), NULL)) {
-        GG_LOGI("'recover' phase isn't currently supported by GGLite");
+        GG_LOGI(
+            "'recover' phase isn't currently supported by Greengrass nucleus lite"
+        );
     }
 }
 

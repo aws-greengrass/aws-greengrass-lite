@@ -1,4 +1,4 @@
-# GG Lite - Fleet Status Service Daemon Design
+# Greengrass nucleus lite - Fleet Status Service Daemon Design
 
 See [gg-fleet-statusd spec](../spec/executable/gg-fleet-statusd.md) for the
 public interface for gg-fleet-statusd.
@@ -7,10 +7,10 @@ public interface for gg-fleet-statusd.
 
 The fleet status service enables Greengrass to collect and report the health
 status of deployed components to the cloud. This allows customers to track their
-device status in the console. GG Lite will replicate GG Classic behavior,
-ensuring that customers can still see component statuses in the console just as
-they do with Classic. This task will be handled by `gg-fleet-statusd`, an
-individual process part of GG Lite.
+device status in the console. Greengrass nucleus lite will replicate Greengrass
+nucleus behavior, ensuring that customers can still see component statuses in
+the console just as they do with Greengrass nucleus. This task will be handled
+by `gg-fleet-statusd`, an individual process part of Greengrass nucleus lite.
 
 ## Requirements
 

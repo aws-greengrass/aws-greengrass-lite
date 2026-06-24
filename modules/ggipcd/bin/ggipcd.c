@@ -7,7 +7,8 @@
 #include <ggipcd.h>
 #include <ggl/nucleus/init.h>
 
-static char doc[] = "ggipcd -- Greengrass IPC server for Nucleus Lite";
+static char doc[]
+    = "ggipcd -- Greengrass IPC server for Greengrass nucleus lite";
 
 static struct argp_option opts[] = {
     { "socket", 's', "path", 0, "GG IPC socket path", 0 },

@@ -1,4 +1,4 @@
-# Greengrass Nucleus Lite Developer setup
+# Greengrass nucleus lite Developer setup
 
 This guide is for developers working on the Greengrass nucleus lite codebase to
 set up.

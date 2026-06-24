@@ -16,7 +16,7 @@
     {
       "Platform": {
         "os": "linux",
-        "runtime": "*", // Notice this is a required new field for GGLite
+        "runtime": "*", // Notice this is a required new field for Greengrass nucleus lite
         "architecture": "amd64"
       },
       "Lifecycle": {

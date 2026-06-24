@@ -67,7 +67,7 @@ error.
 
 ### Error Constants
 
-- ERRORS are part of the GGLITE Core Bus API Error handling.
+- ERRORS are part of the Greengrass nucleus lite Core Bus API Error handling.
 
 | Error Name     | Purpose                                                 |
 | -------------- | ------------------------------------------------------- |

@@ -1,11 +1,11 @@
-# Greengrass Lite Architecture
+# Greengrass nucleus lite Architecture
 
 ## Introduction and Goals
 
-Greengrass Lite is a size constrained version of Greengrass v2. The intent is to
-reduce the memory footprint below 10MB with smaller being better. The potential
-applications increase dramatically as size reduces so there is no maximum
-“acceptable” size defined.
+Greengrass nucleus lite is a size constrained version of Greengrass V2. The
+intent is to reduce the memory footprint below 10MB with smaller being better.
+The potential applications increase dramatically as size reduces so there is no
+maximum “acceptable” size defined.
 
 > **Note:** The original 10 MB target has been revised to **15 MB** based on
 > measured footprint across all supported architectures with realistic component
@@ -28,9 +28,9 @@ The most important customer requirements are listed below:
 ### Reduce Size
 
 Target a small size to allow integration into IoT gateways, home routers, and
-virtual machines. A scaleable greengrass lite system that can be “right-sized”
-to a customer application will open many opportunities. Every MB used by
-Greengrass reduces the memory available to the target application.
+virtual machines. A scaleable Greengrass nucleus lite system that can be
+“right-sized” to a customer application will open many opportunities. Every MB
+used by Greengrass reduces the memory available to the target application.
 
 ### Support Generic Components
 
@@ -43,11 +43,12 @@ system.
 
 ### Platform Support
 
-The immediate customer need for Greengrass lite is to run on embedded Linux
-systems. However it is anticipated that non-linux systems may be targeted. The
-architecture will need to isolate platform issues to simplify adding additional
-platforms. It is acceptable to have multiple versions of platform specific
-services. Different platforms are referred to as hosts in this document.
+The immediate customer need for Greengrass nucleus lite is to run on embedded
+Linux systems. However it is anticipated that non-linux systems may be targeted.
+The architecture will need to isolate platform issues to simplify adding
+additional platforms. It is acceptable to have multiple versions of platform
+specific services. Different platforms are referred to as hosts in this
+document.
 
 ### Shared MQTT
 
@@ -381,18 +382,19 @@ system, they customer will be successful in debugging.
 Orchestration is the process of starting the components in the correct order and
 ensuring that they stay running. Greengrass components provide a recipe document
 that informs the orchestrator how to start the component and what the
-dependencies are. Greengrass lite will use the recipe document as the input and
-translate the document into the host native orchestrator format. For example,
-the recipe can be processed into a systemd unit file or windows system service
-registry entry. The translation process must be developed for each host. The
-translator can be performed by the customer during component development, in the
-GG cloud console or in the GG edge device. Recipe documents contain descriptions
-of each phase of a generic component operation and any dependencies needed by
-the component. These documents can be translated during deployment into systemd
-or initd documents and then the translated documents will be used by the host to
-automatically start Greengrass. A Greengrass system monitor can keep track of
-the component health by using host native interfaces (systemd/windows has an API
-for this). This strategy requires 2 simple host native components.
+dependencies are. Greengrass nucleus lite will use the recipe document as the
+input and translate the document into the host native orchestrator format. For
+example, the recipe can be processed into a systemd unit file or windows system
+service registry entry. The translation process must be developed for each host.
+The translator can be performed by the customer during component development, in
+the GG cloud console or in the GG edge device. Recipe documents contain
+descriptions of each phase of a generic component operation and any dependencies
+needed by the component. These documents can be translated during deployment
+into systemd or initd documents and then the translated documents will be used
+by the host to automatically start Greengrass. A Greengrass system monitor can
+keep track of the component health by using host native interfaces
+(systemd/windows has an API for this). This strategy requires 2 simple host
+native components.
 
 1. Recipe translation
 2. Component Health monitoring
@@ -434,7 +436,7 @@ used for backups, restore and security. An open question is if components should
 use direct access to sqlite or if they should go through a configuration
 abstraction. The abstraction allows the database to be changed without affecting
 the components but sqlite is already cross platform and widely supported on all
-the hosts being considered for Greengrass lite.
+the hosts being considered for Greengrass nucleus lite.
 
 ## Runtime View
 
@@ -689,19 +691,19 @@ the SQLite to the previous point and then restart greengrass.
 
 #### per-component failure response
 
-Greengrass Lite consists of core components that are each started by host
-orchestration files. It is possible per-component failure recovery processes to
-take place. This level of detail is not currently defined in the recipe files so
-the current recommendation is a global roll-back. However, a future update to
-recipes could allow corrective action on each component before a global
-roll-back takes places.
+Greengrass nucleus lite consists of core components that are each started by
+host orchestration files. It is possible per-component failure recovery
+processes to take place. This level of detail is not currently defined in the
+recipe files so the current recommendation is a global roll-back. However, a
+future update to recipes could allow corrective action on each component before
+a global roll-back takes places.
 
 #### graceful degradation
 
-Greengrass Lite consists of core components that may not all fail in the event
-of a problem. In this case, some services may be able to continue operation
-allowing a “limp-home” mode. This behavior can be created in the recovery
-handling.
+Greengrass nucleus lite consists of core components that may not all fail in the
+event of a problem. In this case, some services may be able to continue
+operation allowing a “limp-home” mode. This behavior can be created in the
+recovery handling.
 
 #### Logging
 
@@ -714,7 +716,7 @@ must be in a different partition to avoid being affected and loosing log data.
 
 ## Architecture Decisions
 
-The architectural strategy of this Greengrass lite is to be as simple as
+The architectural strategy of this Greengrass nucleus lite is to be as simple as
 possible and letting the host native services handle processes to the extent
 possible. Memory safety will be handled by using industry standard tools such as
 CBMC, valgrind, and fuzzers or by language choices such as RUST. These decisions
@@ -736,14 +738,14 @@ developed and validated in isolation.
 ## Additional Areas to Discuss
 
 - Configuration store - each component has configuration associated with it,
-  that (GGv2-classic) is timestamp merged with multiple authority and available
-  via IPC configuration functions. Related- if someone brings a new protocol
-  translation, how do they apply the security guards on that too.
+  that (Greengrass nucleus) is timestamp merged with multiple authority and
+  available via IPC configuration functions. Related- if someone brings a new
+  protocol translation, how do they apply the security guards on that too.
 - “config.yaml”/TLOG - debate on if it is really necessary/desirable to switch
-  between GG-classic and GG-lite. If you can relax that requirement - in which
-  case the argument may be asked if it’s really the same “v2” product - it
-  relaxes need to capture and log config transactions. Related question is how
-  the top-level system configuration is applied.
+  between Greengrass nucleus and Greengrass nucleus lite. If you can relax that
+  requirement - in which case the argument may be asked if it’s really the same
+  “v2” product - it relaxes need to capture and log config transactions. Related
+  question is how the top-level system configuration is applied.
 - IPC security - there is rule-based security around IPC, and also finer detail
   in pub/sub actions. This doesn’t map well to file permissions. Deeper dive in
   this with AppSec involvement. In particular, there is an identity attestation
@@ -753,9 +755,9 @@ developed and validated in isolation.
   re-presents to GG to prove it is “FooBar” or a representative of “FooBar” - a
   non-breaking alternative to obtain this identity is required as FooBar is now
   started by systemd and not by the GG orchestrator.
-- With GG-classic and previous GG-lite design, there was a path on how
-  components/binary signatures can be verified to allow end-to-end attestation -
-  how might this be accomplished here
+- With Greengrass nucleus and previous Greengrass nucleus lite design, there was
+  a path on how components/binary signatures can be verified to allow end-to-end
+  attestation - how might this be accomplished here
 - The architecture is thread heavy to promote simplicity. Do an estimation of an
   application that has sufficient complexity of pub/subs, and number of threads
   that are likely to be consumed (but idle) - what is the resource cost of that

@@ -1,10 +1,10 @@
-# TPM 2.0 Support for AWS Greengrass Lite
+# TPM 2.0 Support for AWS Greengrass nucleus lite
 
-This guide demonstrates how to set up AWS Greengrass Lite with TPM 2.0 support
-using Amazon EC2 NitroTPM. The TPM provides hardware-backed security for device
-identity and cryptographic operations.
+This guide demonstrates how to set up AWS Greengrass nucleus lite with TPM 2.0
+support using Amazon EC2 NitroTPM. The TPM provides hardware-backed security for
+device identity and cryptographic operations.
 
-Greengrass Lite uses the OpenSSL
+Greengrass nucleus lite uses the OpenSSL
 [OSSL_STORE](https://www.openssl.org/docs/man3.0/man7/ossl_store.html) API to
 load the private key. When an OpenSSL 3 provider for TPM 2.0 is configured and
 activated via `openssl.cnf`, any `handle:` URI is handled transparently.
@@ -186,9 +186,9 @@ For detailed manual provisioning steps, see the
 curl -o AmazonRootCA1.pem https://www.amazontrust.com/repository/AmazonRootCA1.pem
 ```
 
-## Greengrass Lite Setup
+## Greengrass nucleus lite Setup
 
-### Step 7: Set up Greengrass Lite
+### Step 7: Set up Greengrass nucleus lite
 
 #### 7.1 Install Dependencies
 
@@ -253,7 +253,7 @@ sudo mkdir -p /etc/greengrass/
 sudo cp ./config.yaml /etc/greengrass/config.yaml
 ```
 
-### Step 8: Build and Run Greengrass Lite
+### Step 8: Build and Run Greengrass nucleus lite
 
 #### 8.1 Build
 

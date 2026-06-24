@@ -370,9 +370,9 @@ static GgError manifest_selection(
 
         GgMap platform = gg_obj_into_map(*platform_obj);
 
-        // The manifest is only valid for lite if runtime is explicitly
-        // aws_nucleus_lite or *. If the value isn't set then that manifest is
-        // classic-only.
+        // The manifest is only valid for Greengrass nucleus lite if runtime is
+        // explicitly aws_nucleus_lite or *. If the value isn't set then that
+        // manifest is Greengrass nucleus only.
         GgObject *runtime_obj = NULL;
         if (gg_map_get(platform, GG_STR("runtime"), &runtime_obj)) {
             if (gg_obj_type(*runtime_obj) != GG_TYPE_BUF) {
@@ -387,7 +387,8 @@ static GgError manifest_selection(
                 return GG_ERR_OK;
             }
         } else {
-            // If runtime field is not set, that explicitly means classic-only
+            // If runtime field is not set, that explicitly means Greengrass
+            // nucleus only
             GG_LOGD(
                 "Skipping manifest as it does not include a runtime platform field."
             );

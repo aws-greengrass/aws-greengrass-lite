@@ -1,4 +1,4 @@
-# GGLite Resource Benchmark Report
+# Greengrass nucleus lite Resource Benchmark Report
 
 Detailed benchmark report with full methodology and raw data. See
 `benchmark/README.md` for context and `docs/RESOURCE_LIMITS.md` for the
@@ -30,14 +30,14 @@ armv7l at 12.4 MB). See individual arch sections for per-daemon breakdowns.
 
 #### Primary Metric
 
-**Headline: PSS (Proportional Set Size)** summed across all GGLite daemon
-processes, sampled at a 10-second interval over a 10-minute steady-state window
-(after 5-minute warmup), reported as **median** with p95 / p99 / max also
-captured.
+**Headline: PSS (Proportional Set Size)** summed across all Greengrass nucleus
+lite daemon processes, sampled at a 10-second interval over a 10-minute
+steady-state window (after 5-minute warmup), reported as **median** with p95 /
+p99 / max also captured.
 
 #### Defining the "15 MB RAM footprint target"
 
-The Greengrass Lite architecture document
+The Greengrass nucleus lite architecture document
 ([`docs/design/gg-architecture.md`](../docs/design/gg-architecture.md))
 originally targeted a memory footprint below 10 MB. Based on the measurements in
 this report, the documented requirement has been revised to **15 MB** (see
@@ -46,15 +46,15 @@ reflects the actual achievable footprint across all supported architectures with
 realistic component workloads.
 
 For the purpose of this report, the "15 MB RAM footprint" is formally defined
-as: **median PSS, summed across all long-running GGLite daemons (`ggipcd`,
-`ggdeploymentd`, `gghealthd`, `ggconfigd`, `ggpubsubd`, `iotcored`, `tesd`,
-`tes-serverd`, `gg-fleet-statusd`), at realistic-load steady state**, sampled
-every 10 seconds over a 10-minute window after a 5-minute warmup.
+as: **median PSS, summed across all long-running Greengrass nucleus lite daemons
+(`ggipcd`, `ggdeploymentd`, `gghealthd`, `ggconfigd`, `ggpubsubd`, `iotcored`,
+`tesd`, `tes-serverd`, `gg-fleet-statusd`), at realistic-load steady state**,
+sampled every 10 seconds over a 10-minute window after a 5-minute warmup.
 
-PSS is chosen because GGLite is a multi-daemon system that shares libc, libssl,
-and libcurl across processes; PSS attributes shared pages fairly and does not
-double-count them like RSS does. `recipe-runner` is excluded because it is
-ephemeral (runs only during component lifecycle events).
+PSS is chosen because Greengrass nucleus lite is a multi-daemon system that
+shares libc, libssl, and libcurl across processes; PSS attributes shared pages
+fairly and does not double-count them like RSS does. `recipe-runner` is excluded
+because it is ephemeral (runs only during component lifecycle events).
 
 #### Secondary Metrics
 
@@ -97,7 +97,7 @@ A 6-test smoke suite must pass before measurement begins on each architecture:
 | Simple component | `hello-world` + `ipc-publisher` + `ipc-subscriber`                                | 1 msg/sec IPC                                            |
 | Realistic load   | `ipc-publisher` × 2 + `ipc-subscriber` × 2 + `iot-core-publisher` + `s3-uploader` | 2 msg/sec local IPC, 1 msg/sec IoT Core, 1 S3 upload/min |
 
-#### GGLite Version
+#### Greengrass nucleus lite Version
 
 v2.5.0 prebuilt `.deb` packages (MinSizeRel build type) — what customers
 actually install.
@@ -119,8 +119,8 @@ below.
 
 #### Per-Daemon Breakdown (realistic-load)
 
-All 9 long-running GGLite daemons sampled. `recipe-runner` is ephemeral (runs
-only during deployments) and is not sampled at steady state.
+All 9 long-running Greengrass nucleus lite daemons sampled. `recipe-runner` is
+ephemeral (runs only during deployments) and is not sampled at steady state.
 
 | Daemon           | Median PSS (KB) | Median RSS (KB) |
 | ---------------- | --------------- | --------------- |
@@ -139,10 +139,11 @@ only during deployments) and is not sampled at steady state.
 - **Total daemon PSS at idle (baseline): ~14.6 MB** — matches aarch64 baseline
   within 0.1% (aarch64: 14,615 KB)
 - **Daemon PSS overhead from running components**: +215 KB (baseline →
-  realistic-load) — growth in GGLite daemon memory caused by handling 5 deployed
-  components (deployment metadata cached by `ggdeploymentd`, IPC subscriptions
-  in `ggipcd`, per-component config in `ggconfigd`). Component process memory is
-  NOT included; this measures only the GGLite daemons. Same pattern as aarch64.
+  realistic-load) — growth in Greengrass nucleus lite daemon memory caused by
+  handling 5 deployed components (deployment metadata cached by `ggdeploymentd`,
+  IPC subscriptions in `ggipcd`, per-component config in `ggconfigd`). Component
+  process memory is NOT included; this measures only the Greengrass nucleus lite
+  daemons. Same pattern as aarch64.
 - **RSS vs PSS gap**: RSS (51.6 MB) is 3.5× PSS (14.6 MB) due to shared library
   pages across 9 daemons — confirms PSS is the correct metric for multi-process
   memory accounting
@@ -197,7 +198,7 @@ component work directories are created. Observed ceiling at realistic-load with
 - **Device**: EC2 `t3.small` (2 vCPU, 2 GB RAM), us-west-2, Intel Xeon Platinum
   8259CL @ 2.50 GHz
 - **OS**: Ubuntu 24.04.4 LTS (Noble Numbat), kernel 6.17.0-1013-aws
-- **GGLite version**: v2.5.0 (prebuilt amd64 .deb from
+- **Greengrass nucleus lite version**: v2.5.0 (prebuilt amd64 .deb from
   `aws-greengrass-lite-deb-x86-64.zip`, MinSizeRel)
 - **Harness invocation**: `sudo bash scripts/run-all.sh x86_64` — identical to
   aarch64 invocation. No x86_64-specific script forks or changes were required;
@@ -206,9 +207,9 @@ component work directories are created. Observed ceiling at realistic-load with
 #### Run Stability
 
 Four consecutive runs were executed on the same EC2 instance (run 1 immediately
-after provisioning; runs 2–4 back-to-back with a warm GGLite install and cached
-TES credentials). Run 1 is a first-boot artifact and is excluded from the
-stability check — see _Startup Time_ note above.
+after provisioning; runs 2–4 back-to-back with a warm Greengrass nucleus lite
+install and cached TES credentials). Run 1 is a first-boot artifact and is
+excluded from the stability check — see _Startup Time_ note above.
 
 **Run 1 (cold start, EXCLUDED)**: median PSS inflated by ~1.5 MB across all
 scenarios because TES did not complete its first credential exchange within the
@@ -226,8 +227,8 @@ variance.
 
 All three steady-state runs land comfortably within the 5% acceptance-criterion
 window. The first-boot inflation is documented explicitly so operators
-provisioning GGLite on a fresh device know to wait ~2 minutes for TES to warm
-before making capacity-planning decisions.
+provisioning Greengrass nucleus lite on a fresh device know to wait ~2 minutes
+for TES to warm before making capacity-planning decisions.
 
 ---
 
@@ -243,8 +244,8 @@ before making capacity-planning decisions.
 
 #### Per-Daemon Breakdown (realistic-load)
 
-All 9 long-running GGLite daemons sampled. `recipe-runner` is ephemeral (runs
-only during deployments) and is not sampled at steady state.
+All 9 long-running Greengrass nucleus lite daemons sampled. `recipe-runner` is
+ephemeral (runs only during deployments) and is not sampled at steady state.
 
 | Daemon           | Median PSS (KB) | Median RSS (KB) |
 | ---------------- | --------------- | --------------- |
@@ -263,14 +264,15 @@ only during deployments) and is not sampled at steady state.
 - **Total daemon PSS at idle (baseline): ~14.6 MB** — within the 15 MB RAM
   footprint target
 - **Daemon PSS overhead from running components**: +1.2 MB (baseline →
-  realistic-load) — growth in GGLite daemon memory caused by handling 5 deployed
-  components (deployment metadata cached by `ggdeploymentd`, IPC subscriptions
-  in `ggipcd`, per-component config in `ggconfigd`). Component process memory is
-  NOT included; this measures only the GGLite daemons.
+  realistic-load) — growth in Greengrass nucleus lite daemon memory caused by
+  handling 5 deployed components (deployment metadata cached by `ggdeploymentd`,
+  IPC subscriptions in `ggipcd`, per-component config in `ggconfigd`). Component
+  process memory is NOT included; this measures only the Greengrass nucleus lite
+  daemons.
 - **RSS vs PSS gap**: RSS (50.9 MB) is 3.5× PSS (14.6 MB) due to shared library
   pages across 9 daemons — confirms PSS is the correct metric
 - **CPU utilization**: Minimal at all load levels (~3.1% usr, ~90% idle) —
-  GGLite is not CPU-bound
+  Greengrass nucleus lite is not CPU-bound
 - **Largest daemons by PSS**: `ggdeploymentd` (4.98 MB), `tesd` (4.25 MB),
   `iotcored` (2.68 MB) — together account for ~82% of total PSS
 - **Startup time**: 1,700 ms from `systemctl restart greengrass-lite.target`
@@ -304,7 +306,7 @@ deployed, runtime size was ~400 KB in prior runs.
 
 - **Device**: Raspberry Pi 4 (aarch64), Debian GNU/Linux, kernel
   6.12.47+rpt-rpi-v8
-- **GGLite version**: v2.5.0 (prebuilt arm64 .deb, MinSizeRel)
+- **Greengrass nucleus lite version**: v2.5.0 (prebuilt arm64 .deb, MinSizeRel)
 - **Harness invocation**: `sudo bash scripts/run-all.sh aarch64`
 
 #### Run Stability
@@ -325,8 +327,8 @@ deployed, runtime size was ~400 KB in prior runs.
 
 #### Per-Daemon Breakdown (realistic-load)
 
-All 9 long-running GGLite daemons sampled. `recipe-runner` is ephemeral (runs
-only during deployments) and is not sampled at steady state.
+All 9 long-running Greengrass nucleus lite daemons sampled. `recipe-runner` is
+ephemeral (runs only during deployments) and is not sampled at steady state.
 
 | Daemon           | Median PSS (KB) | Median RSS (KB) |
 | ---------------- | --------------- | --------------- |
@@ -344,7 +346,7 @@ only during deployments) and is not sampled at steady state.
 
 On armv7l, user-space is limited to ~3 GB virtual address space (vs. 128 TB on
 aarch64). VSS is reported here prominently because it indicates how much of the
-limited 32-bit address space GGLite consumes.
+limited 32-bit address space Greengrass nucleus lite consumes.
 
 Total VSS across all 9 daemons at realistic-load: **~180 MB** (well within the 3
 GB limit). Individual daemon VSS ranges from 8–35 MB. No risk of address space
@@ -355,10 +357,11 @@ exhaustion even with many components deployed.
 - **Total daemon PSS at idle (baseline): ~12.3 MB** — 16% lower than aarch64
   (14.6 MB) due to smaller 32-bit pointers and reduced alignment padding
 - **Daemon PSS overhead from running components**: +64 KB (baseline →
-  realistic-load) — growth in GGLite daemon memory caused by handling 5 deployed
-  components (deployment metadata cached by `ggdeploymentd`, IPC subscriptions
-  in `ggipcd`, per-component config in `ggconfigd`). Component process memory is
-  NOT included; this measures only the GGLite daemons.
+  realistic-load) — growth in Greengrass nucleus lite daemon memory caused by
+  handling 5 deployed components (deployment metadata cached by `ggdeploymentd`,
+  IPC subscriptions in `ggipcd`, per-component config in `ggconfigd`). Component
+  process memory is NOT included; this measures only the Greengrass nucleus lite
+  daemons.
 - **RSS vs PSS gap**: RSS (44.6 MB) is 3.6× PSS (12.3 MB) — same shared-library
   effect as aarch64
 - **CPU utilization**: Higher than aarch64 (~11% usr vs ~3.1%) — the 32-bit
@@ -372,8 +375,8 @@ exhaustion even with many components deployed.
 #### Startup Time
 
 Measurement method: `systemctl restart greengrass-lite.target`, then poll until
-every service under the target is active. The 9 core GGLite daemons start within
-~2–3 seconds on this hardware on a fresh install.
+every service under the target is active. The 9 core Greengrass nucleus lite
+daemons start within ~2–3 seconds on this hardware on a fresh install.
 
 #### Disk Usage
 
@@ -387,7 +390,7 @@ every service under the target is active. The 9 core GGLite daemons start within
 
 - **Device**: Raspberry Pi 3 Model B (armv7l), Raspbian GNU/Linux 13 (trixie),
   kernel 6.12.75+rpt-rpi-v7
-- **GGLite version**: v2.5.0 (prebuilt armhf .deb, MinSizeRel)
+- **Greengrass nucleus lite version**: v2.5.0 (prebuilt armhf .deb, MinSizeRel)
 - **Harness invocation**: `sudo bash scripts/run-all.sh armv7l`
 
 #### Run Stability
@@ -405,11 +408,12 @@ within 0.4% coefficient of variation (well within the 5% stability criterion).
 
 ## Phase 2 — Cloud Deployment
 
-Phase 1 (above) measured GGLite at **steady state** using local `ggl-cli`
-deployments. Phase 2 exercises the full **customer cloud-deployment path** —
-`aws greengrassv2 create-deployment` → IoT Jobs → `ggdeploymentd` → TES-signed
-S3 artifact download → `iotcored` MQTT handshake — and captures deployment-time
-peak resource consumption at 1-second granularity during the deployment window.
+Phase 1 (above) measured Greengrass nucleus lite at **steady state** using local
+`ggl-cli` deployments. Phase 2 exercises the full **customer cloud-deployment
+path** — `aws greengrassv2 create-deployment` → IoT Jobs → `ggdeploymentd` →
+TES-signed S3 artifact download → `iotcored` MQTT handshake — and captures
+deployment-time peak resource consumption at 1-second granularity during the
+deployment window.
 
 ### Phase 2 Cross-Architecture Summary
 
@@ -474,7 +478,8 @@ unchanged when absent.
 
 3 consecutive `cloud-deploy-initial` runs on 2026-05-11 via EC2 instance (Ubuntu
 24.04, us-west-2), using `/proc`-based samplers plus post-deploy steady-state
-capture. Same GGLite v2.5.0 amd64.deb as the Phase 1 x86_64 measurements.
+capture. Same Greengrass nucleus lite v2.5.0 amd64.deb as the Phase 1 x86_64
+measurements.
 
 **Headline**: deployment-time peak PSS is **+5.0% over Phase 1 steady-state**
 (14,818 → 15,558 kB mean peak), with **5.7% coefficient of variation** across
@@ -572,14 +577,15 @@ footprint, not transient peaks.
 
 3 consecutive `cloud-deploy-initial` runs on 2026-05-11 on the RPi 4 device,
 using direct `/proc` polling samplers plus post-deploy steady-state capture.
-Same RPi 4 / same GGLite v2.5.0 arm64.deb as the Phase 1 aarch64 measurements.
+Same RPi 4 / same Greengrass nucleus lite v2.5.0 arm64.deb as the Phase 1
+aarch64 measurements.
 
 **Headline**: deployment-time peak PSS is **+2.4% over Phase 1 steady-state**
 (+3.3% at max), with **1.2% coefficient of variation** across the 3 runs — well
 under the 10% AC target. Post-deploy steady-state PSS settles at ~15.8 MB with
 **1.2% CV across runs** (well under the 5% AC target). Device memory budget:
-**~16 MB PSS** headroom is sufficient for a device that runs GGLite comfortably
-at ~15 MB steady-state.
+**~16 MB PSS** headroom is sufficient for a device that runs Greengrass nucleus
+lite comfortably at ~15 MB steady-state.
 
 #### Deployment-time Peak Summary
 
@@ -675,7 +681,8 @@ cloud-deploy steady-state, not the transient peak.
 
 3 consecutive `cloud-deploy-initial` runs on 2026-05-11 on the RPi 3 device via
 SSH jump host, using the same `/proc`-based samplers validated on aarch64. Same
-RPi 3 / same GGLite v2.5.0 armhf `.deb` as the Phase 1 armv7l measurements.
+RPi 3 / same Greengrass nucleus lite v2.5.0 armhf `.deb` as the Phase 1 armv7l
+measurements.
 
 **Headline**: deployment-time peak PSS is **+6.7% over Phase 1 realistic-load
 steady-state** (12.39 MB → 13.23 MB), with an **extremely tight 0.037%
@@ -821,8 +828,8 @@ footprint on armv7l.
 
 - **Device**: Raspberry Pi 3 Model B (armv7l), Raspbian GNU/Linux 13 (trixie),
   kernel 6.12.75+rpt-rpi-v7, 1 GB RAM, SD-card storage
-- **GGLite version**: v2.5.0 (prebuilt armhf .deb, MinSizeRel) — same build as
-  Phase 1
+- **Greengrass nucleus lite version**: v2.5.0 (prebuilt armhf .deb, MinSizeRel)
+  — same build as Phase 1
 - **Harness**: `cloud-deploy-initial.sh` invoked directly 3 times via tmux +
   `ssh -J` jump host (not `run-all.sh --phase2` — skips Phase 1 scenarios and
   `cloud-deploy-update.sh` to keep the AWS-credential window tight, same pattern

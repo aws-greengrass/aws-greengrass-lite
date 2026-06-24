@@ -37,7 +37,7 @@ int component_count = 0;
 static char *remove_components[MAX_LOCAL_DEPLOYMENT_COMPONENTS];
 int remove_count = 0;
 
-static char doc[] = "ggl-cli -- Greengrass CLI for Nucleus Lite";
+static char doc[] = "ggl-cli -- Greengrass CLI for Greengrass nucleus lite";
 
 static struct argp_option opts[] = {
     { "recipe-dir", 'r', "path", 0, "Recipe directory to merge", 0 },

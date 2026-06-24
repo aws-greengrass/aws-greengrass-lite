@@ -18,8 +18,8 @@ Provisioning.
 
 ### Custom Provisioning
 
-Greengrass Lite is a collection of microservices, so it's not limited to a
-specific provisioning solution. You may use your own provisioning method by
+Greengrass nucleus lite is a collection of microservices, so it's not limited to
+a specific provisioning solution. You may use your own provisioning method by
 simply following a few principles:
 
 - `ggconfig.d` will only look into `/etc/greengrass/config.yaml` or
@@ -32,7 +32,8 @@ simply following a few principles:
   contents of the file. Hence, any systemd service file for provisioning should
   mark itself to run with `Before=ggl.core.ggconfigd.service`.
 
-Any solution that respects the above rules will work with GG Nucleus Lite.
+Any solution that respects the above rules will work with Greengrass nucleus
+lite.
 
 ### Manual Provisioning
 
@@ -41,7 +42,7 @@ device credentials from the console by following these steps:
 
 - Go to:
   `IoT Core > Greengrass devices > Core devices > Set up core device > Set up one core device`
-- Modify the name fields as required and then select `Nucleus Lite`
+- Modify the name fields as required and then select `Greengrass nucleus lite`
 - Find the `Create thing` button and click it
 - Then click `Download connection kit`
 

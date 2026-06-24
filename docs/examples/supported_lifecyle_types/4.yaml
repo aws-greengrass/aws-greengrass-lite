@@ -13,7 +13,7 @@ ComponentDependencies:
 Manifests:
   - Platform:
       os: "linux"
-      runtime: "*" # Notice this is a required new field for GGLite
+      runtime: "*" # Notice this is a required new field for Greengrass nucleus lite
     Lifecycle: {}
     Selections:
       - linux

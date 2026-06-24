@@ -5,9 +5,9 @@ AWS IoT Greengrass runtime for constrained devices.
 The Greengrass nucleus lite provides a lightweight alternative to the Greengrass
 nucleus runtime.
 
-The nucleus lite aims to be compatible with the Greengrass nucleus, but
-implements a subset of its functionality. Expect future releases to reduce the
-feature gap.
+The Greengrass nucleus lite aims to be compatible with the Greengrass nucleus,
+but implements a subset of its functionality. Expect future releases to reduce
+the feature gap.
 
 ## Getting started
 
@@ -38,12 +38,12 @@ SDKs and Quick Start guides that support platforms such as STM32, Renesas, NXP
 and Raspberry Pi.
 
 For a self-paced workshop, see the
-[Greengrass Nucleus Lite Workshop](https://catalog.workshops.aws/greengrass-nucleus-lite/en-US).
+[Greengrass nucleus lite Workshop](https://catalog.workshops.aws/greengrass-nucleus-lite/en-US).
 
 For Yocto/OpenEmbedded integration, check out
 [meta-aws](https://github.com/aws4embeddedlinux/meta-aws) and
 [meta-aws-demos](https://github.com/aws4embeddedlinux/meta-aws-demos) which
-provide recipes and examples for building AWS Greengrass Lite.
+provide recipes and examples for building AWS Greengrass nucleus lite.
 
 ### ⚠️ Important Notice
 

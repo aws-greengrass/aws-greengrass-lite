@@ -1,4 +1,4 @@
-# GG-Lite `tes-http-serverd`: Design
+# Greengrass nucleus lite `tes-http-serverd`: Design
 
 > note: The “`tes-http-serverd`“ design is a living document, and will
 > progressively change over time as we introduce new features or refactor old

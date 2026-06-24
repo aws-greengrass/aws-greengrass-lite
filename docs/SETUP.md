@@ -44,7 +44,7 @@ devices with the steps from
 one or the other.
 
 To configure Greengrass, you will need a config YAML file, in the same format as
-the Classic nucleus config. An example config file is available in
+the Greengrass nucleus config. An example config file is available in
 [`docs/examples/sample_nucleus_config.yaml`](examples/sample_nucleus_config.yaml).
 If this is the first time you are creating a GG device, please follow the
 instruction in the [Provisioning.md](./Provisioning.md) to get a role alias,

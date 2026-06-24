@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// tes-serverd -- A lightweight http server daemon for GGLite
+// tes-serverd -- A lightweight http server daemon for Greengrass nucleus lite
 
 #include <gg/error.h>
 #include <ggl/nucleus/init.h>

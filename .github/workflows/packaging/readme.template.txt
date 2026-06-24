@@ -1,13 +1,13 @@
 ###############################################################################
-# AWS Greengrass Lite
+# AWS Greengrass nucleus lite
 ###############################################################################
 
 AWS IoT Greengrass runtime for constrained devices.
 
-The Greengrass Lite nucleus provides a smaller alternative to the Java
+The Greengrass nucleus lite provides a smaller alternative to the Java
 nucleus for Greengrass v2 deployments.
 
-Greengrass Lite aims to maintain compatibility with the Java nucleus, and
+Greengrass nucleus lite aims to maintain compatibility with the Java nucleus, and
 implements a subset of its functionality.
 
 There is a arm32, arm64 and x86-64 version available of this zip file.
@@ -58,7 +58,7 @@ sudo ./install-greengrass-lite.sh -u
 # UPGRADE
 ###############################################################################
 
-When a new version of greengrass lite is available and you want to keep your
+When a new version of Greengrass nucleus lite is available and you want to keep your
 configuration and components. Install just the deb package from the zip, without
 using the (initial-) installation script.
 

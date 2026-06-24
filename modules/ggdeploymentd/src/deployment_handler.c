@@ -879,10 +879,10 @@ static GgError get_recipe_artifacts(
         }
 
         // Resolve artifact file permissions from recipe.
-        // Default is 0755 for backward compatibility with existing Nucleus
-        // Lite deployments. Note: Greengrass Nucleus defaults to Read:OWNER,
-        // Execute:NONE (0440). This difference is intentional to avoid
-        // regression.
+        // Default is 0755 for backward compatibility with existing Greengrass
+        // nucleus lite deployments. Note: Greengrass Nucleus defaults to
+        // Read:OWNER, Execute:NONE (0440). This difference is intentional to
+        // avoid regression.
         mode_t mode = 0755;
         if (permission_obj != NULL) {
             mode
@@ -1598,7 +1598,7 @@ static GgError resolve_dependencies(
             GgBuffer software_version = GG_STR(GGL_VERSION);
             if (!gg_buffer_eq(component_version, software_version)) {
                 GG_LOGE(
-                    "The deployment failed. The aws.greengrass.NucleusLite component version specified in the deployment is %.*s, but the version of the GG Lite software is %.*s. Please ensure that the version in the deployment matches before attempting the deployment again.",
+                    "The deployment failed. The aws.greengrass.NucleusLite component version specified in the deployment is %.*s, but the version of the Greengrass nucleus lite software is %.*s. Please ensure that the version in the deployment matches before attempting the deployment again.",
                     (int) component_version.len,
                     component_version.data,
                     (int) software_version.len,

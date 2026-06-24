@@ -4,13 +4,13 @@ See [gghealthd spec](../spec/executable/gghealthd.md) for the public interface
 for gghealthd.
 
 gghealthd is intended to forward and serve component lifecycle state updates
-between gghealthd's clients and the Greengrass Lite core device's orchestrator.
-Communication with the orchestrator requires its own binary ABI or network
-protocol depending on the system. Therefore, gghealthd is an abstraction over a
-subset orchestration's API. In order to support state updates via Greengrass
-Classic IPC over ggipcd, gghealthd shall be implemented as a core component, a
-service, with permissions to update a component's orchestration state on its
-behalf.
+between gghealthd's clients and the Greengrass nucleus lite core device's
+orchestrator. Communication with the orchestrator requires its own binary ABI or
+network protocol depending on the system. Therefore, gghealthd is an abstraction
+over a subset orchestration's API. In order to support state updates via
+Greengrass nucleus IPC over ggipcd, gghealthd shall be implemented as a core
+component, a service, with permissions to update a component's orchestration
+state on its behalf.
 
 # Responsibilities
 

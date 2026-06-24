@@ -17,10 +17,11 @@ for the user-facing description):
   characters in the matched topic.
 
 Anything else inside a `${...}` escape is undefined; in particular, a bare `?`
-was previously accepted by Greengrass Lite and silently honored as a literal `?`
-character in the topic. AWS IoT Core does not allow `?` in topic names, so a
-policy or request topic containing `?` is effectively inert (it can never match
-a real cloud topic) and almost always indicates a mistake by the recipe author.
+was previously accepted by Greengrass nucleus lite and silently honored as a
+literal `?` character in the topic. AWS IoT Core does not allow `?` in topic
+names, so a policy or request topic containing `?` is effectively inert (it can
+never match a real cloud topic) and almost always indicates a mistake by the
+recipe author.
 
 This module rejects malformed resource strings up front, both at deployment time
 (in `ggdeploymentd`) and at IPC call time (in `ggipcd`).
@@ -30,14 +31,15 @@ This module rejects malformed resource strings up front, both at deployment time
 ### 1. Be stricter than Greengrass v2
 
 Greengrass V2 only logs and skips malformed `accessControl` policies; the
-deployment still succeeds. We chose to **fail** the deployment in Lite instead.
+deployment still succeeds. We chose to **fail** the deployment in Greengrass
+nucleus lite instead.
 
 The reasons it is acceptable to break parity here:
 
-- **Migration path is already manual.** Customers moving from v2 to Lite inspect
-  and adjust their component recipes anyway as part of migration, so a
-  deploy-time error pointing at the offending field is strictly more helpful
-  than the silent v2 behavior.
+- **Migration path is already manual.** Customers moving from Greengrass nucleus
+  to Greengrass nucleus lite inspect and adjust their component recipes anyway
+  as part of migration, so a deploy-time error pointing at the offending field
+  is strictly more helpful than the silent v2 behavior.
 
 ### 2. Fail the deployment, don't silently filter
 

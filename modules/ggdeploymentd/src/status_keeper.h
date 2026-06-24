@@ -13,9 +13,9 @@
 //! is left stale. This module persists the pending status to ggconfigd so it
 //! can be re-sent once connectivity returns or after a restart.
 //!
-//! greengrass lite only tracks one deployment at a time ($next), so a single
-//! slot is stored at config `services/DeploymentService/pendingStatus` and
-//! replaced in place -- this is intentionally NOT a queue.
+//! Greengrass nucleus lite only tracks one deployment at a time ($next), so a
+//! single slot is stored at config `services/DeploymentService/pendingStatus`
+//! and replaced in place -- this is intentionally NOT a queue.
 //!
 //! Pure storage: this module persists / reads / clears the slot. Flush
 //! orchestration (deciding when to re-send) lives in iot_jobs_listener.c.

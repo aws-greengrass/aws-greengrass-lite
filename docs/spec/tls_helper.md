@@ -1,8 +1,8 @@
-# Greengrass Lite TLS helper API
+# Greengrass nucleus lite TLS helper API
 
-AWS Greengrass Lite will allow TLS communication support to be pluggable through
-the TLS helper interface. This enables allow customers to plug in custom TLS
-setups, such as using TPM, PKCS#11, a different TLS library, etc.
+AWS Greengrass nucleus lite will allow TLS communication support to be pluggable
+through the TLS helper interface. This enables allow customers to plug in custom
+TLS setups, such as using TPM, PKCS#11, a different TLS library, etc.
 
 ## Requirements
 

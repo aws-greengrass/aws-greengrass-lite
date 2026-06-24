@@ -1,7 +1,8 @@
 # `gghttplib` spec
 
-The GG-Lite HTTP library (`gghttplib`) is a library that implements HTTP related
-functions that other lite components may need.
+The Greengrass nucleus lite HTTP library (`gghttplib`) is a library that
+implements HTTP related functions that other Greengrass nucleus lite components
+may need.
 
 The following components are expected to have some reliance or functionality
 that is contained within the gghttplib:
