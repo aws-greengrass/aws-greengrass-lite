@@ -28,10 +28,11 @@ static_assert(
 static uint32_t subs_resp_handle[GGL_IPC_MAX_SUBSCRIPTIONS];
 static int32_t subs_stream_id[GGL_IPC_MAX_SUBSCRIPTIONS];
 static uint32_t subs_recv_handle[GGL_IPC_MAX_SUBSCRIPTIONS];
+static void *subs_ctx[GGL_IPC_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t subs_state_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GgError init_subs_index(
-    uint32_t resp_handle, int32_t stream_id, size_t *index
+    uint32_t resp_handle, int32_t stream_id, void *ctx, size_t *index
 ) {
     assert(resp_handle != 0);
 
@@ -41,6 +42,7 @@ static GgError init_subs_index(
         if (subs_resp_handle[i] == 0) {
             subs_resp_handle[i] = resp_handle;
             subs_stream_id[i] = stream_id;
+            subs_ctx[i] = ctx;
             *index = i;
             return GG_ERR_OK;
         }
@@ -57,6 +59,7 @@ static void release_subs_index(size_t index, uint32_t resp_handle) {
         subs_resp_handle[index] = 0;
         subs_stream_id[index] = 0;
         subs_recv_handle[index] = 0;
+        subs_ctx[index] = NULL;
     } else {
         GG_LOGD("Releasing subscription state failed; already released.");
     }
@@ -87,6 +90,7 @@ static GgError subscription_on_response(
 
     uint32_t resp_handle = 0;
     int32_t stream_id = -1;
+    void *user_ctx = NULL;
     bool found = false;
 
     {
@@ -96,6 +100,7 @@ static GgError subscription_on_response(
                 found = true;
                 resp_handle = subs_resp_handle[i];
                 stream_id = subs_stream_id[i];
+                user_ctx = subs_ctx[i];
                 break;
             }
         }
@@ -110,7 +115,7 @@ static GgError subscription_on_response(
         [sizeof(GgObject[GG_MAX_OBJECT_SUBOBJECTS]) + GGL_IPC_MAX_MSG_LEN];
     GgArena alloc = gg_arena_init(GG_BUF(resp_mem));
 
-    return on_response(data, resp_handle, stream_id, &alloc);
+    return on_response(user_ctx, data, resp_handle, stream_id, &alloc);
 }
 
 static void subscription_on_close(void *ctx, uint32_t recv_handle) {
@@ -122,6 +127,7 @@ static void subscription_on_close(void *ctx, uint32_t recv_handle) {
             subs_resp_handle[i] = 0;
             subs_stream_id[i] = 0;
             subs_recv_handle[i] = 0;
+            subs_ctx[i] = NULL;
             return;
         }
     }
@@ -136,10 +142,11 @@ GgError ggl_ipc_bind_subscription(
     GgBuffer method,
     GgMap params,
     GglIpcSubscribeCallback on_response,
+    void *ctx,
     GgError *error
 ) {
     size_t subs_index = 0;
-    GgError ret = init_subs_index(resp_handle, stream_id, &subs_index);
+    GgError ret = init_subs_index(resp_handle, stream_id, ctx, &subs_index);
     if (ret != GG_ERR_OK) {
         return ret;
     }

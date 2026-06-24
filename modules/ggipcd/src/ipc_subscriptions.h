@@ -10,12 +10,19 @@
 #include <gg/types.h>
 #include <stdint.h>
 
-/// Callback for whenever a subscription is closed.
+/// Callback for whenever a subscription event is received.
+/// `ctx` is the per-subscription context provided to
+/// `ggl_ipc_bind_subscription`.
 typedef GgError (*GglIpcSubscribeCallback)(
-    GgObject data, uint32_t resp_handle, int32_t stream_id, GgArena *arena
+    void *ctx,
+    GgObject data,
+    uint32_t resp_handle,
+    int32_t stream_id,
+    GgArena *arena
 );
 
-/// Wrapper around ggl_subscribe for IPC handlers.
+/// Wrapper around ggl_subscribe for IPC handlers. `ctx` is an optional
+/// per-subscription context passed to `on_response` on each event.
 GgError ggl_ipc_bind_subscription(
     uint32_t resp_handle,
     int32_t stream_id,
@@ -23,6 +30,7 @@ GgError ggl_ipc_bind_subscription(
     GgBuffer method,
     GgMap params,
     GglIpcSubscribeCallback on_response,
+    void *ctx,
     GgError *error
 );
 

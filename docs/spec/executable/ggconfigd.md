@@ -82,6 +82,13 @@ error.
 
 See [the supported IPC commands in the README](../../../README.md).
 
+For classic-Nucleus compatibility, component configuration requests
+(`GetConfiguration` and `SubscribeToConfigurationUpdate`) that target
+`aws.greengrass.Nucleus` are transparently forwarded to the
+`aws.greengrass.NucleusLite` configuration tree, and events/responses are
+reported under the requested `aws.greengrass.Nucleus` name. See
+[the GetConfiguration IPC command](../library/ipc_commands/getconfiguration_ipc.md).
+
 ## Implementation
 
 See [the ggconfigd design](../../design/ggconfigd.md).
