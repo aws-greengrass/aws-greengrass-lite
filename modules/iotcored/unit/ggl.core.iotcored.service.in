@@ -23,4 +23,4 @@ After=ggl.core.ggconfigd.service
 # Wait for network devices to be up
 After=network.target
 # Wait for NTP time
-After=systemd-time-wait-sync.service
+After=time-sync.target
