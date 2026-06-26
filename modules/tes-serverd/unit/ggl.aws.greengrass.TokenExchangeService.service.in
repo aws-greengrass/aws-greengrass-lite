@@ -3,6 +3,7 @@ StartLimitInterval=20
 StartLimitBurst=10
 Description=Sigv4 Gen component IoT credential provider
 PartOf=greengrass-lite.target
+BindsTo=ggl.core.tesd.service
 
 
 [Service]
@@ -24,4 +25,5 @@ WantedBy=greengrass-lite.target
 [Unit]
 After=ggl.core.ggconfigd.service
 After=ggl.core.iotcored.service
+After=ggl.core.tesd.service
 After=network.target
