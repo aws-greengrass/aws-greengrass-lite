@@ -158,6 +158,7 @@ stdenv
 subscribetocomponentupdates
 svcuid
 svcuids
+syscall
 sysstat
 sysv
 tabrmd

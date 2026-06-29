@@ -87,3 +87,12 @@ frame.
       epoch.
   - **UUID**
     - 16 bytes: unsigned 16-byte big-endian integer.
+
+## Reserved Header Names
+
+The following header names are reserved by other components and should not be
+used for application data. New header additions should avoid collisions with
+this list:
+
+- `T`, `S`, `P` (Int32) - request tracing context (trace_id, span_id,
+  parent_span_id). See [tracing spec](tracing.md).

@@ -60,3 +60,8 @@ implementation of the interface logs to stderr.
 
 - [logging-api-5] The provided logging implementation is a weak definition to
   allow overriding.
+
+## See Also
+
+For cross-daemon request correlation embedded in log output, see the
+[tracing spec](tracing.md).
