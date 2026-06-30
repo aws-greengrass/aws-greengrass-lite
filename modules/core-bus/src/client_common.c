@@ -14,10 +14,10 @@
 #include <gg/eventstream/types.h>
 #include <gg/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
 #include <gg/io.h>
+#include <gg/log-trail.h> // IWYU pragma: keep (used only under GG_LOG_TRAIL_ENABLED)
 #include <gg/log.h>
 #include <gg/object.h>
 #include <gg/socket.h>
-#include <gg/trace.h> // IWYU pragma: keep (used only under GG_TRACE_ENABLED)
 #include <gg/vector.h>
 #include <ggl/core_bus/constants.h>
 #include <pthread.h>
@@ -71,8 +71,8 @@ GgError ggl_client_send_message(
         { GG_STR("type"), { EVENTSTREAM_INT32, .int32 = (int32_t) type } },
     };
     size_t headers_len = 2;
-#ifdef GG_TRACE_ENABLED
-    headers_len += gg_trace_attach_headers(&headers[2], 3);
+#ifdef GG_LOG_TRAIL_ENABLED
+    headers_len += gg_log_trail_attach_headers(&headers[2], 3);
 #endif
 
     GgObject params_obj = gg_obj_map(params);

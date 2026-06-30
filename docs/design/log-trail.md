@@ -1,6 +1,7 @@
-# Request Tracing Design
+# Log Trail Design
 
-See [tracing spec](../spec/library/tracing.md) for the formal API specification.
+See [log-trail spec](../spec/library/log-trail.md) for the formal API
+specification.
 
 ## Overview
 
@@ -21,12 +22,13 @@ The tracing system spans two repositories:
 
 1. **gg-sdk** owns the primitives: TLS storage, ID generation, log bracket
    formatting, header attach/extract, and scope macros
-   (`priv_include/gg/trace.h`, `src/trace.c`).
+   (`priv_include/gg/log-trail.h`, `src/log-trail.c`).
 2. **Greengrass nucleus lite** uses those primitives at daemon entry points
-   (`GG_TRACE_ROOT_SCOPE`) and core-bus boundaries (`GG_TRACE_INHERIT_SCOPE` on
-   server side, `gg_trace_attach_headers` on client side).
+   (`GG_LOG_TRAIL_ROOT_SCOPE`) and core-bus boundaries
+   (`GG_LOG_TRAIL_INHERIT_SCOPE` on server side, `gg_log_trail_attach_headers`
+   on client side).
 
-Tracing is gated by CMake option `-DGG_LOG_TRACE=ON`. When OFF (default), all
+Tracing is gated by CMake option `-DGG_LOG_TRAIL=ON`. When OFF (default), all
 macros expand to nothing and binaries contain no trace symbols. See the spec for
 the full API surface and IDs.
 
@@ -52,8 +54,8 @@ Three daemons create root traces:
 | ggdeploymentd    | `deployment_handler` (2 sites) | `deployment_jobs`   |
 | gg-fleet-statusd | periodic tick                  | `fleet_status_tick` |
 
-Each uses `GG_TRACE_ROOT_SCOPE(kind, fmt, ...)` which bundles a defensive clear,
-`gg_trace_root_begin`, and a scope-guard auto-clear.
+Each uses `GG_LOG_TRAIL_ROOT_SCOPE(kind, fmt, ...)` which bundles a defensive
+clear, `gg_log_trail_root_begin`, and a scope-guard auto-clear.
 
 ## Propagation
 
@@ -64,17 +66,17 @@ Each uses `GG_TRACE_ROOT_SCOPE(kind, fmt, ...)` which bundles a defensive clear,
 The span_id does not change within a single daemon; a new child span is created
 only when crossing a daemon boundary via core-bus.
 
-Sender (core-bus client in `ggl_call`): `gg_trace_attach_headers` reads TLS and
-writes T/S/P into the outbound frame.
+Sender (core-bus client in `ggl_call`): `gg_log_trail_attach_headers` reads TLS
+and writes T/S/P into the outbound frame.
 
-Receiver (core-bus server dispatch): `GG_TRACE_INHERIT_SCOPE(headers)` fires a
-defensive clear, `gg_trace_extract_and_apply` (read T/S, generate fresh span,
-set TLS with parent = caller's span), then a scope-guard that auto-clears on
-scope exit.
+Receiver (core-bus server dispatch): `GG_LOG_TRAIL_INHERIT_SCOPE(headers)` fires
+a defensive clear, `gg_log_trail_extract_and_apply` (read T/S, generate fresh
+span, set TLS with parent = caller's span), then a scope-guard that auto-clears
+on scope exit.
 
 ## Mixed-Version Compatibility
 
-A daemon built without `-DGG_LOG_TRACE` ignores inbound T/S/P headers, omits
+A daemon built without `-DGG_LOG_TRAIL` ignores inbound T/S/P headers, omits
 them on outbound calls, and emits no trace brackets. Upstream and downstream
 daemons retain their trace context unbroken; the untraced daemon appears as an
 opaque hop.

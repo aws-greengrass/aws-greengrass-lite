@@ -13,9 +13,9 @@
 #include <gg/eventstream/encode.h>
 #include <gg/eventstream/types.h>
 #include <gg/io.h>
+#include <gg/log-trail.h>
 #include <gg/log.h>
 #include <gg/object.h>
-#include <gg/trace.h>
 #include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/constants.h>
@@ -302,7 +302,7 @@ static GgError client_ready(void *ctx, uint32_t handle) {
             // Inherit any inbound trace context for the handler's duration;
             // defensively clears stale context on this reused worker thread
             // first, and clears again on scope exit.
-            GG_TRACE_INHERIT_SCOPE(msg.headers);
+            GG_LOG_TRAIL_INHERIT_SCOPE(msg.headers);
 
             ret = handler->handler(handler->ctx, params, handle);
 

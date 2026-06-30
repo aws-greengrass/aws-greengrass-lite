@@ -30,10 +30,10 @@
 #include <gg/json_decode.h>
 #include <gg/json_encode.h>
 #include <gg/list.h>
+#include <gg/log-trail.h>
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
-#include <gg/trace.h>
 #include <gg/utils.h>
 #include <gg/vector.h>
 #include <ggl/core_bus/client.h>
@@ -4185,7 +4185,7 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         bool bootstrap_deployment_succeeded = false;
 
-        GG_TRACE_ROOT_SCOPE(
+        GG_LOG_TRAIL_ROOT_SCOPE(
             "deployment_jobs",
             "job_id=%.*s",
             (int) bootstrap_deployment.deployment_id.len,
@@ -4243,7 +4243,7 @@ static GgError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             return ret;
         }
 
-        GG_TRACE_ROOT_SCOPE(
+        GG_LOG_TRAIL_ROOT_SCOPE(
             "deployment_jobs",
             "job_id=%.*s",
             (int) deployment->deployment_id.len,

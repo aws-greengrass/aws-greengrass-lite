@@ -22,10 +22,10 @@
 #include <gg/ipc/limits.h>
 #include <gg/json_decode.h>
 #include <gg/json_encode.h>
+#include <gg/log-trail.h>
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
-#include <gg/trace.h>
 #include <ggipc/auth.h>
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
@@ -392,7 +392,7 @@ static GgError handle_stream_operation(
 
     // ggipcd is a trace root: inbound IPC carries no trace context, so start a
     // fresh trace per operation (cleared automatically on scope exit).
-    GG_TRACE_ROOT_SCOPE(
+    GG_LOG_TRAIL_ROOT_SCOPE(
         "ipc_request", "op=%.*s", (int) operation.len, (char *) operation.data
     );
 

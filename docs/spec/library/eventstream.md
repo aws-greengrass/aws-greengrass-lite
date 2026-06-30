@@ -95,4 +95,4 @@ used for application data. New header additions should avoid collisions with
 this list:
 
 - `T`, `S`, `P` (Int32) - request tracing context (trace_id, span_id,
-  parent_span_id). See [tracing spec](tracing.md).
+  parent_span_id). See [log-trail spec](log-trail.md).
