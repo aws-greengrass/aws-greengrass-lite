@@ -64,4 +64,4 @@ implementation of the interface logs to stderr.
 ## See Also
 
 For cross-daemon request correlation embedded in log output, see the
-[tracing spec](tracing.md).
+[log-trail spec](log-trail.md).

@@ -7,10 +7,10 @@
 #include <gg/arena.h>
 #include <gg/buffer.h>
 #include <gg/error.h>
+#include <gg/log-trail.h>
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
-#include <gg/trace.h>
 #include <gg/types.h>
 #include <gg/utils.h>
 #include <gg_fleet_statusd.h>
@@ -209,7 +209,7 @@ static void *ggl_fleet_status_service_thread(void *ctx) {
             return NULL;
         }
 
-        GG_TRACE_ROOT_SCOPE("fleet_status_tick", NULL);
+        GG_LOG_TRAIL_ROOT_SCOPE("fleet_status_tick", NULL);
 
         ret = publish_fleet_status_update(
             thing_name, GG_STR("CADENCE"), GG_MAP(), GG_LIST()
