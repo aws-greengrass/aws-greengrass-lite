@@ -60,11 +60,14 @@ clear, `gg_log_trail_root_begin`, and a scope-guard auto-clear.
 ## Propagation
 
 - **trace_id** is stable across all daemons handling one request.
-- **span_id** is fresh per daemon (generated on entry).
+- **span_id** changes when crossing a daemon boundary via core-bus, and can also
+  change within a single daemon when an explicit sub-span is opened (see
+  Sub-spans below).
 - **parent_span_id** is the caller's span_id, chaining causality.
 
-The span_id does not change within a single daemon; a new child span is created
-only when crossing a daemon boundary via core-bus.
+By default, the span_id does not change within a single daemon; a new child span
+is created only when crossing a daemon boundary via core-bus or when a call site
+explicitly opens a sub-span.
 
 Sender (core-bus client in `ggl_call`): `gg_log_trail_attach_headers` reads TLS
 and writes T/S/P into the outbound frame.
@@ -73,6 +76,30 @@ Receiver (core-bus server dispatch): `GG_LOG_TRAIL_INHERIT_SCOPE(headers)` fires
 a defensive clear, `gg_log_trail_extract_and_apply` (read T/S, generate fresh
 span, set TLS with parent = caller's span), then a scope-guard that auto-clears
 on scope exit.
+
+## Sub-spans
+
+Within a single daemon, `GG_LOG_TRAIL_SUBSPAN_SCOPE()` opens a child span inside
+the currently active trace. It preserves `trace_id`, generates a fresh
+`span_id`, and makes the caller's previous `span_id` the new `parent_span_id`.
+On scope exit, the caller's (trace_id, span_id, parent_span_id) is restored (not
+cleared) via a `cleanup` attribute, so any work following the sub-span continues
+under the original context.
+
+Sub-spans compose with cross-daemon propagation without special handling: if the
+sub-span makes a core-bus call, `gg_log_trail_attach_headers` serializes
+whatever is in TLS at that moment, so the receiving daemon sees the sub-span's
+`span_id` as its parent. This lets one daemon fan out to multiple downstream
+daemons under a single sub-span; every receiver correctly reports the same
+parent, forming a proper tree.
+
+The macro takes no arguments and uses `GG_MODULE` as the sub-span "kind" label,
+which is logged once at DEBUG when the sub-span opens. The random `span_id` plus
+the `file:line` in the log bracket disambiguate multiple sub-spans within one
+daemon; explicit per-call-site naming is not provided.
+
+When no trace is active on the calling thread, the macro is a no-op - it does
+not manufacture a `trace_id` and it does not log the subspan_start line.
 
 ## Mixed-Version Compatibility
 
@@ -96,6 +123,4 @@ excluding incidental hex matches in message bodies.
 
 ## Future Work
 
-- **Intra-daemon subspans** (`GG_TRACE_SUBSPAN()` macro) for finer-grained
-  filtering within a single daemon
 - CLI tree renderer for trace visualization.

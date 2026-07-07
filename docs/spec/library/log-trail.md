@@ -39,8 +39,9 @@ boundaries.
 - [tracing-macros-2] When ON, defines `GG_LOG_TRAIL_ENABLED` for gg-sdk
   translation units and enables all trace API and log bracket formatting.
 - [tracing-macros-3] When OFF, `GG_LOG_TRAIL_SCOPE_GUARD`,
-  `GG_LOG_TRAIL_ROOT_SCOPE`, and `GG_LOG_TRAIL_INHERIT_SCOPE` expand to empty
-  statements. No trace symbols appear in the resulting binary.
+  `GG_LOG_TRAIL_ROOT_SCOPE`, `GG_LOG_TRAIL_INHERIT_SCOPE`, and
+  `GG_LOG_TRAIL_SUBSPAN_SCOPE` expand to empty statements. No trace symbols
+  appear in the resulting binary.
 
 ## Environment Variables
 
@@ -78,6 +79,13 @@ boundaries.
   Generates a fresh span_id, sets TLS to (T, fresh_span, S). Returns true if
   trace context was found and applied; false if no T header present (TLS
   unchanged).
+- [tracing-api-7a]
+  `GgLogTrailState gg_log_trail_subspan_begin(const char *kind)` - reads current
+  TLS into `GgLogTrailState`; if trace_id is 0 returns the zero snapshot without
+  side effects. Otherwise generates a fresh non-zero span_id, sets TLS to
+  (unchanged trace_id, fresh_span, caller's previous span_id), emits one DEBUG
+  `subspan_start: <kind>` log line, and returns the caller's saved state so the
+  scope-cleanup can restore it.
 
 ### Scope Macros (priv_include/gg/log-trail.h)
 
@@ -89,5 +97,12 @@ boundaries.
 - [tracing-api-10] `GG_LOG_TRAIL_INHERIT_SCOPE(headers)` - defensive clear +
   `gg_log_trail_extract_and_apply(headers)` + `GG_LOG_TRAIL_SCOPE_GUARD()`.
   Self-gates: expands to nothing when `GG_LOG_TRAIL_ENABLED` is not defined.
+- [tracing-api-10a] `GG_LOG_TRAIL_SUBSPAN_SCOPE()` - calls
+  `gg_log_trail_subspan_begin(GG_MODULE)` and declares a variable with
+  `__attribute__((cleanup))` that restores the caller's saved (trace_id,
+  span_id, parent_span_id) on scope exit. Preserves trace_id, generates a fresh
+  span_id, and sets caller's previous span_id as the new parent_span_id. No-op
+  if no trace is active. Self-gates: expands to nothing when
+  `GG_LOG_TRAIL_ENABLED` is not defined.
 - [tracing-api-11] Scope macros declare local variables and must appear inside a
   brace block. Mirrors the `GG_MTX_SCOPE_GUARD` idiom.
