@@ -21,8 +21,11 @@ typedef GgError (*GglIpcSubscribeCallback)(
     GgArena *arena
 );
 
-/// Wrapper around ggl_subscribe for IPC handlers. `ctx` is an optional
-/// per-subscription context passed to `on_response` on each event.
+/// Wrapper around ggl_subscribe for IPC handlers.
+///
+/// `ctx` is an optional per-subscription context passed to `on_response` on
+/// each event. Caller-owned context must remain valid until the subscription is
+/// closed.
 GgError ggl_ipc_bind_subscription(
     uint32_t resp_handle,
     int32_t stream_id,

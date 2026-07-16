@@ -22,28 +22,50 @@
 
 static_assert(
     GGL_IPC_MAX_SUBSCRIPTIONS <= GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS,
-    "IPC max subscriptions exceededs core bus max subscriptions."
+    "IPC subscription maximum exceeds core bus maximum."
 );
 
-static uint32_t subs_resp_handle[GGL_IPC_MAX_SUBSCRIPTIONS];
-static int32_t subs_stream_id[GGL_IPC_MAX_SUBSCRIPTIONS];
-static uint32_t subs_recv_handle[GGL_IPC_MAX_SUBSCRIPTIONS];
-static void *subs_ctx[GGL_IPC_MAX_SUBSCRIPTIONS];
+typedef struct {
+    uint32_t resp_handle;
+    int32_t stream_id;
+    uint32_t recv_handle;
+    GglIpcSubscribeCallback on_response;
+    void *ctx;
+    bool binding;
+    bool close_requested;
+    bool core_closed;
+} IpcSubscriptionSlot;
+
+static IpcSubscriptionSlot subscriptions[GGL_IPC_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t subs_state_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static GgError init_subs_index(
-    uint32_t resp_handle, int32_t stream_id, void *ctx, size_t *index
+static void reset_sub_slot(IpcSubscriptionSlot *slot) {
+    *slot = (IpcSubscriptionSlot) { 0 };
+}
+
+static GgError reserve_sub_slot(
+    uint32_t resp_handle,
+    int32_t stream_id,
+    GglIpcSubscribeCallback on_response,
+    void *ctx,
+    IpcSubscriptionSlot **result
 ) {
     assert(resp_handle != 0);
+    assert(on_response != NULL);
 
     GG_MTX_SCOPE_GUARD(&subs_state_mtx);
 
     for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
-        if (subs_resp_handle[i] == 0) {
-            subs_resp_handle[i] = resp_handle;
-            subs_stream_id[i] = stream_id;
-            subs_ctx[i] = ctx;
-            *index = i;
+        IpcSubscriptionSlot *slot = &subscriptions[i];
+        if (slot->resp_handle == 0) {
+            *slot = (IpcSubscriptionSlot) {
+                .resp_handle = resp_handle,
+                .stream_id = stream_id,
+                .on_response = on_response,
+                .ctx = ctx,
+                .binding = true,
+            };
+            *result = slot;
             return GG_ERR_OK;
         }
     }
@@ -52,63 +74,47 @@ static GgError init_subs_index(
     return GG_ERR_NOMEM;
 }
 
-static void release_subs_index(size_t index, uint32_t resp_handle) {
+static void release_binding_slot(IpcSubscriptionSlot *slot) {
     GG_MTX_SCOPE_GUARD(&subs_state_mtx);
 
-    if (subs_resp_handle[index] == resp_handle) {
-        subs_resp_handle[index] = 0;
-        subs_stream_id[index] = 0;
-        subs_recv_handle[index] = 0;
-        subs_ctx[index] = NULL;
-    } else {
-        GG_LOGD("Releasing subscription state failed; already released.");
-    }
-}
-
-static GgError subs_set_recv_handle(
-    size_t index, uint32_t resp_handle, uint32_t recv_handle
-) {
-    assert(resp_handle != 0);
-    assert(recv_handle != 0);
-
-    GG_MTX_SCOPE_GUARD(&subs_state_mtx);
-
-    if (subs_resp_handle[index] == resp_handle) {
-        subs_recv_handle[index] = recv_handle;
-        return GG_ERR_OK;
-    }
-
-    GG_LOGD("Setting subscription recv handle failed; state already released.");
-    return GG_ERR_FAILURE;
+    assert(slot->binding);
+    reset_sub_slot(slot);
 }
 
 static GgError subscription_on_response(
     void *ctx, uint32_t recv_handle, GgObject data
 ) {
-    // coverity[bad_initializer_type]
-    GglIpcSubscribeCallback on_response = ctx;
+    IpcSubscriptionSlot *slot = ctx;
 
     uint32_t resp_handle = 0;
     int32_t stream_id = -1;
+    GglIpcSubscribeCallback on_response = NULL;
     void *user_ctx = NULL;
-    bool found = false;
 
     {
         GG_MTX_SCOPE_GUARD(&subs_state_mtx);
-        for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
-            if (recv_handle == subs_recv_handle[i]) {
-                found = true;
-                resp_handle = subs_resp_handle[i];
-                stream_id = subs_stream_id[i];
-                user_ctx = subs_ctx[i];
-                break;
-            }
-        }
-    }
 
-    if (!found) {
-        GG_LOGD("Received response on released subscription.");
-        return GG_ERR_FAILURE;
+        if (slot->resp_handle == 0) {
+            GG_LOGD("Received response on released subscription.");
+            return GG_ERR_FAILURE;
+        }
+
+        if (slot->recv_handle == 0) {
+            slot->recv_handle = recv_handle;
+        } else if (slot->recv_handle != recv_handle) {
+            GG_LOGE("Unexpected subscription response handle.");
+            return GG_ERR_FAILURE;
+        }
+
+        if (slot->close_requested || slot->core_closed) {
+            GG_LOGD("Received response while subscription is closing.");
+            return GG_ERR_FAILURE;
+        }
+
+        resp_handle = slot->resp_handle;
+        stream_id = slot->stream_id;
+        on_response = slot->on_response;
+        user_ctx = slot->ctx;
     }
 
     static uint8_t resp_mem
@@ -119,20 +125,37 @@ static GgError subscription_on_response(
 }
 
 static void subscription_on_close(void *ctx, uint32_t recv_handle) {
-    (void) ctx;
+    IpcSubscriptionSlot *slot = ctx;
+
     GG_MTX_SCOPE_GUARD(&subs_state_mtx);
 
-    for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
-        if (recv_handle == subs_recv_handle[i]) {
-            subs_resp_handle[i] = 0;
-            subs_stream_id[i] = 0;
-            subs_recv_handle[i] = 0;
-            subs_ctx[i] = NULL;
-            return;
-        }
+    if (slot->resp_handle == 0) {
+        GG_LOGD("Already released subscription closed.");
+        return;
     }
 
-    GG_LOGD("Already released subscription closed.");
+    if ((slot->recv_handle != 0) && (slot->recv_handle != recv_handle)) {
+        GG_LOGE("Closed an unexpected subscription handle.");
+        // No further close will arrive for this slot; release it rather than
+        // leak it permanently. Mirrors the normal close path below, without
+        // adopting the mismatched handle.
+        slot->close_requested = true;
+        slot->core_closed = true;
+        if (!slot->binding) {
+            reset_sub_slot(slot);
+        }
+        return;
+    }
+
+    slot->recv_handle = recv_handle;
+    slot->close_requested = true;
+    slot->core_closed = true;
+
+    // ggl_subscribe may invoke this callback before returning the handle. Keep
+    // the slot reserved until the binding call no longer holds its pointer.
+    if (!slot->binding) {
+        reset_sub_slot(slot);
+    }
 }
 
 GgError ggl_ipc_bind_subscription(
@@ -145,8 +168,9 @@ GgError ggl_ipc_bind_subscription(
     void *ctx,
     GgError *error
 ) {
-    size_t subs_index = 0;
-    GgError ret = init_subs_index(resp_handle, stream_id, ctx, &subs_index);
+    IpcSubscriptionSlot *slot = NULL;
+    GgError ret
+        = reserve_sub_slot(resp_handle, stream_id, on_response, ctx, &slot);
     if (ret != GG_ERR_OK) {
         return ret;
     }
@@ -158,29 +182,53 @@ GgError ggl_ipc_bind_subscription(
         params,
         subscription_on_response,
         subscription_on_close,
-        on_response,
+        slot,
         error,
         &recv_handle
     );
     if (ret != GG_ERR_OK) {
-        release_subs_index(subs_index, resp_handle);
+        release_binding_slot(slot);
         return ret;
     }
 
-    (void) subs_set_recv_handle(subs_index, resp_handle, recv_handle);
+    bool close_requested = false;
+    bool core_closed = false;
+    {
+        GG_MTX_SCOPE_GUARD(&subs_state_mtx);
+
+        assert(slot->binding);
+        assert((slot->recv_handle == 0) || (slot->recv_handle == recv_handle));
+
+        slot->recv_handle = recv_handle;
+        slot->binding = false;
+        close_requested = slot->close_requested;
+        core_closed = slot->core_closed;
+
+        if (core_closed) {
+            reset_sub_slot(slot);
+        }
+    }
+
+    if (close_requested && !core_closed) {
+        ggl_client_sub_close(recv_handle);
+    }
 
     return GG_ERR_OK;
 }
 
 GgError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle) {
-    for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
+    for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
         uint32_t recv_handle = 0;
 
         {
             GG_MTX_SCOPE_GUARD(&subs_state_mtx);
 
-            if (subs_resp_handle[i] == resp_handle) {
-                recv_handle = subs_recv_handle[i];
+            IpcSubscriptionSlot *slot = &subscriptions[i];
+            if (slot->resp_handle == resp_handle) {
+                slot->close_requested = true;
+                if (!slot->core_closed) {
+                    recv_handle = slot->recv_handle;
+                }
             }
         }
 
@@ -193,15 +241,19 @@ GgError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle) {
 }
 
 void ggl_ipc_terminate_stream(uint32_t resp_handle, int32_t stream_id) {
-    for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
+    for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
         uint32_t recv_handle = 0;
 
         {
             GG_MTX_SCOPE_GUARD(&subs_state_mtx);
 
-            if ((subs_resp_handle[i] == resp_handle)
-                && (subs_stream_id[i] == stream_id)) {
-                recv_handle = subs_recv_handle[i];
+            IpcSubscriptionSlot *slot = &subscriptions[i];
+            if ((slot->resp_handle == resp_handle)
+                && (slot->stream_id == stream_id)) {
+                slot->close_requested = true;
+                if (!slot->core_closed) {
+                    recv_handle = slot->recv_handle;
+                }
             }
         }
 
