@@ -101,6 +101,8 @@ GgError ggl_handle_update_configuration(
     int64_t timestamp = (int64_t) (gg_obj_into_f64(*timestamp_obj) * 1000.0);
     GG_LOGT("Timestamp is %" PRId64, timestamp);
 
+    // UpdateConfiguration is caller-scoped, so the cross-component aliases
+    // used by GetConfiguration and SubscribeToConfigurationUpdate do not apply.
     GgBufList full_key_path;
     ret = ggl_make_config_path_object(
         info->component, key_path, &full_key_path

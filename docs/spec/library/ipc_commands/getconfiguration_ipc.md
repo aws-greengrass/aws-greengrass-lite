@@ -11,10 +11,15 @@ at the nucleus level using the `gg_config` core-bus interface.
   nucleus config.
 - [get-config-5] A request with `componentName` `aws.greengrass.Nucleus` is
   served from the `aws.greengrass.NucleusLite` configuration tree (a
-  classic-compatibility alias), and the response echoes the requested
-  `componentName`. This lets components read nucleus configuration using a
-  single, nucleus-agnostic name on both the Greengrass nucleus and Greengrass
-  Lite. The same alias applies to `SubscribeToConfigurationUpdate`.
+  component-name alias), and the response echoes the requested `componentName`.
+  The same alias applies to
+  [`SubscribeToConfigurationUpdate`](subscribetoconfigurationupdate_ipc.md).
+  - [get-config-5.1] The alias does not translate configuration schemas or
+    synthesize Classic nucleus keys. The response contains the configuration
+    available in the `aws.greengrass.NucleusLite` tree.
+  - [get-config-5.2] A requested key that is not present in the
+    `aws.greengrass.NucleusLite` tree returns `ResourceNotFoundError`, including
+    keys that exist only in the Classic nucleus schema.
 
 ## Parameters
 
@@ -134,7 +139,9 @@ Case 7: Get Configuration forwarded from the classic Nucleus name
 Nucleus configuration on Greengrass Lite is stored under
 `aws.greengrass.NucleusLite`. A request using the classic
 `aws.greengrass.Nucleus` name is served from the `aws.greengrass.NucleusLite`
-tree, and the response echoes the requested name.
+tree, and the response echoes the requested name. This example uses a key
+available in both schemas; the name alias does not make other Classic nucleus
+keys available on Greengrass Lite.
 
 - Request:
   `{"componentName": "aws.greengrass.Nucleus", "keyPath": ["iotDataEndpoint"]}`
