@@ -94,6 +94,10 @@ the following requirements.
      configuration.
    - [ggdeploymentd-3.2] The deployment service may handle configuration updates
      and merge/reset configuration from a deployment document.
+     - [ggdeploymentd-3.2.1] Component names associated with
+       `configurationUpdate` entries are used verbatim. To update the Greengrass
+       Lite nucleus configuration, a deployment must target
+       `aws.greengrass.NucleusLite`; `aws.greengrass.Nucleus` is not redirected.
    - [ggdeploymentd-3.3] The deployment service rejects deployments whose
      `accessControl` policy resources are malformed. See the public docs for
      [IPC authorization policies](https://docs.aws.amazon.com/greengrass/v2/developerguide/interprocess-communication.html#ipc-authorization-policies)
@@ -221,6 +225,10 @@ deployment and can specify deployment parameters.
     buffer (configuration updates to be made).
     - [ggdeploymentd-bus-createlocaldeployment-5.2] Configuration update values
       must be in valid JSON format.
+  - [ggdeploymentd-bus-createlocaldeployment-5.3] Component-name keys are used
+    verbatim. A local deployment must use `aws.greengrass.NucleusLite`, not
+    `aws.greengrass.Nucleus`, to update the Greengrass Lite nucleus
+    configuration.
 - [ggdeploymentd-bus-createlocaldeployment-6] group_name is an optional
   parameter of type buffer.
   - [ggdeploymentd-bus-createlocaldeployment-6.1] When provided, the deployment

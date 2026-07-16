@@ -29,13 +29,19 @@ component's configuration through the `gg_config` core-bus interface.
 ## Response and events
 
 - [subscribe-config-resp-1] On success, the initial response is empty.
-- [subscribe-config-resp-2] Each configuration change produces a
-  `ConfigurationUpdateEvents` message containing a `configurationUpdateEvent`
-  map.
+- [subscribe-config-resp-2] Each notification delivered by the `gg_config`
+  subscription produces a `ConfigurationUpdateEvents` message containing a
+  `configurationUpdateEvent` map.
   - [subscribe-config-resp-2.1] `componentName` identifies the requested
     component.
-  - [subscribe-config-resp-2.2] `keyPath` identifies the changed configuration
-    path.
+  - [subscribe-config-resp-2.2] `keyPath` contains the path reported by the
+    `gg_config` notification.
+  - [subscribe-config-resp-2.3] Notification generation and subscription
+    lifetime follow the
+    [`gg_config` interface](../../core-bus-interface/gg_config.md). A write that
+    emits no core-bus notification emits no IPC event. Deleting a key removes
+    affected underlying subscriptions without an update event, while restoring a
+    backup can notify a subscription even if its value did not change.
 - [subscribe-config-resp-3] On failure, `ResourceNotFoundError` is returned when
   the requested path does not exist. Other subscription failures return
   `ServiceError`.

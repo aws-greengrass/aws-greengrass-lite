@@ -82,17 +82,21 @@ error.
 
 See [the supported IPC commands in the README](../../../README.md).
 
-At the IPC boundary, `GetConfiguration` and `SubscribeToConfigurationUpdate`
-requests that target `aws.greengrass.Nucleus` use the
-`aws.greengrass.NucleusLite` configuration tree. Responses and events retain the
-requested `aws.greengrass.Nucleus` name. This aliases only the component name:
-Greengrass Lite returns its stored configuration schema and does not translate
-or synthesize Classic nucleus keys. Deployment `configurationUpdate` entries are
-outside this IPC alias and must name `aws.greengrass.NucleusLite` to update the
-Greengrass Lite nucleus configuration. See the
-[GetConfiguration](../library/ipc_commands/getconfiguration_ipc.md) and
-[SubscribeToConfigurationUpdate](../library/ipc_commands/subscribetoconfigurationupdate_ipc.md)
-IPC commands.
+- [ggconfigd-ipc-alias-1] At the IPC boundary, `GetConfiguration` and
+  `SubscribeToConfigurationUpdate` requests that target `aws.greengrass.Nucleus`
+  use the `aws.greengrass.NucleusLite` configuration tree. Responses and events
+  retain the requested `aws.greengrass.Nucleus` name.
+- [ggconfigd-ipc-alias-2] The alias is exact and one-way, and changes only the
+  component name used for storage. Greengrass Lite returns its stored
+  configuration schema and does not translate or synthesize Classic nucleus
+  keys.
+- [ggconfigd-ipc-alias-3] The alias does not apply to `UpdateConfiguration`,
+  which remains scoped to the calling component, or to deployment configuration
+  updates, which use component names verbatim.
+
+See the [GetConfiguration](../library/ipc_commands/getconfiguration_ipc.md),
+[SubscribeToConfigurationUpdate](../library/ipc_commands/subscribetoconfigurationupdate_ipc.md),
+and [deployment](ggdeploymentd.md) specifications.
 
 ## Implementation
 
