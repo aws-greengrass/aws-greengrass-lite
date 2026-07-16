@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "runner.h"
+#include <config_reader.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <gg/arena.h>
@@ -12,11 +13,11 @@
 #include <gg/eventstream/types.h>
 #include <gg/file.h>
 #include <gg/flags.h>
+#include <gg/io.h>
 #include <gg/ipc/client.h>
 #include <gg/ipc/client_priv.h>
 #include <gg/ipc/client_raw.h>
 #include <gg/ipc/limits.h>
-#include <gg/json_encode.h>
 #include <gg/log.h>
 #include <gg/map.h>
 #include <gg/object.h>
@@ -25,6 +26,7 @@
 #include <ggl/json_pointer.h>
 #include <ggl/nucleus/constants.h>
 #include <ggl/recipe.h>
+#include <interpolation.h>
 #include <limits.h>
 #include <recipe-runner.h>
 #include <string.h>
@@ -34,11 +36,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#define MAX_SCRIPT_LENGTH 10000
-#define MAX_THING_NAME_LEN 128
-
-pid_t child_pid = -1; // To store child process ID
 
 static GgError write_escaped_char(int out_fd, uint8_t c, bool single_quote) {
     if (single_quote) {
@@ -69,10 +66,29 @@ static GgError write_escaped_value(
     return GG_ERR_OK;
 }
 
-static GgError insert_config_value(
-    int out_fd, GgBuffer json_ptr, bool single_quote
+typedef struct {
+    int fd;
+    bool single_quote;
+} FdEscapedWriterCtx;
+
+static GgError fd_escaped_writer_impl(void *ctx, GgBuffer buf) {
+    FdEscapedWriterCtx *context = ctx;
+    if ((context == NULL) || (context->fd < 0)) {
+        return GG_ERR_INVALID;
+    }
+
+    return write_escaped_value(context->fd, buf, context->single_quote);
+}
+
+static GgWriter fd_escaped_writer(FdEscapedWriterCtx *context) {
+    return (GgWriter) { .ctx = context, .write = fd_escaped_writer_impl };
+}
+
+static GgError ipc_config_receiver_impl(
+    void *ctx, GgBuffer json_ptr, GgObjectReceiver receiver
 ) {
-    static GgBuffer key_path_mem[GG_MAX_OBJECT_DEPTH];
+    (void) ctx;
+    GgBuffer key_path_mem[GG_MAX_OBJECT_DEPTH];
     GgBufVec key_path = GG_BUF_VEC(key_path_mem);
 
     GgError ret = ggl_gg_config_jsonp_parse(json_ptr, &key_path);
@@ -81,166 +97,17 @@ static GgError insert_config_value(
         return ret;
     }
 
-    static uint8_t config_value[10000];
-    static uint8_t copy_config_value[10000];
-    GgObject result = { 0 };
-    ret = ggipc_get_config(
-        key_path.buf_list, NULL, GG_BUF(config_value), &result
-    );
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to get config value for substitution.");
-        return ret;
-    }
-    GgBuffer final_result = GG_BUF(copy_config_value);
-
-    if (gg_obj_type(result) != GG_TYPE_BUF) {
-        GgByteVec vec = gg_byte_vec_init(final_result);
-        ret = gg_json_encode(result, gg_byte_vec_writer(&vec));
-        if (ret != GG_ERR_OK) {
-            GG_LOGE("Failed to encode result as JSON.");
-            return ret;
-        }
-        final_result = vec.buf;
-    } else {
-        final_result = gg_obj_into_buf(result);
-    }
-
-    return write_escaped_value(out_fd, final_result, single_quote);
+    return ggipc_get_config_receive(key_path.buf_list, NULL, receiver);
 }
 
-static GgError split_escape_seq(
-    GgBuffer escape_seq, GgBuffer *left, GgBuffer *right
-) {
-    for (size_t i = 0; i < escape_seq.len; i++) {
-        if (escape_seq.data[i] == ':') {
-            *left = gg_buffer_substr(escape_seq, 0, i);
-            *right = gg_buffer_substr(escape_seq, i + 1, SIZE_MAX);
-            return GG_ERR_OK;
-        }
-    }
-
-    GG_LOGE("No : found in recipe escape sequence.");
-    return GG_ERR_FAILURE;
+static GgConfigReader ipc_config_receiver(void) {
+    return (GgConfigReader) { .reader = ipc_config_receiver_impl };
 }
 
-// TODO: Simplify this code
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GgError substitute_escape(
-    int out_fd,
-    GgBuffer escape_seq,
-    GgBuffer root_path,
-    GgBuffer component_name,
-    GgBuffer component_version,
-    GgBuffer thing_name,
-    bool single_quote
-) {
-    GgBuffer type;
-    GgBuffer arg;
-    GgError ret = split_escape_seq(escape_seq, &type, &arg);
-    if (ret != GG_ERR_OK) {
-        return ret;
-    }
+#define MAX_SCRIPT_LENGTH 10000
+#define MAX_THING_NAME_LEN 128
 
-    GG_LOGT(
-        "Current variable substitution: %.*s. type = %.*s; arg = %.*s",
-        (int) escape_seq.len,
-        escape_seq.data,
-        (int) type.len,
-        type.data,
-        (int) arg.len,
-        arg.data
-    );
-
-    if (gg_buffer_eq(type, GG_STR("kernel"))) {
-        if (gg_buffer_eq(arg, GG_STR("rootPath"))) {
-            return gg_file_write(out_fd, root_path);
-        }
-    } else if (gg_buffer_eq(type, GG_STR("iot"))) {
-        if (gg_buffer_eq(arg, GG_STR("thingName"))) {
-            return gg_file_write(out_fd, thing_name);
-        }
-    } else if (gg_buffer_eq(type, GG_STR("work"))) {
-        if (gg_buffer_eq(arg, GG_STR("path"))) {
-            ret = gg_file_write(out_fd, root_path);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("/work/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, component_name);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            return gg_file_write(out_fd, GG_STR("/"));
-        }
-    } else if (gg_buffer_eq(type, GG_STR("artifacts"))) {
-        if (gg_buffer_eq(arg, GG_STR("path"))) {
-            ret = gg_file_write(out_fd, root_path);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("/packages/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("artifacts/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, component_name);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, component_version);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            return gg_file_write(out_fd, GG_STR("/"));
-        }
-        if (gg_buffer_eq(arg, GG_STR("decompressedPath"))) {
-            ret = gg_file_write(out_fd, root_path);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("/packages/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("artifacts-unarchived/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, component_name);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, GG_STR("/"));
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            ret = gg_file_write(out_fd, component_version);
-            if (ret != GG_ERR_OK) {
-                return ret;
-            }
-            return gg_file_write(out_fd, GG_STR("/"));
-        }
-    } else if (gg_buffer_eq(type, GG_STR("configuration"))) {
-        return insert_config_value(out_fd, arg, single_quote);
-    }
-
-    GG_LOGE(
-        "Unhandled variable substitution: %.*s.",
-        (int) escape_seq.len,
-        escape_seq.data
-    );
-    return GG_ERR_FAILURE;
-}
+pid_t child_pid = -1; // To store child process ID
 
 static GgError handle_escape(
     int out_fd,
@@ -269,14 +136,15 @@ static GgError handle_escape(
             (*current_pointer)++;
         } else {
             (*current_pointer)++;
-            return substitute_escape(
-                out_fd,
+            return ggl_substitute_escape(
+                fd_escaped_writer(&(FdEscapedWriterCtx
+                ) { .fd = out_fd, .single_quote = single_quote }),
                 vec.buf,
                 root_path,
                 component_name,
                 component_version,
                 thing_name,
-                single_quote
+                ipc_config_receiver()
             );
         }
     }
