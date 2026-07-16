@@ -321,6 +321,10 @@ function(ggl_init_module name)
     target_compile_definitions(${name} PRIVATE "GG_MODULE=(\"${name}\")")
     target_include_directories(${name} PUBLIC ${COMP_ARG_INCDIRS})
     target_link_libraries(${name} PRIVATE ${COMP_ARG_LIBS})
+
+    if(BUILD_TESTING AND NOT COMP_ARG_NO_INLINE_TEST)
+      set_target_properties(${name} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
+    endif()
   endif()
 
   if(GGL_SYSTEMD_SERVICE_BUILD)
