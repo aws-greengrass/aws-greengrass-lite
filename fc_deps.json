@@ -11,8 +11,8 @@
   },
   "gg_sdk": {
     "url": "https://github.com/aws-greengrass/aws-greengrass-component-sdk.git",
-    "rev": "5a87617191729c26c646a56f9ed391f505513cf8",
-    "hash": "sha256-vt4MywGRRyfjzQpW2Jonq/ipeV/FR/oTCpcYYY4BGF4="
+    "rev": "4ead4862fefcf96047700d1a7819b0dfa65209e4",
+    "hash": "sha256-3Yylv+GimggRXmssQ9cmbAZX9XDUPN6QM4gj1cbS7cU="
   },
   "unity": {
     "url": "https://github.com/ThrowTheSwitch/Unity.git",
