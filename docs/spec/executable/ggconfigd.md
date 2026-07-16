@@ -82,12 +82,17 @@ error.
 
 See [the supported IPC commands in the README](../../../README.md).
 
-For classic-Nucleus compatibility, component configuration requests
-(`GetConfiguration` and `SubscribeToConfigurationUpdate`) that target
-`aws.greengrass.Nucleus` are transparently forwarded to the
-`aws.greengrass.NucleusLite` configuration tree, and events/responses are
-reported under the requested `aws.greengrass.Nucleus` name. See
-[the GetConfiguration IPC command](../library/ipc_commands/getconfiguration_ipc.md).
+At the IPC boundary, `GetConfiguration` and `SubscribeToConfigurationUpdate`
+requests that target `aws.greengrass.Nucleus` use the
+`aws.greengrass.NucleusLite` configuration tree. Responses and events retain the
+requested `aws.greengrass.Nucleus` name. This aliases only the component name:
+Greengrass Lite returns its stored configuration schema and does not translate
+or synthesize Classic nucleus keys. Deployment `configurationUpdate` entries are
+outside this IPC alias and must name `aws.greengrass.NucleusLite` to update the
+Greengrass Lite nucleus configuration. See the
+[GetConfiguration](../library/ipc_commands/getconfiguration_ipc.md) and
+[SubscribeToConfigurationUpdate](../library/ipc_commands/subscribetoconfigurationupdate_ipc.md)
+IPC commands.
 
 ## Implementation
 

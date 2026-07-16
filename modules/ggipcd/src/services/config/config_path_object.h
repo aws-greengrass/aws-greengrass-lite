@@ -8,11 +8,17 @@
 #include <gg/error.h>
 #include <gg/types.h>
 
-/// Returns the configuration component name to use for a request, applying the
-/// classic-compatibility alias: a request for "aws.greengrass.Nucleus" is
-/// served from the "aws.greengrass.NucleusLite" configuration tree. Any other
-/// name is returned unchanged.
-GgBuffer ggl_alias_component_name(GgBuffer component_name);
+/// Maps an IPC component name to the component name used for config storage.
+typedef struct {
+    GgBuffer requested_name;
+    GgBuffer storage_name;
+} GglConfigComponentAlias;
+
+/// Returns the static alias descriptor for `requested_name`, or NULL when the
+/// component name is not aliased.
+const GglConfigComponentAlias *ggl_config_component_alias(
+    GgBuffer requested_name
+);
 
 /// Combine the component name and key path and returns a new configuration path
 /// result uses static memory owned by this function which is valid until the

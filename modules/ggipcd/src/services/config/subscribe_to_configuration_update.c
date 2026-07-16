@@ -20,13 +20,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// When a request for "aws.greengrass.Nucleus" is forwarded to the
-// "aws.greengrass.NucleusLite" configuration tree, this is passed as the
-// subscription context so update events are reported under the requested name.
-static const GgBuffer NUCLEUS_REQUESTED_COMPONENT_NAME
-    = { .data = (uint8_t *) "aws.greengrass.Nucleus",
-        .len = sizeof("aws.greengrass.Nucleus") - 1 };
-
 static GgError subscribe_to_configuration_update_callback(
     void *ctx,
     GgObject data,
@@ -51,11 +44,9 @@ static GgError subscribe_to_configuration_update_callback(
         return err;
     }
 
-    // If this subscription was created via the Nucleus alias, report the
-    // component name the caller subscribed to instead of the underlying
-    // aws.greengrass.NucleusLite key.
-    if (ctx != NULL) {
-        component_name = *(const GgBuffer *) ctx;
+    const GglConfigComponentAlias *alias = ctx;
+    if (alias != NULL) {
+        component_name = alias->requested_name;
     }
 
     GgMap ipc_response = GG_MAP(
@@ -140,19 +131,14 @@ GgError ggl_handle_subscribe_to_configuration_update(
         component_name = gg_obj_into_buf(*component_name_obj);
     }
 
-    // Forward classic "aws.greengrass.Nucleus" subscriptions to the Lite
-    // nucleus configuration tree. When forwarding, pass the requested name as
-    // the subscription context so update events are reported under the name the
-    // component subscribed to (transparent aliasing).
-    GgBuffer resolved_component_name = ggl_alias_component_name(component_name);
-    void *sub_ctx = NULL;
-    if (!gg_buffer_eq(resolved_component_name, component_name)) {
-        sub_ctx = (void *) &NUCLEUS_REQUESTED_COMPONENT_NAME;
-    }
+    const GglConfigComponentAlias *alias
+        = ggl_config_component_alias(component_name);
+    GgBuffer storage_component_name
+        = (alias == NULL) ? component_name : alias->storage_name;
 
     GgBufList full_key_path;
     ret = ggl_make_config_path_object(
-        resolved_component_name, key_path, &full_key_path
+        storage_component_name, key_path, &full_key_path
     );
     if (ret != GG_ERR_OK) {
         GG_LOGE("Config path depth larger than supported.");
@@ -186,7 +172,7 @@ GgError ggl_handle_subscribe_to_configuration_update(
         GG_STR("subscribe"),
         call_args,
         subscribe_to_configuration_update_callback,
-        sub_ctx,
+        (void *) alias,
         &remote_err
     );
     if (ret != GG_ERR_OK) {

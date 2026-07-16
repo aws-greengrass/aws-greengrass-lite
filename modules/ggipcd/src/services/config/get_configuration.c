@@ -69,14 +69,14 @@ GgError ggl_handle_get_configuration(
         component_name = gg_obj_into_buf(*component_name_obj);
     }
 
-    // Forward classic "aws.greengrass.Nucleus" lookups to the Lite nucleus
-    // configuration tree. The response still echoes the requested name, so the
-    // alias is transparent to the caller.
-    GgBuffer resolved_component_name = ggl_alias_component_name(component_name);
+    const GglConfigComponentAlias *alias
+        = ggl_config_component_alias(component_name);
+    GgBuffer storage_component_name
+        = (alias == NULL) ? component_name : alias->storage_name;
 
     GgBufList full_key_path;
     ret = ggl_make_config_path_object(
-        resolved_component_name, key_path, &full_key_path
+        storage_component_name, key_path, &full_key_path
     );
     if (ret != GG_ERR_OK) {
         *ipc_error = (GglIpcError
