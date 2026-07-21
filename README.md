@@ -66,19 +66,20 @@ caution in production environments.
 IPC support is provided by ggipcd. The support translates the IPC command to
 corebus. This table identifies the corebus component that does the work.
 
-| Feature                        | Daemon that provides support |
-| :----------------------------- | :--------------------------- |
-| SubscribeToTopic               | ggpubsubd                    |
-| PublishToTopic                 | ggpubsubd                    |
-| PublishToIoTCore               | iotcored                     |
-| SubscribeToIoTCore             | iotcored                     |
-| GetConfiguration               | ggconfigd                    |
-| UpdateConfiguration            | ggconfigd                    |
-| SubscribeToConfigurationUpdate | ggconfigd                    |
-| CreateLocalDeployment          | ggdeploymentd                |
-| ValidateAuthorizationToken     | ggipcd                       |
-| RestartComponent               | gghealthd                    |
-| UpdateState                    | gghealthd                    |
+| Feature                            | Daemon that provides support |
+| :--------------------------------- | :--------------------------- |
+| SubscribeToTopic                   | ggpubsubd                    |
+| PublishToTopic                     | ggpubsubd                    |
+| PublishToIoTCore                   | iotcored                     |
+| SubscribeToIoTCore                 | iotcored                     |
+| SubscribeToIoTCoreConnectionStatus | iotcored                     |
+| GetConfiguration                   | ggconfigd                    |
+| UpdateConfiguration                | ggconfigd                    |
+| SubscribeToConfigurationUpdate     | ggconfigd                    |
+| CreateLocalDeployment              | ggdeploymentd                |
+| ValidateAuthorizationToken         | ggipcd                       |
+| RestartComponent                   | gghealthd                    |
+| UpdateState                        | gghealthd                    |
 
 Additional IPC commands will be supported in future releases.
 
