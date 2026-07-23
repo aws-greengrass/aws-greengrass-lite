@@ -387,3 +387,111 @@ bool ggl_ipc_default_policy_matcher(
     GgBuffer segment = gg_buffer_substr(pattern, start, SIZE_MAX);
     return gg_buffer_has_suffix(remaining, segment);
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <unity.h>
+
+#define TEST_ROOT_PATH GG_STR("/greengrass/v2")
+#define TEST_COMPONENT GG_STR("com.example.MyComponent")
+#define TEST_VERSION GG_STR("1.2.3")
+#define TEST_THING_NAME GG_STR("MyThingName")
+
+static GgBuffer run_interpolate(GgBuffer policy_resource) {
+    static uint8_t buf[512];
+    GgByteVec vec = GG_BYTE_VEC(buf);
+    GgError ret = interpolate_policy_resource(
+        policy_resource,
+        TEST_COMPONENT,
+        TEST_ROOT_PATH,
+        TEST_VERSION,
+        TEST_THING_NAME,
+        &vec
+    );
+    TEST_ASSERT_EQUAL_INT(GG_ERR_OK, ret);
+    return vec.buf;
+}
+
+GG_TEST_DEFINE(interpolate_no_variables) {
+    GgBuffer result = run_interpolate(GG_STR("some/plain/resource"));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("some/plain/resource"), result);
+}
+
+GG_TEST_DEFINE(interpolate_dollar_brace_passthrough) {
+    GgBuffer result = run_interpolate(GG_STR("prefix/${iot:thingName}/suffix"));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("prefix/${iot:thingName}/suffix"), result);
+}
+
+GG_TEST_DEFINE(interpolate_kernel_root_path) {
+    GgBuffer result = run_interpolate(GG_STR("{kernel:rootPath}/config"));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("/greengrass/v2/config"), result);
+}
+
+GG_TEST_DEFINE(interpolate_iot_thing_name) {
+    GgBuffer result = run_interpolate(GG_STR("topic/{iot:thingName}/shadow"));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("topic/MyThingName/shadow"), result);
+}
+
+GG_TEST_DEFINE(interpolate_work_path) {
+    GgBuffer result = run_interpolate(GG_STR("{work:path}myfile.txt"));
+    GG_TEST_ASSERT_BUF_EQUAL(
+        GG_STR("/greengrass/v2/work/com.example.MyComponent/myfile.txt"), result
+    );
+}
+
+GG_TEST_DEFINE(interpolate_artifacts_path) {
+    GgBuffer result = run_interpolate(GG_STR("{artifacts:path}bin/run.sh"));
+    GG_TEST_ASSERT_BUF_EQUAL(
+        GG_STR("/greengrass/v2/packages/artifacts/"
+               "com.example.MyComponent/1.2.3/bin/run.sh"),
+        result
+    );
+}
+
+GG_TEST_DEFINE(interpolate_multiple_variables) {
+    GgBuffer result
+        = run_interpolate(GG_STR("{kernel:rootPath}/things/{iot:thingName}/data"
+        ));
+    GG_TEST_ASSERT_BUF_EQUAL(
+        GG_STR("/greengrass/v2/things/MyThingName/data"), result
+    );
+}
+
+GG_TEST_DEFINE(interpolate_mixed_dollar_and_recipe_variable) {
+    GgBuffer result
+        = run_interpolate(GG_STR("${any:escape}{kernel:rootPath}/end"));
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("${any:escape}/greengrass/v2/end"), result);
+}
+
+GG_TEST_DEFINE(interpolate_unterminated_variable_fails) {
+    static uint8_t buf[512];
+    GgByteVec vec = GG_BYTE_VEC(buf);
+    GgError ret = interpolate_policy_resource(
+        GG_STR("prefix/{kernel:rootPath"),
+        TEST_COMPONENT,
+        TEST_ROOT_PATH,
+        TEST_VERSION,
+        TEST_THING_NAME,
+        &vec
+    );
+    TEST_ASSERT_EQUAL_INT(GG_ERR_INVALID, ret);
+}
+
+GG_TEST_DEFINE(has_recipe_variables_true_for_braces) {
+    TEST_ASSERT_TRUE(has_recipe_variables(GG_STR("hello{world}")));
+}
+
+GG_TEST_DEFINE(has_recipe_variables_false_for_dollar_braces) {
+    TEST_ASSERT_FALSE(has_recipe_variables(GG_STR("hello${world}")));
+}
+
+GG_TEST_DEFINE(has_recipe_variables_false_for_no_braces) {
+    TEST_ASSERT_FALSE(has_recipe_variables(GG_STR("hello world")));
+}
+
+GG_TEST_DEFINE(has_recipe_variables_true_brace_at_start) {
+    TEST_ASSERT_TRUE(has_recipe_variables(GG_STR("{kernel:rootPath}")));
+}
+
+#endif
