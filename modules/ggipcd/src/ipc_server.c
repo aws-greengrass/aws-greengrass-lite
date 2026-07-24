@@ -407,8 +407,8 @@ static GgError handle_operation(
     EventStreamCommonHeaders common_headers,
     GgArena *alloc
 ) {
-    if (common_headers.stream_id == 0) {
-        GG_LOGE("Application message has zero :stream-id.");
+    if (common_headers.stream_id <= 0) {
+        GG_LOGE("Application message has non-positive :stream-id.");
         return GG_ERR_INVALID;
     }
 
