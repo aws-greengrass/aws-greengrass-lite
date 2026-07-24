@@ -10,6 +10,7 @@
 
 GglIpcOperationHandler ggl_handle_publish_to_iot_core;
 GglIpcOperationHandler ggl_handle_subscribe_to_iot_core;
+GglIpcOperationHandler ggl_handle_subscribe_to_iot_core_connection_status;
 
 GglIpcPolicyResourceMatcher ggl_ipc_mqtt_policy_matcher;
 

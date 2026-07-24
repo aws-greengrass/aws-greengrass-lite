@@ -19,6 +19,10 @@ static GglIpcOperation operations[] = {
         GG_STR("aws.greengrass#SubscribeToIoTCore"),
         ggl_handle_subscribe_to_iot_core,
     },
+    {
+        GG_STR("aws.greengrass#SubscribeToIoTCoreConnectionStatus"),
+        ggl_handle_subscribe_to_iot_core_connection_status,
+    },
 };
 
 GglIpcService ggl_ipc_service_mqttproxy = {
