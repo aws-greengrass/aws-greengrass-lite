@@ -116,7 +116,16 @@ GgError ggl_substitute_escape(
     } else if (gg_buffer_eq(namespace, GG_STR("configuration"))) {
         GgObjectReceiver object_writer
             = { .ctx = &writer, .submit = write_object_as_buffer };
-        return ggl_config_reader_call(config_reader, key, object_writer);
+        GgError config_ret
+            = ggl_config_reader_call(config_reader, key, object_writer);
+        if (config_ret != GG_ERR_NOENTRY) {
+            return config_ret;
+        }
+        // No such config value; write the variable back unchanged.
+        ggl_writer_call_chained(&ret, writer, GG_STR("{"));
+        ggl_writer_call_chained(&ret, writer, recipe_variable);
+        ggl_writer_call_chained(&ret, writer, GG_STR("}"));
+        return ret;
     }
 
     GG_LOGE(
@@ -150,6 +159,32 @@ static GgError dummy_config_reader_call(
 
 static GgConfigReader dummy_config_reader(void) {
     return (GgConfigReader) { .reader = dummy_config_reader_call };
+}
+
+static GgError missing_config_reader_call(
+    void *ctx, GgBuffer key, GgObjectReceiver receiver
+) {
+    (void) ctx;
+    (void) key;
+    (void) receiver;
+    return GG_ERR_NOENTRY;
+}
+
+static GgConfigReader missing_config_reader(void) {
+    return (GgConfigReader) { .reader = missing_config_reader_call };
+}
+
+static GgError failing_config_reader_call(
+    void *ctx, GgBuffer key, GgObjectReceiver receiver
+) {
+    (void) ctx;
+    (void) key;
+    (void) receiver;
+    return GG_ERR_FAILURE;
+}
+
+static GgConfigReader failing_config_reader(void) {
+    return (GgConfigReader) { .reader = failing_config_reader_call };
 }
 
 static GgBuffer run_substitute(GgBuffer escape_seq) {
@@ -207,6 +242,37 @@ GG_TEST_DEFINE(substitute_artifacts_decompressed_path) {
 GG_TEST_DEFINE(substitute_configuration_uses_reader) {
     GgBuffer result = run_substitute(GG_STR("configuration:/some/key"));
     GG_TEST_ASSERT_BUF_EQUAL(GG_STR("dummy_config_value"), result);
+}
+
+GG_TEST_DEFINE(substitute_missing_configuration_left_as_is) {
+    static uint8_t buf[512];
+    GgByteVec vec = GG_BYTE_VEC(buf);
+    GgError ret = ggl_substitute_escape(
+        gg_byte_vec_writer(&vec),
+        GG_STR("configuration:/missing/key"),
+        TEST_ROOT_PATH,
+        TEST_COMPONENT,
+        TEST_VERSION,
+        TEST_THING_NAME,
+        missing_config_reader()
+    );
+    TEST_ASSERT_EQUAL_INT(GG_ERR_OK, ret);
+    GG_TEST_ASSERT_BUF_EQUAL(GG_STR("{configuration:/missing/key}"), vec.buf);
+}
+
+GG_TEST_DEFINE(substitute_configuration_read_error_fails) {
+    static uint8_t buf[64];
+    GgByteVec vec = GG_BYTE_VEC(buf);
+    GgError ret = ggl_substitute_escape(
+        gg_byte_vec_writer(&vec),
+        GG_STR("configuration:/key"),
+        TEST_ROOT_PATH,
+        TEST_COMPONENT,
+        TEST_VERSION,
+        TEST_THING_NAME,
+        failing_config_reader()
+    );
+    TEST_ASSERT_NOT_EQUAL(GG_ERR_OK, ret);
 }
 
 GG_TEST_DEFINE(substitute_configuration_null_reader_fails) {
