@@ -213,10 +213,21 @@ static GgError policy_match(
                         continue;
                     }
 
+                    GG_LOGE(
+                        "DO_NOT_MERGE matching policy for '%.*s'",
+                        (int) vec.buf.len,
+                        (char *) vec.buf.data
+                    );
+
                     if (matcher(resource, vec.buf)) {
                         return GG_ERR_OK;
                     }
                 } else {
+                    GG_LOGE(
+                        "DO_NOT_MERGE matching policy for non-interpolated '%.*s'",
+                        (int) policy_resource.len,
+                        (char *) policy_resource.data
+                    );
                     if (matcher(resource, policy_resource)) {
                         return GG_ERR_OK;
                     }
