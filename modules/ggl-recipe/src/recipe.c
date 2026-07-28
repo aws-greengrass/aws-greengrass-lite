@@ -395,92 +395,88 @@ static GgError manifest_selection(
             return GG_ERR_OK;
         }
 
-        // If OS is not provided then do nothing
-        GgObject *os_obj;
+        // If OS is not provided then it imposes no requirement
+        GgObject *os_obj = NULL;
         if (gg_map_get(platform, GG_STR("os"), &os_obj)) {
             if (gg_obj_type(*os_obj) != GG_TYPE_BUF) {
                 GG_LOGE("Platform OS is invalid. It must be a string");
                 return GG_ERR_INVALID;
             }
+        }
 
-            GgBuffer os = gg_obj_into_buf(*os_obj);
+        GgBuffer os = GG_STR("*");
 
-            GgObject *architecture_obj = NULL;
-            // fetch architecture_obj
-            if (gg_map_get(
-                    platform, GG_STR("architecture"), &architecture_obj
-                )) {
-                if (gg_obj_type(*architecture_obj) != GG_TYPE_BUF) {
-                    GG_LOGE(
-                        "Platform architecture is invalid. It must be a string"
-                    );
-                    return GG_ERR_INVALID;
-                }
+        if (os_obj != NULL) {
+            os = gg_obj_into_buf(*os_obj);
+        }
+
+        GgObject *architecture_obj = NULL;
+        // fetch architecture_obj
+        if (gg_map_get(platform, GG_STR("architecture"), &architecture_obj)) {
+            if (gg_obj_type(*architecture_obj) != GG_TYPE_BUF) {
+                GG_LOGE("Platform architecture is invalid. It must be a string"
+                );
+                return GG_ERR_INVALID;
             }
+        }
 
-            GgBuffer architecture = { 0 };
+        GgBuffer architecture = { 0 };
 
-            if (architecture_obj != NULL) {
-                architecture = gg_obj_into_buf(*architecture_obj);
-            }
+        if (architecture_obj != NULL) {
+            architecture = gg_obj_into_buf(*architecture_obj);
+        }
 
-            GgBuffer curr_arch = get_current_architecture();
+        GgBuffer curr_arch = get_current_architecture();
 
-            // Check if the current OS supported first
-            if (gg_buffer_eq(os, GG_STR("linux"))
-                || gg_buffer_eq(os, GG_STR("*"))
-                || gg_buffer_eq(os, GG_STR("all"))) {
-                // Then check if architecture is also supported
-                if (((architecture.len == 0)
-                     || gg_buffer_eq(architecture, GG_STR("*"))
-                     || gg_buffer_eq(architecture, curr_arch))) {
-                    if (gg_map_get(
-                            manifest_map,
-                            GG_STR("Lifecycle"),
-                            selected_lifecycle_object
-                        )) {
-                        if (gg_obj_type(**selected_lifecycle_object)
-                            != GG_TYPE_MAP) {
-                            GG_LOGE("Lifecycle object is not a map.");
-                            return GG_ERR_INVALID;
-                        }
-                        // Lifecycle keyword might be there but only return
-                        // if there is something inside the list
-                        if (gg_obj_into_map(**selected_lifecycle_object).len
-                            != 0) {
-                            return GG_ERR_OK;
-                        }
+        // Check if the current OS supported first
+        if (gg_buffer_eq(os, GG_STR("linux")) || gg_buffer_eq(os, GG_STR("*"))
+            || gg_buffer_eq(os, GG_STR("all"))) {
+            // Then check if architecture is also supported
+            if (((architecture.len == 0)
+                 || gg_buffer_eq(architecture, GG_STR("*"))
+                 || gg_buffer_eq(architecture, curr_arch))) {
+                if (gg_map_get(
+                        manifest_map,
+                        GG_STR("Lifecycle"),
+                        selected_lifecycle_object
+                    )) {
+                    if (gg_obj_type(**selected_lifecycle_object)
+                        != GG_TYPE_MAP) {
+                        GG_LOGE("Lifecycle object is not a map.");
+                        return GG_ERR_INVALID;
                     }
-
-                    GgObject *selections_obj;
-                    if (gg_map_get(
-                            manifest_map, GG_STR("Selections"), &selections_obj
-                        )) {
-                        if (gg_obj_type(*selections_obj) != GG_TYPE_LIST) {
-                            return GG_ERR_INVALID;
-                        }
-                        GgList selections = gg_obj_into_list(*selections_obj);
-                        if (selections.len != 0) {
-                            return lifecycle_selection(
-                                selections,
-                                recipe_map,
-                                selected_lifecycle_object
-                            );
-                        }
+                    // Lifecycle keyword might be there but only return
+                    // if there is something inside the list
+                    if (gg_obj_into_map(**selected_lifecycle_object).len != 0) {
+                        return GG_ERR_OK;
                     }
-
-                    GgList selection_default
-                        = GG_LIST(gg_obj_buf(GG_STR("all")));
-                    return lifecycle_selection(
-                        selection_default, recipe_map, selected_lifecycle_object
-                    );
                 }
 
-            } else {
-                // If the current platform isn't linux then just proceed to
-                // next and mark current cycle success
-                return GG_ERR_OK;
+                GgObject *selections_obj;
+                if (gg_map_get(
+                        manifest_map, GG_STR("Selections"), &selections_obj
+                    )) {
+                    if (gg_obj_type(*selections_obj) != GG_TYPE_LIST) {
+                        return GG_ERR_INVALID;
+                    }
+                    GgList selections = gg_obj_into_list(*selections_obj);
+                    if (selections.len != 0) {
+                        return lifecycle_selection(
+                            selections, recipe_map, selected_lifecycle_object
+                        );
+                    }
+                }
+
+                GgList selection_default = GG_LIST(gg_obj_buf(GG_STR("all")));
+                return lifecycle_selection(
+                    selection_default, recipe_map, selected_lifecycle_object
+                );
             }
+
+        } else {
+            // If the current platform isn't linux then just proceed to
+            // next and mark current cycle success
+            return GG_ERR_OK;
         }
     } else {
         GG_LOGE("Platform not provided");
@@ -735,6 +731,129 @@ GG_TEST_DEFINE(get_current_architecture_not_empty) {
     GgBuffer arch = get_current_architecture();
     TEST_ASSERT_NOT_NULL(arch.data);
     TEST_ASSERT_TRUE(arch.len > 0);
+}
+
+#define TEST_LIFECYCLE_MAP \
+    GG_MAP(gg_kv(GG_STR("run"), gg_obj_buf(GG_STR("true"))))
+
+#define TEST_LIFECYCLE \
+    gg_kv(GG_STR("Lifecycle"), gg_obj_map(TEST_LIFECYCLE_MAP))
+
+#define TEST_MANIFEST(...) \
+    GG_MAP( \
+        gg_kv(GG_STR("Platform"), gg_obj_map(GG_MAP(__VA_ARGS__))), \
+        TEST_LIFECYCLE \
+    )
+
+#define TEST_RECIPE(manifest) \
+    GG_MAP( \
+        gg_kv(GG_STR("Manifests"), gg_obj_list(GG_LIST(gg_obj_map(manifest)))) \
+    )
+
+GG_TEST_DEFINE(select_manifest_platform_without_os_or_architecture) {
+    GgMap manifest
+        = TEST_MANIFEST(gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))));
+    GgMap recipe_map = TEST_RECIPE(manifest);
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_OK(select_linux_manifest(recipe_map, &selected));
+    GG_TEST_ASSERT_MAP_EQUAL(manifest, selected);
+}
+
+GG_TEST_DEFINE(select_manifest_platform_without_os) {
+    GgMap manifest = TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))),
+        gg_kv(GG_STR("architecture"), gg_obj_buf(get_current_architecture()))
+    );
+    GgMap recipe_map = TEST_RECIPE(manifest);
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_OK(select_linux_manifest(recipe_map, &selected));
+    GG_TEST_ASSERT_MAP_EQUAL(manifest, selected);
+}
+
+GG_TEST_DEFINE(select_manifest_platform_without_architecture) {
+    GgMap manifest = TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))),
+        gg_kv(GG_STR("os"), gg_obj_buf(GG_STR("linux")))
+    );
+    GgMap recipe_map = TEST_RECIPE(manifest);
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_OK(select_linux_manifest(recipe_map, &selected));
+    GG_TEST_ASSERT_MAP_EQUAL(manifest, selected);
+}
+
+GG_TEST_DEFINE(select_manifest_platform_with_other_os) {
+    GgMap recipe_map = TEST_RECIPE(TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))),
+        gg_kv(GG_STR("os"), gg_obj_buf(GG_STR("windows")))
+    ));
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_BAD(select_linux_manifest(recipe_map, &selected));
+}
+
+GG_TEST_DEFINE(select_manifest_platform_with_other_architecture) {
+    GgMap recipe_map = TEST_RECIPE(TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))),
+        gg_kv(GG_STR("architecture"), gg_obj_buf(GG_STR("unsupported")))
+    ));
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_BAD(select_linux_manifest(recipe_map, &selected));
+}
+
+GG_TEST_DEFINE(select_manifest_platform_without_runtime) {
+    GgMap recipe_map = TEST_RECIPE(
+        TEST_MANIFEST(gg_kv(GG_STR("os"), gg_obj_buf(GG_STR("linux"))))
+    );
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_BAD(select_linux_manifest(recipe_map, &selected));
+}
+
+GG_TEST_DEFINE(select_manifest_platform_with_other_runtime) {
+    GgMap recipe_map = TEST_RECIPE(TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("aws_nucleus")))
+    ));
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_BAD(select_linux_manifest(recipe_map, &selected));
+}
+
+GG_TEST_DEFINE(select_manifest_platform_with_invalid_os) {
+    GgMap recipe_map = TEST_RECIPE(TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))),
+        gg_kv(GG_STR("os"), gg_obj_i64(1))
+    ));
+
+    GgMap selected = { 0 };
+    TEST_ASSERT_EQUAL_INT(
+        GG_ERR_INVALID, select_linux_manifest(recipe_map, &selected)
+    );
+}
+
+GG_TEST_DEFINE(select_manifest_platform_with_invalid_architecture) {
+    GgMap recipe_map = TEST_RECIPE(TEST_MANIFEST(
+        gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))),
+        gg_kv(GG_STR("architecture"), gg_obj_i64(1))
+    ));
+
+    GgMap selected = { 0 };
+    TEST_ASSERT_EQUAL_INT(
+        GG_ERR_INVALID, select_linux_manifest(recipe_map, &selected)
+    );
+}
+
+GG_TEST_DEFINE(select_lifecycle_platform_without_os_or_architecture) {
+    GgMap recipe_map = TEST_RECIPE(
+        TEST_MANIFEST(gg_kv(GG_STR("runtime"), gg_obj_buf(GG_STR("*"))))
+    );
+
+    GgMap selected = { 0 };
+    GG_TEST_ASSERT_OK(select_linux_lifecycle(recipe_map, &selected));
+    GG_TEST_ASSERT_MAP_EQUAL(TEST_LIFECYCLE_MAP, selected);
 }
 
 #endif
