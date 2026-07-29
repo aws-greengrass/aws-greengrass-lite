@@ -89,10 +89,7 @@ static GgError remove_unit_file(
 }
 
 // A revised recipe may drop a phase that a previous revision declared. Remove
-// those unit files, otherwise the stale phase is still run. Run/startup is
-// deliberately excluded: its unit is the only one carrying
-// WantedBy=greengrass-lite.target, so removing the file without also dropping
-// that enablement would leave a dangling symlink behind.
+// those unit files, otherwise the stale phase is still run.
 static void remove_stale_unit_files(
     Recipe2UnitArgs *args,
     GgObject **component_name,
@@ -103,6 +100,15 @@ static void remove_stale_unit_files(
     }
     if (!existing_phases->has_install) {
         (void) remove_unit_file(args, component_name, INSTALL);
+    }
+    // Run and startup share ggl.<component>.service, so a revision swapping one
+    // for the other keeps the phase and is not reached here; only a revision
+    // dropping both is, and then the file is stale. Its enablement symlink is
+    // not cleaned up here, so removing the file leaves that symlink dangling —
+    // still preferable to keeping a unit ggdeploymentd would relink, enable and
+    // start for a phase the recipe no longer declares.
+    if (!existing_phases->has_run_startup) {
+        (void) remove_unit_file(args, component_name, RUN_STARTUP);
     }
 }
 
@@ -375,10 +381,11 @@ GG_TEST_DEFINE(units_kept_for_phases_present_in_recipe) {
     remove_test_root(root_dir);
 }
 
-// Dropping run/startup must NOT remove its unit: that unit is the only one
-// carrying WantedBy=greengrass-lite.target, and the enablement symlink is not
-// cleaned up here.
-GG_TEST_DEFINE(run_startup_unit_kept_even_when_phase_absent) {
+// A revision dropping run/startup while keeping install must not leave the
+// suffix-less unit behind. This branch is reached only when the recipe declares
+// neither run nor startup, so that unit is stale; ggdeploymentd would otherwise
+// relink, enable and start it.
+GG_TEST_DEFINE(run_startup_unit_removed_when_phase_absent) {
     char root_dir[PATH_MAX];
     make_test_root(root_dir, sizeof(root_dir));
 
@@ -393,7 +400,7 @@ GG_TEST_DEFINE(run_startup_unit_kept_even_when_phase_absent) {
     HasPhase install_only = { .has_install = true };
     remove_stale_unit_files(&args, &name, &install_only);
 
-    TEST_ASSERT_TRUE(test_unit_exists(root_dir, ""));
+    TEST_ASSERT_FALSE(test_unit_exists(root_dir, ""));
     TEST_ASSERT_TRUE(test_unit_exists(root_dir, ".install"));
     TEST_ASSERT_FALSE(test_unit_exists(root_dir, ".bootstrap"));
 
