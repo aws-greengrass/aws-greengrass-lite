@@ -3619,10 +3619,10 @@ static void handle_deployment(
 
         // A revision can keep the component version while changing something a
         // generated unit encodes, such as RequiresPrivilege mapping to the
-        // unit's User= and Group=. The version comparison above cannot see that,
-        // so without phases.unit_changed the rewritten unit is never adopted:
-        // the component is skipped, systemd is never reloaded, and the process
-        // keeps running under the old identity.
+        // unit's User= and Group=. The version comparison above cannot see
+        // that, so without phases.unit_changed the rewritten unit is never
+        // adopted: the component is skipped, systemd is never reloaded, and the
+        // process keeps running under the old identity.
         if (component_updated || phases.unit_changed
             || is_component_config_updated(deployment, gg_kv_key(*pair))) {
             ret = gg_kv_vec_push(

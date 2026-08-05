@@ -173,6 +173,23 @@ static GgError create_unit_file(
     return GG_ERR_OK;
 }
 
+// Writes a phase's unit file and records whether that changed what was already
+// on disk. The two belong together: a phase written without recording the
+// change would leave the caller unable to tell that the component has to be
+// restarted for the new unit to take effect.
+static GgError write_unit_file(
+    Recipe2UnitArgs *args,
+    GgObject **component_name,
+    PhaseSelection phase,
+    GgBuffer *content,
+    HasPhase *existing_phases
+) {
+    if (unit_content_differs(args, component_name, phase, *content)) {
+        existing_phases->unit_changed = true;
+    }
+    return create_unit_file(args, component_name, phase, content);
+}
+
 GgError convert_to_unit(
     Recipe2UnitArgs *args,
     GgArena *alloc,
@@ -227,13 +244,12 @@ GgError convert_to_unit(
     } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
-        if (unit_content_differs(
-                args, component_name, BOOTSTRAP, bootstrap_response_buffer
-            )) {
-            existing_phases->unit_changed = true;
-        }
-        ret = create_unit_file(
-            args, component_name, BOOTSTRAP, &bootstrap_response_buffer
+        ret = write_unit_file(
+            args,
+            component_name,
+            BOOTSTRAP,
+            &bootstrap_response_buffer,
+            existing_phases
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create the bootstrap unit file.");
@@ -262,13 +278,12 @@ GgError convert_to_unit(
     } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
-        if (unit_content_differs(
-                args, component_name, INSTALL, install_response_buffer
-            )) {
-            existing_phases->unit_changed = true;
-        }
-        ret = create_unit_file(
-            args, component_name, INSTALL, &install_response_buffer
+        ret = write_unit_file(
+            args,
+            component_name,
+            INSTALL,
+            &install_response_buffer,
+            existing_phases
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create the install unit file.");
@@ -289,13 +304,12 @@ GgError convert_to_unit(
     } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
-        if (unit_content_differs(
-                args, component_name, RUN_STARTUP, run_startup_response_buffer
-            )) {
-            existing_phases->unit_changed = true;
-        }
-        ret = create_unit_file(
-            args, component_name, RUN_STARTUP, &run_startup_response_buffer
+        ret = write_unit_file(
+            args,
+            component_name,
+            RUN_STARTUP,
+            &run_startup_response_buffer,
+            existing_phases
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create the run or startup unit file.");
@@ -501,14 +515,12 @@ GG_TEST_DEFINE(revised_unit_content_reported_as_changed) {
     TEST_ASSERT_TRUE(
         unit_content_differs(&args, &name, RUN_STARTUP, unprivileged)
     );
-    GG_TEST_ASSERT_OK(
-        create_unit_file(&args, &name, RUN_STARTUP, &unprivileged)
+    GG_TEST_ASSERT_OK(create_unit_file(&args, &name, RUN_STARTUP, &unprivileged)
     );
     TEST_ASSERT_TRUE(test_unit_exists(root_dir, ""));
 
     // The revision: same component, same phase, privileged this time.
-    TEST_ASSERT_TRUE(
-        unit_content_differs(&args, &name, RUN_STARTUP, privileged)
+    TEST_ASSERT_TRUE(unit_content_differs(&args, &name, RUN_STARTUP, privileged)
     );
 
     remove_test_root(root_dir);
