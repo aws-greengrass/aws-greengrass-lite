@@ -18,6 +18,7 @@
 #include <gg/object.h>
 #include <gg/types.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -68,6 +69,48 @@ static GgError subscribe_to_iot_core_callback(
     return GG_ERR_OK;
 }
 
+/// Parse the optional subscriptionMode field.
+///
+/// RECEIVE_ONLY sets `receive_only`: the topic filter is registered for
+/// on-device routing only, with no cloud subscription. This is how a
+/// component receives AWS IoT Core direct messages.
+///
+/// Absent, null, and SUBSCRIBE_AND_RECEIVE all mean a normal cloud subscribe.
+/// Any other value is rejected instead of silently creating a cloud
+/// subscription.
+static GgError parse_subscription_mode(
+    GgObject *mode_obj, GglIpcError *ipc_error, bool *receive_only
+) {
+    *receive_only = false;
+
+    if ((mode_obj == NULL) || (gg_obj_type(*mode_obj) == GG_TYPE_NULL)) {
+        return GG_ERR_OK;
+    }
+
+    if (gg_obj_type(*mode_obj) != GG_TYPE_BUF) {
+        GG_LOGE("Key subscriptionMode of invalid type.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+            .message = GG_STR("Key subscriptionMode of invalid type.") };
+        return GG_ERR_INVALID;
+    }
+
+    GgBuffer mode = gg_obj_into_buf(*mode_obj);
+    if (gg_buffer_eq(mode, GG_STR("RECEIVE_ONLY"))) {
+        *receive_only = true;
+        return GG_ERR_OK;
+    }
+    if (gg_buffer_eq(mode, GG_STR("SUBSCRIBE_AND_RECEIVE"))) {
+        return GG_ERR_OK;
+    }
+
+    GG_LOGE("'subscriptionMode' not a valid value.");
+    *ipc_error = (GglIpcError
+    ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+        .message = GG_STR("'subscriptionMode' not a valid value.") };
+    return GG_ERR_INVALID;
+}
+
 GgError ggl_handle_subscribe_to_iot_core(
     const GglIpcOperationInfo *info,
     GgMap args,
@@ -80,11 +123,16 @@ GgError ggl_handle_subscribe_to_iot_core(
 
     GgObject *topic_name_obj;
     GgObject *qos_obj;
+    GgObject *subscription_mode_obj;
     GgError ret = gg_map_validate(
         args,
         GG_MAP_SCHEMA(
             { GG_STR("topicName"), GG_REQUIRED, GG_TYPE_BUF, &topic_name_obj },
             { GG_STR("qos"), GG_OPTIONAL, GG_TYPE_NULL, &qos_obj },
+            { GG_STR("subscriptionMode"),
+              GG_OPTIONAL,
+              GG_TYPE_NULL,
+              &subscription_mode_obj },
         )
     );
     if (ret != GG_ERR_OK) {
@@ -96,8 +144,18 @@ GgError ggl_handle_subscribe_to_iot_core(
     }
     GgBuffer topic_name = gg_obj_into_buf(*topic_name_obj);
 
+    bool receive_only;
+    ret = parse_subscription_mode(
+        subscription_mode_obj, ipc_error, &receive_only
+    );
+    if (ret != GG_ERR_OK) {
+        return ret;
+    }
+
+    // qos configures the cloud subscription. RECEIVE_ONLY creates none, so qos
+    // is ignored in that mode and is neither parsed nor validated.
     int64_t qos = 0;
-    if (qos_obj != NULL) {
+    if (!receive_only && (qos_obj != NULL)) {
         switch (gg_obj_type(*qos_obj)) {
         case GG_TYPE_BUF:
             ret = gg_str_to_int64(gg_obj_into_buf(*qos_obj), &qos);
@@ -139,9 +197,12 @@ GgError ggl_handle_subscribe_to_iot_core(
         return GG_ERR_INVALID;
     }
 
+    // `virtual` tells iotcored to register the filter for on-device routing
+    // without sending a cloud SUBSCRIBE.
     GgMap call_args = GG_MAP(
         gg_kv(GG_STR("topic_filter"), *topic_name_obj),
         gg_kv(GG_STR("qos"), gg_obj_i64(qos)),
+        gg_kv(GG_STR("virtual"), gg_obj_bool(receive_only)),
     );
 
     ret = ggl_ipc_bind_subscription(
