@@ -121,6 +121,7 @@ nvme
 OSSL
 ostree
 parentid
+PCRE
 pidfd
 pids
 pkcs
@@ -177,6 +178,7 @@ uefi
 unacked
 unarchived
 unconfigured
+undelimited
 unprovisioned
 unrefp
 unsuback

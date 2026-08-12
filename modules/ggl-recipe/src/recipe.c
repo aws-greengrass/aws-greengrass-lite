@@ -19,6 +19,7 @@
 #include <gg/types.h>
 #include <gg/vector.h>
 #include <ggl/recipe.h>
+#include <ggl/regex.h>
 #include <ggl/yaml_decode.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -357,6 +358,62 @@ GgBuffer get_current_architecture_detail(void) {
     return arch_detail;
 }
 
+/// Match a recipe platform attribute template against a label.
+///
+/// Implements the matching ladder from the Greengrass v2 recipe reference,
+/// mirroring PlatformHelper.isAttributeSatisfied in the Java nucleus:
+///
+///   1. If template equals "*", return true (literal wildcard, never fed to
+///      regex).
+///   2. If template starts and ends with "/" (with len >= 2), treat the
+///      interior as a regular expression and perform a whole-string match
+///      against label using ggl_regex_match (allocation-free Thompson NFA).
+///   3. Otherwise, perform an exact byte comparison.
+///
+/// Regex anchoring: Whole-string matching is inherent to the NFA simulation
+/// (it only accepts if MATCH is reached after consuming ALL input).
+/// A leading '^' or trailing '$' in the pattern interior is accepted as a
+/// redundant no-op anchor for compatibility with recipes that include them.
+///
+/// Fail-closed: If the pattern cannot be compiled (malformed, too long, or too
+/// deeply nested), a warning is logged and false is returned.
+/// A malformed pattern must never select a manifest.
+///
+/// Reference:
+/// https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
+static bool platform_attribute_matches(GgBuffer template, GgBuffer label) {
+    // Rule 1: Literal wildcard "*" matches anything.
+    if (gg_buffer_eq(template, GG_STR("*"))) {
+        return true;
+    }
+
+    // Rule 2: Regex if template starts and ends with "/" and len >= 2.
+    if (gg_buffer_has_prefix(template, GG_STR("/"))
+        && gg_buffer_has_suffix(template, GG_STR("/")) && template.len >= 2) {
+        // Interior is between the two slashes.
+        GgBuffer interior = gg_buffer_substr(template, 1, template.len - 1);
+
+        // Stack-backed arena for the regex engine working memory.
+        uint8_t arena_mem[GGL_REGEX_MIN_ARENA_SIZE];
+        GgArena arena = gg_arena_init(GG_BUF(arena_mem));
+
+        bool matched = false;
+        GgError err = ggl_regex_match(interior, label, &arena, &matched);
+        if (err != GG_ERR_OK) {
+            // Fail closed: any regex error means no match.
+            GG_LOGW(
+                "Platform attribute regex error (%s), rejecting match.",
+                gg_strerror(err)
+            );
+            return false;
+        }
+        return matched;
+    }
+
+    // Rule 3: Exact byte comparison.
+    return gg_buffer_eq(template, label);
+}
+
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GgError manifest_selection(
@@ -381,8 +438,9 @@ static GgError manifest_selection(
             }
 
             GgBuffer runtime_str = gg_obj_into_buf(*runtime_obj);
-            if (!gg_buffer_eq(runtime_str, GG_STR("*"))
-                && !gg_buffer_eq(runtime_str, GG_STR("aws_nucleus_lite"))) {
+            if (!platform_attribute_matches(
+                    runtime_str, GG_STR("aws_nucleus_lite")
+                )) {
                 GG_LOGD("Skipping manifest as it is not for aws_nucleus_lite");
                 return GG_ERR_OK;
             }
@@ -427,13 +485,11 @@ static GgError manifest_selection(
             GgBuffer curr_arch = get_current_architecture();
 
             // Check if the current OS supported first
-            if (gg_buffer_eq(os, GG_STR("linux"))
-                || gg_buffer_eq(os, GG_STR("*"))
+            if (platform_attribute_matches(os, GG_STR("linux"))
                 || gg_buffer_eq(os, GG_STR("all"))) {
                 // Then check if architecture is also supported
-                if (((architecture.len == 0)
-                     || gg_buffer_eq(architecture, GG_STR("*"))
-                     || gg_buffer_eq(architecture, curr_arch))) {
+                if ((architecture.len == 0)
+                    || platform_attribute_matches(architecture, curr_arch)) {
                     if (gg_map_get(
                             manifest_map,
                             GG_STR("Lifecycle"),
@@ -735,6 +791,74 @@ GG_TEST_DEFINE(get_current_architecture_not_empty) {
     GgBuffer arch = get_current_architecture();
     TEST_ASSERT_NOT_NULL(arch.data);
     TEST_ASSERT_TRUE(arch.len > 0);
+}
+
+// --- platform_attribute_matches ladder tests ---
+
+GG_TEST_DEFINE(platform_attr_exact_match_true) {
+    TEST_ASSERT_TRUE(
+        platform_attribute_matches(GG_STR("linux"), GG_STR("linux"))
+    );
+}
+
+GG_TEST_DEFINE(platform_attr_exact_match_false) {
+    TEST_ASSERT_FALSE(
+        platform_attribute_matches(GG_STR("linux"), GG_STR("windows"))
+    );
+}
+
+GG_TEST_DEFINE(platform_attr_wildcard_matches_any) {
+    TEST_ASSERT_TRUE(platform_attribute_matches(GG_STR("*"), GG_STR("linux")));
+}
+
+GG_TEST_DEFINE(platform_attr_wildcard_matches_empty) {
+    TEST_ASSERT_TRUE(platform_attribute_matches(GG_STR("*"), GG_STR("")));
+}
+
+GG_TEST_DEFINE(platform_attr_single_slash_exact_match) {
+    // A single "/" is NOT a regex delimiter pair (len < 2 for interior)
+    // so it falls through to exact match
+    TEST_ASSERT_TRUE(platform_attribute_matches(GG_STR("/"), GG_STR("/")));
+}
+
+GG_TEST_DEFINE(platform_attr_single_slash_no_match) {
+    TEST_ASSERT_FALSE(platform_attribute_matches(GG_STR("/"), GG_STR("linux")));
+}
+
+GG_TEST_DEFINE(platform_attr_empty_interior_matches_empty) {
+    // "//" has interior of "" which is an empty regex matching ""
+    TEST_ASSERT_TRUE(platform_attribute_matches(GG_STR("//"), GG_STR("")));
+}
+
+GG_TEST_DEFINE(platform_attr_empty_interior_no_match_nonempty) {
+    TEST_ASSERT_FALSE(platform_attribute_matches(GG_STR("//"), GG_STR("linux"))
+    );
+}
+
+GG_TEST_DEFINE(platform_attr_case_sensitive) {
+    TEST_ASSERT_FALSE(
+        platform_attribute_matches(GG_STR("linux"), GG_STR("Linux"))
+    );
+}
+
+// --- End-to-end regex-via-slash tests (prove ggl-regex integration) ---
+
+GG_TEST_DEFINE(platform_attr_regex_e2e_alternation) {
+    TEST_ASSERT_TRUE(
+        platform_attribute_matches(GG_STR("/windows|linux/"), GG_STR("linux"))
+    );
+    TEST_ASSERT_FALSE(
+        platform_attribute_matches(GG_STR("/windows|linux/"), GG_STR("darwin"))
+    );
+}
+
+GG_TEST_DEFINE(platform_attr_regex_e2e_bracket_class) {
+    TEST_ASSERT_TRUE(
+        platform_attribute_matches(GG_STR("/[a-z]+/"), GG_STR("linux"))
+    );
+    TEST_ASSERT_FALSE(
+        platform_attribute_matches(GG_STR("/[a-z]+/"), GG_STR("linux9"))
+    );
 }
 
 #endif

@@ -43,7 +43,47 @@ supported as mentioned in the
         runtime: "aws_nucleus_lite"
   ```
 
-- Regex support is not available within recipe.
+- Regex support for platform attribute matching is available using a built-in
+  allocation-free Thompson NFA regex engine. Platform attribute values (os,
+  runtime, architecture) enclosed in forward slashes (e.g. `/linux|windows/`)
+  are evaluated as regex patterns against a whole-string match. The literal
+  wildcard `*` continues to match any value, and undelimited values use exact
+  comparison.
+
+  **Engine design:** The regex engine is a linear-time Thompson NFA simulation
+  with no dynamic memory allocation and no backtracking. This makes catastrophic
+  backtracking structurally impossible and satisfies the codebase
+  zero-allocation constraint. All state is kept in fixed-size stack arrays.
+
+  **Supported regex syntax subset:**
+
+  - Literal characters
+  - `.` (match any single byte)
+  - Quantifiers: `*`, `+`, `?`
+  - Alternation: `|`
+  - Grouping: `(...)` (no capture semantics)
+  - Bracket expressions: `[abc]`, `[a-z]`, `[^0-9]` (ranges and negation)
+  - Backslash escaping of metacharacters: `\.`, `\(`, etc.
+  - Redundant anchors `^` (at start) and `$` (at end) are accepted as no-ops
+
+  **NOT supported (vs Java regex / PCRE):**
+
+  - `\d`, `\w`, `\s` and their negations (use `[0-9]`, `[a-zA-Z0-9_]`, `[ \t\n]`
+    instead)
+  - Lookahead and lookbehind assertions (`(?=...)`, `(?<=...)`)
+  - Non-greedy quantifiers (`*?`, `+?`)
+  - Named capture groups (`(?<name>...)`)
+  - Unicode property escapes (`\p{...}`)
+  - Backreferences
+
+  **Fail-closed behavior:** If a pattern exceeds 256 bytes, exceeds 512 NFA
+  instructions, nests parentheses deeper than 16 levels, or contains a syntax
+  error, the match returns false and a warning is logged. A malformed pattern
+  will never cause a manifest to be selected.
+
+  In practice, platform attribute patterns in published recipes use only simple
+  alternation (e.g. `/aarch64|x86_64/`) and character classes, which work
+  identically in both this engine and the Java nucleus.
 
 - Greengrass nucleus lite only support variable replacement for following cases:
 
