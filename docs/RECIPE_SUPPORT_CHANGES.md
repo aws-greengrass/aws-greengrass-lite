@@ -72,6 +72,8 @@ supported as mentioned in the
     Use `[0-9]`, `[a-zA-Z0-9_]`, or a literal space instead. (Platform attribute
     values never contain tabs or newlines, so a single space suffices for `\s`.)
   - `{` and `{n,m}` counted quantifiers are **rejected** (not matched literally)
+  - Backslash escapes inside bracket expressions are **rejected** — there is no
+    escape processing inside `[...]`; use POSIX literal rules instead
   - Lookahead and lookbehind assertions (`(?=...)`, `(?<=...)`)
   - Non-greedy quantifiers (`*?`, `+?`)
   - Named capture groups (`(?<name>...)`)

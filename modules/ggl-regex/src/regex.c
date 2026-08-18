@@ -282,6 +282,14 @@ static uint16_t nfa_parse_atom(struct NfaCompiler *c) {
             c->pos++;
         }
         while (c->pos < c->pat_len && c->pat[c->pos] != ']') {
+            if (c->pat[c->pos] == '\\') {
+                // Reject backslash inside bracket expression. Java interprets
+                // escapes inside brackets (e.g. [\]] means literal ']'), but
+                // this engine does no escape processing inside brackets, so
+                // the meaning would silently diverge. Fail closed.
+                c->error = true;
+                return start;
+            }
             c->pos++;
         }
         if (c->pos >= c->pat_len) {
@@ -919,6 +927,20 @@ GG_TEST_DEFINE(regex_escape_nonalpha_still_works) {
     m = true;
     GG_TEST_ASSERT_OK(test_regex_match(GG_STR("a\\.b"), GG_STR("axb"), &m));
     TEST_ASSERT_FALSE(m);
+}
+
+GG_TEST_DEFINE(regex_bracket_backslash_close_rejected) {
+    // [\]] rejected: backslash inside bracket expression.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("[\\]]"), GG_STR("]"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
+}
+
+GG_TEST_DEFINE(regex_bracket_backslash_range_rejected) {
+    // [a\-z] rejected: backslash inside bracket expression.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("[a\\-z]"), GG_STR("a"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
 }
 
 #endif
