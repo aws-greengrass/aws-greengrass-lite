@@ -313,6 +313,16 @@ static uint16_t nfa_parse_atom(struct NfaCompiler *c) {
             return start;
         }
         uint8_t escaped = c->pat[c->pos];
+        // Reject escapes of alphanumeric characters. Java assigns special
+        // meaning to \d, \w, \s, etc., which this engine does not support.
+        // Silently emitting the bare letter would change the pattern's
+        // semantics. Non-alphanumeric escapes (\., \(, \{, etc.) are fine.
+        if ((escaped >= 'A' && escaped <= 'Z')
+            || (escaped >= 'a' && escaped <= 'z')
+            || (escaped >= '0' && escaped <= '9')) {
+            c->error = true;
+            return start;
+        }
         c->pos++;
         struct NfaInst char_inst;
         char_inst.op = NFA_CHAR;
@@ -885,6 +895,30 @@ GG_TEST_DEFINE(regex_escaped_brace_literal) {
     bool m = false;
     GG_TEST_ASSERT_OK(test_regex_match(GG_STR("a\\{2}"), GG_STR("a{2}"), &m));
     TEST_ASSERT_TRUE(m);
+}
+
+GG_TEST_DEFINE(regex_escape_digit_class_rejected) {
+    // \d is rejected: Java matches digits, this engine would match 'd'.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("\\d+"), GG_STR("123"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
+}
+
+GG_TEST_DEFINE(regex_escape_word_class_rejected) {
+    // \w is rejected: Java matches word chars, this engine would match 'w'.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("\\w"), GG_STR("w"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
+}
+
+GG_TEST_DEFINE(regex_escape_nonalpha_still_works) {
+    // Non-alphanumeric escape \. still works as literal dot.
+    bool m = false;
+    GG_TEST_ASSERT_OK(test_regex_match(GG_STR("a\\.b"), GG_STR("a.b"), &m));
+    TEST_ASSERT_TRUE(m);
+    m = true;
+    GG_TEST_ASSERT_OK(test_regex_match(GG_STR("a\\.b"), GG_STR("axb"), &m));
+    TEST_ASSERT_FALSE(m);
 }
 
 #endif

@@ -68,8 +68,9 @@ supported as mentioned in the
 
   **NOT supported (vs Java regex / PCRE):**
 
-  - `\d`, `\w`, `\s` and their negations (use `[0-9]`, `[a-zA-Z0-9_]`, `[ \t\n]`
-    instead)
+  - `\d`, `\w`, `\s` and their negations are **rejected** (return parse error).
+    Use `[0-9]`, `[a-zA-Z0-9_]`, or a literal space instead. (Platform attribute
+    values never contain tabs or newlines, so a single space suffices for `\s`.)
   - `{` and `{n,m}` counted quantifiers are **rejected** (not matched literally)
   - Lookahead and lookbehind assertions (`(?=...)`, `(?<=...)`)
   - Non-greedy quantifiers (`*?`, `+?`)
