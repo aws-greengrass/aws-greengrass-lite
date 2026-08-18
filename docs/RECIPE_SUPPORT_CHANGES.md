@@ -74,6 +74,12 @@ supported as mentioned in the
   - `{` and `{n,m}` counted quantifiers are **rejected** (not matched literally)
   - Backslash escapes inside bracket expressions are **rejected** — there is no
     escape processing inside `[...]`; use POSIX literal rules instead
+  - `^` and `$` are accepted as redundant anchors only at the very start and end
+    of a pattern, since the match is always whole-string; mid-pattern they are
+    **literals**, so `a$|b` matches the two-character string `a$` here while
+    Java treats `$` as an anchor
+  - The POSIX rule that `]` immediately after `[` or `[^` is a literal (e.g.
+    `[]a]`) is accepted here but rejected by Java — a permissive divergence
   - Lookahead and lookbehind assertions (`(?=...)`, `(?<=...)`)
   - Non-greedy quantifiers (`*?`, `+?`)
   - Named capture groups (`(?<name>...)`)
