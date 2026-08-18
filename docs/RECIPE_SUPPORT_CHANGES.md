@@ -70,6 +70,7 @@ supported as mentioned in the
 
   - `\d`, `\w`, `\s` and their negations (use `[0-9]`, `[a-zA-Z0-9_]`, `[ \t\n]`
     instead)
+  - `{` and `{n,m}` counted quantifiers are **rejected** (not matched literally)
   - Lookahead and lookbehind assertions (`(?=...)`, `(?<=...)`)
   - Non-greedy quantifiers (`*?`, `+?`)
   - Named capture groups (`(?<name>...)`)

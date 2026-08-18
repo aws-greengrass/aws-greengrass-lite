@@ -353,8 +353,13 @@ static uint16_t nfa_parse_atom(struct NfaCompiler *c) {
         char_inst.arg2 = 0;
         char_inst.arg3 = 0;
         nfa_emit(c, char_inst);
-    } else if (ch == '*' || ch == '+' || ch == '?') {
+    } else if (ch == '*' || ch == '+' || ch == '?' || ch == '{') {
         // Quantifier with nothing to repeat - fail closed.
+        // '{' is included: Java treats {n,m} as a counted quantifier, but
+        // this engine has no repetition-count support, so the pattern would
+        // silently change meaning. Fail closed.
+        // Note: an unmatched '}' is left as a literal because Java also treats
+        // an unmatched '}' as a literal, so there is no divergence.
         c->error = true;
         return start;
     } else {
@@ -852,6 +857,34 @@ GG_TEST_DEFINE(regex_overlong_pattern_returns_range) {
     bool m = true;
     GgError err = test_regex_match(overlong, GG_STR("aaa"), &m);
     TEST_ASSERT_EQUAL(GG_ERR_RANGE, err);
+}
+
+GG_TEST_DEFINE(regex_unescaped_brace_rejected) {
+    // Unescaped '{' is rejected: Java reads {2} as a counted quantifier.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("a{2}"), GG_STR("a{2}"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
+}
+
+GG_TEST_DEFINE(regex_brace_open_range_rejected) {
+    // Java reads {2,} as "two or more"; this engine has no counted repetition.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("a{2,}"), GG_STR("aa"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
+}
+
+GG_TEST_DEFINE(regex_leading_brace_rejected) {
+    // '{' in atom position, with nothing preceding it to repeat.
+    bool m = true;
+    GgError err = test_regex_match(GG_STR("{2}"), GG_STR("{2}"), &m);
+    TEST_ASSERT_EQUAL(GG_ERR_INVALID, err);
+}
+
+GG_TEST_DEFINE(regex_escaped_brace_literal) {
+    // Escaped \{ produces a literal brace.
+    bool m = false;
+    GG_TEST_ASSERT_OK(test_regex_match(GG_STR("a\\{2}"), GG_STR("a{2}"), &m));
+    TEST_ASSERT_TRUE(m);
 }
 
 #endif
