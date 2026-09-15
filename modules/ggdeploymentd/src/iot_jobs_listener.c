@@ -404,7 +404,7 @@ static GgError enqueue_job(
     (void) status_keeper_clear();
 
     if (ret != GG_ERR_OK) {
-        (void) update_job(job_id, GG_STR("FAILURE"));
+        (void) update_job(job_id, GG_STR("FAILED"));
     }
 
     return ret;
