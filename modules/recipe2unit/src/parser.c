@@ -112,6 +112,38 @@ static void remove_stale_unit_files(
     }
 }
 
+// Whether the unit file already on disk for a phase differs from the content
+// about to be written for it. create_unit_file opens with O_TRUNC, so the two
+// versions coexist only until it runs and the comparison has to happen first:
+// nothing persists a digest of a component's units between deployments, so once
+// the old bytes are gone no caller can recover them. A phase with no unit file
+// yet counts as differing, since generating one is itself the change.
+static bool unit_content_differs(
+    Recipe2UnitArgs *args,
+    GgObject **component_name,
+    PhaseSelection phase,
+    GgBuffer content
+) {
+    GgBuffer path = { 0 };
+    if (unit_file_path(args, component_name, phase, &path) != GG_ERR_OK) {
+        return true;
+    }
+
+    int fd = -1;
+    if (gg_file_open(path, O_RDONLY, 0, &fd) != GG_ERR_OK) {
+        return true;
+    }
+    GG_CLEANUP(cleanup_close, fd);
+
+    static uint8_t existing_content[MAX_UNIT_FILE_BUF_SIZE];
+    GgBuffer existing = GG_BUF(existing_content);
+    if (gg_file_read(fd, &existing) != GG_ERR_OK) {
+        return true;
+    }
+
+    return !gg_buffer_eq(existing, content);
+}
+
 static GgError create_unit_file(
     Recipe2UnitArgs *args,
     GgObject **component_name,
@@ -139,6 +171,23 @@ static GgError create_unit_file(
         return GG_ERR_FAILURE;
     }
     return GG_ERR_OK;
+}
+
+// Writes a phase's unit file and records whether that changed what was already
+// on disk. The two belong together: a phase written without recording the
+// change would leave the caller unable to tell that the component has to be
+// restarted for the new unit to take effect.
+static GgError write_unit_file(
+    Recipe2UnitArgs *args,
+    GgObject **component_name,
+    PhaseSelection phase,
+    GgBuffer *content,
+    HasPhase *existing_phases
+) {
+    if (unit_content_differs(args, component_name, phase, *content)) {
+        existing_phases->unit_changed = true;
+    }
+    return create_unit_file(args, component_name, phase, content);
 }
 
 GgError convert_to_unit(
@@ -195,8 +244,12 @@ GgError convert_to_unit(
     } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
-        ret = create_unit_file(
-            args, component_name, BOOTSTRAP, &bootstrap_response_buffer
+        ret = write_unit_file(
+            args,
+            component_name,
+            BOOTSTRAP,
+            &bootstrap_response_buffer,
+            existing_phases
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create the bootstrap unit file.");
@@ -225,8 +278,12 @@ GgError convert_to_unit(
     } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
-        ret = create_unit_file(
-            args, component_name, INSTALL, &install_response_buffer
+        ret = write_unit_file(
+            args,
+            component_name,
+            INSTALL,
+            &install_response_buffer,
+            existing_phases
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create the install unit file.");
@@ -247,8 +304,12 @@ GgError convert_to_unit(
     } else if (ret != GG_ERR_OK) {
         return ret;
     } else {
-        ret = create_unit_file(
-            args, component_name, RUN_STARTUP, &run_startup_response_buffer
+        ret = write_unit_file(
+            args,
+            component_name,
+            RUN_STARTUP,
+            &run_startup_response_buffer,
+            existing_phases
         );
         if (ret != GG_ERR_OK) {
             GG_LOGE("Failed to create the run or startup unit file.");
@@ -424,6 +485,67 @@ GG_TEST_DEFINE(removing_absent_unit_files_succeeds) {
 
     TEST_ASSERT_FALSE(test_unit_exists(root_dir, ".install"));
     TEST_ASSERT_FALSE(test_unit_exists(root_dir, ".bootstrap"));
+
+    remove_test_root(root_dir);
+}
+
+// A revision that changes RequiresPrivilege changes the unit's User=/Group=.
+// Rewriting the file does nothing to a process already running under the old
+// identity, so the caller has to be told the unit changed in order to restart
+// the component. The comparison has to happen before create_unit_file's O_TRUNC
+// destroys the previous content, which is what makes this a property of unit
+// generation rather than something the caller could work out for itself.
+GG_TEST_DEFINE(revised_unit_content_reported_as_changed) {
+    char root_dir[PATH_MAX];
+    make_test_root(root_dir, sizeof(root_dir));
+
+    static Recipe2UnitArgs args;
+    args = (Recipe2UnitArgs) { 0 };
+    memcpy(args.root_dir, root_dir, strlen(root_dir) + 1);
+
+    GgObject name_obj = gg_obj_buf(GG_STR(TEST_COMPONENT));
+    GgObject *name = &name_obj;
+
+    GgBuffer unprivileged = GG_STR("[Service]\nUser=ggcore\nGroup=ggcore\n");
+    GgBuffer privileged = GG_STR("[Service]\nUser=root\nGroup=root\n");
+
+    // Gate the first deployment as a hard precondition. Without it, the
+    // assertion below could report "changed" because no unit was ever written,
+    // which is the expected answer for entirely the wrong reason.
+    TEST_ASSERT_TRUE(
+        unit_content_differs(&args, &name, RUN_STARTUP, unprivileged)
+    );
+    GG_TEST_ASSERT_OK(create_unit_file(&args, &name, RUN_STARTUP, &unprivileged)
+    );
+    TEST_ASSERT_TRUE(test_unit_exists(root_dir, ""));
+
+    // The revision: same component, same phase, privileged this time.
+    TEST_ASSERT_TRUE(unit_content_differs(&args, &name, RUN_STARTUP, privileged)
+    );
+
+    remove_test_root(root_dir);
+}
+
+// A deployment that changes nothing about a component must not report a change,
+// because the caller restarts on this signal and restarting a healthy running
+// component for no reason is a regression rather than a fix.
+GG_TEST_DEFINE(unrevised_unit_content_reported_as_unchanged) {
+    char root_dir[PATH_MAX];
+    make_test_root(root_dir, sizeof(root_dir));
+
+    static Recipe2UnitArgs args;
+    args = (Recipe2UnitArgs) { 0 };
+    memcpy(args.root_dir, root_dir, strlen(root_dir) + 1);
+
+    GgObject name_obj = gg_obj_buf(GG_STR(TEST_COMPONENT));
+    GgObject *name = &name_obj;
+
+    GgBuffer content = GG_STR("[Service]\nUser=ggcore\nGroup=ggcore\n");
+
+    GG_TEST_ASSERT_OK(create_unit_file(&args, &name, RUN_STARTUP, &content));
+    TEST_ASSERT_TRUE(test_unit_exists(root_dir, ""));
+
+    TEST_ASSERT_FALSE(unit_content_differs(&args, &name, RUN_STARTUP, content));
 
     remove_test_root(root_dir);
 }

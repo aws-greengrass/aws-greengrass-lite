@@ -15,6 +15,12 @@ typedef struct {
     bool has_install;
     bool has_run_startup;
     bool has_bootstrap;
+    /// Whether generating the units changed any unit file that was already on
+    /// disk, or wrote one that was not there before. A revision that alters
+    /// something a unit encodes only takes effect once the component is
+    /// restarted, so a caller that skips redeployment for an unchanged
+    /// component version needs this to tell the two cases apart.
+    bool unit_changed;
 } HasPhase;
 
 typedef struct {
@@ -34,7 +40,8 @@ typedef struct {
 /// @param[out] recipe_obj The object containing the recipe in a map format
 /// @param[out] component_name The name of the component as provided by the
 /// recipe
-/// @param[out] existing_phases Status of which phases are present
+/// @param[out] existing_phases Status of which phases are present, and whether
+/// any unit file's content changed
 /// @return GG_ERR_OK on success. Failure otherwise.
 GgError convert_to_unit(
     Recipe2UnitArgs *args,
