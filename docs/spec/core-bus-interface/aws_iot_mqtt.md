@@ -57,8 +57,27 @@ the subscription responses.
     provided.
   - [aws-iot-mqtt-subscribe-3.3] QoS 0 and 1 are supported (AWS IoT Core does
     not support QoS 2).
+- [aws-iot-mqtt-subscribe-4] `virtual` is an optional parameter of type boolean.
+  - [aws-iot-mqtt-subscribe-4.1] `virtual` registers the topic filters for
+    on-device routing only. No MQTT subscribe is sent to AWS IoT Core.
+  - [aws-iot-mqtt-subscribe-4.2] `false` is the default when `virtual` is not
+    provided.
+  - [aws-iot-mqtt-subscribe-4.3] A virtual subscription receives any message
+    that reaches the device on a matching topic. This covers messages that AWS
+    IoT Core delivers without a subscription, such as direct messages addressed
+    to the device by client ID, and responses sent automatically in reply to a
+    publish.
+  - [aws-iot-mqtt-subscribe-4.4] `qos` has no effect when `virtual` is `true`.
+  - [aws-iot-mqtt-subscribe-4.5] Closing a virtual subscription sends no MQTT
+    unsubscribe.
+  - [aws-iot-mqtt-subscribe-4.6] A virtual subscription is not subscribed again
+    after an MQTT reconnection. It continues to receive without any action,
+    because it never depended on an MQTT subscription.
+  - [aws-iot-mqtt-subscribe-4.7] A virtual subscription does not keep an MQTT
+    subscription alive for a topic filter it shares with a non-virtual
+    subscription.
 
 ### Response
 
-- [aws-iot-mqtt-subscribe-4] Subscription responses are maps containing `topic`
+- [aws-iot-mqtt-subscribe-5] Subscription responses are maps containing `topic`
   and `payload` keys, each of which have values of type buffer.

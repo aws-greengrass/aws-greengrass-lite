@@ -11,8 +11,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/// Register topic filters for on-device routing under `handle`.
+/// `is_virtual` marks the registration as having no cloud subscription:
+/// matching inbound messages are still routed to `handle`, but the filter is
+/// never subscribed, unsubscribed, or re-subscribed with AWS IoT Core.
 GgError iotcored_register_subscriptions(
-    GgBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
+    GgBuffer *topic_filters,
+    size_t count,
+    uint32_t handle,
+    uint8_t qos,
+    bool is_virtual
 );
 
 void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe);

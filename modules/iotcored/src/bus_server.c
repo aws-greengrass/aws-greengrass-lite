@@ -141,9 +141,13 @@ static GgError rpc_subscribe(void *ctx, GgMap params, uint32_t handle) {
         return GG_ERR_INVALID;
     }
 
-    bool virtual = false;
+    bool is_virtual = false;
     if (gg_map_get(params, GG_STR("virtual"), &val)) {
-        virtual = gg_obj_into_bool(*val);
+        if (gg_obj_type(*val) != GG_TYPE_BOOLEAN) {
+            GG_LOGE("Subscribe received invalid arguments.");
+            return GG_ERR_INVALID;
+        }
+        is_virtual = gg_obj_into_bool(*val);
     }
 
     for (size_t i = 0; i < topic_filter_count; i++) {
@@ -168,13 +172,13 @@ static GgError rpc_subscribe(void *ctx, GgMap params, uint32_t handle) {
     }
 
     GgError ret = iotcored_register_subscriptions(
-        topic_filters, topic_filter_count, handle, qos
+        topic_filters, topic_filter_count, handle, qos, is_virtual
     );
     if (ret != GG_ERR_OK) {
         return ret;
     }
 
-    if (!virtual) {
+    if (!is_virtual) {
         ret = iotcored_mqtt_subscribe(topic_filters, topic_filter_count, qos);
         if (ret != GG_ERR_OK) {
             iotcored_unregister_subscriptions(handle, false);
