@@ -329,185 +329,102 @@ static GgError delete_recipe_script_and_service_files(GgBuffer *component_name
     return ret;
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static GgBuffer phase_unit_suffix(PhaseSelection phase) {
+    switch (phase) {
+    case INSTALL:
+        return GG_STR(".install.service");
+    case BOOTSTRAP:
+        return GG_STR(".bootstrap.service");
+    case RUN_STARTUP:
+        break;
+    }
+    return GG_STR(".service");
+}
+
+// Replaced by unit tests so they can record commands instead of running them.
+static int (*system_fn)(const char *command) = system;
+
+// Runs @p command through system(). Returns GG_ERR_FAILURE unless it exits
+// normally with status 0.
+static GgError run_command(const char *command) {
+    GG_LOGD("Command to execute: %s", command);
+    // TODO: replace system call with platform independent function.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    int system_ret = system_fn(command);
+    if (!WIFEXITED(system_ret)) {
+        GG_LOGE("%s did not exit normally", command);
+        return GG_ERR_FAILURE;
+    }
+    GG_LOGI("%s exited with child status %d", command, WEXITSTATUS(system_ret));
+    return (WEXITSTATUS(system_ret) == 0) ? GG_ERR_OK : GG_ERR_FAILURE;
+}
+
+// Runs `<prefix>ggl.<component_name><unit suffix for phase>`.
+static GgError run_unit_command(
+    GgBuffer prefix, GgBuffer component_name, PhaseSelection phase
+) {
+    static uint8_t command_buf[PATH_MAX];
+    GgByteVec command_vec = GG_BYTE_VEC(command_buf);
+    GgError ret = gg_byte_vec_append(&command_vec, prefix);
+    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR("ggl."));
+    gg_byte_vec_chain_append(&ret, &command_vec, component_name);
+    gg_byte_vec_chain_append(&ret, &command_vec, phase_unit_suffix(phase));
+    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
+    if (ret != GG_ERR_OK) {
+        GG_LOGE(
+            "Failed to create %.*s command for %.*s.",
+            (int) prefix.len,
+            prefix.data,
+            (int) component_name.len,
+            component_name.data
+        );
+        return ret;
+    }
+    return run_command((char *) command_vec.buf.data);
+}
+
+// Disables the unit for @p phase and removes its symlinks. Failures are
+// logged by run_command() and otherwise ignored.
+static void disable_and_remove_unit(
+    GgBuffer component_name, PhaseSelection phase
+) {
+    // --no-reload: callers reload once per batch of unit changes. Each reload
+    // blocks systemd's main loop, which also services the hardware watchdog.
+    (void) run_unit_command(
+        GG_STR("systemctl disable --no-reload "), component_name, phase
+    );
+    // TODO: replace this with a better approach such as 'unlink'.
+    (void) run_unit_command(
+        GG_STR("rm /etc/systemd/system/"), component_name, phase
+    );
+    (void) run_unit_command(
+        GG_STR("rm /usr/lib/systemd/system/"), component_name, phase
+    );
+}
+
 GgError disable_and_unlink_service(
     GgBuffer *component_name, PhaseSelection phase
 ) {
-    static uint8_t command_array[PATH_MAX];
-    GgByteVec command_vec = GG_BYTE_VEC(command_array);
-
-    GgError ret = gg_byte_vec_append(&command_vec, GG_STR("systemctl stop "));
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR("ggl."));
-    gg_byte_vec_chain_append(&ret, &command_vec, *component_name);
-    if (phase == INSTALL) {
-        gg_byte_vec_chain_append(&ret, &command_vec, GG_STR(".install"));
-    } else if (phase == BOOTSTRAP) {
-        gg_byte_vec_chain_append(&ret, &command_vec, GG_STR(".bootstrap"));
-    } else {
-        // Incase of startup/run nothing to append
-        assert(phase == RUN_STARTUP);
+    (void) run_unit_command(GG_STR("systemctl stop "), *component_name, phase);
+    disable_and_remove_unit(*component_name, phase);
+    if (phase != RUN_STARTUP) {
+        // The run unit has already been regenerated for the new version. Take
+        // it out of greengrass-lite.target (without stopping the old one) so a
+        // reboot before the run phase can't start it ahead of install.
+        disable_and_remove_unit(*component_name, RUN_STARTUP);
     }
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR(".service"));
-    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create systemctl stop command.");
-        return ret;
+    if (run_command("systemctl reset-failed") != GG_ERR_OK) {
+        GG_LOGE("systemctl reset-failed failed");
     }
-
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    int system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GG_LOGD("systemctl stop failed");
-        }
-        GG_LOGI(
-            "systemctl stop exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GG_LOGE("systemctl stop did not exit normally");
-    }
-
-    memset(command_array, 0, sizeof(command_array));
-    command_vec.buf.len = 0;
-
-    ret = gg_byte_vec_append(&command_vec, GG_STR("systemctl disable "));
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR("ggl."));
-    gg_byte_vec_chain_append(&ret, &command_vec, *component_name);
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR(".service"));
-    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create systemctl disable command.");
-        return ret;
-    }
-
-    // TODO: replace system call with platform independent function.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GG_LOGD("systemctl disable failed");
-        }
-        GG_LOGI(
-            "systemctl disable exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GG_LOGE("systemctl disable did not exit normally");
-    }
-
-    memset(command_array, 0, sizeof(command_array));
-    command_vec.buf.len = 0;
-
-    // TODO: replace this with a better approach such as 'unlink'.
-    ret = gg_byte_vec_append(&command_vec, GG_STR("rm /etc/systemd/system/"));
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR("ggl."));
-    gg_byte_vec_chain_append(&ret, &command_vec, *component_name);
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR(".service"));
-    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create rm /etc/systemd/system/[service] command.");
-        return ret;
-    }
-
-    // TODO: replace system call with platform independent function.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GG_LOGD("removing symlink failed");
-        }
-        GG_LOGI(
-            "rm /etc/systemd/system/[service] exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GG_LOGE("rm /etc/systemd/system/[service] did not exit normally");
-    }
-
-    memset(command_array, 0, sizeof(command_array));
-    command_vec.buf.len = 0;
-
-    // TODO: replace this with a better approach such as 'unlink'.
-    ret = gg_byte_vec_append(
-        &command_vec, GG_STR("rm /usr/lib/systemd/system/")
-    );
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR("ggl."));
-    gg_byte_vec_chain_append(&ret, &command_vec, *component_name);
-    gg_byte_vec_chain_append(&ret, &command_vec, GG_STR(".service"));
-    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create rm /usr/lib/systemd/system/[service] command."
-        );
-        return ret;
-    }
-
-    // TODO: replace system call with platform independent function.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GG_LOGD("removing symlink failed");
-        }
-        GG_LOGI(
-            "rm /usr/lib/systemd/system/[service] exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GG_LOGE("rm /usr/lib/systemd/system/[service] did not exit normally");
-    }
-
-    memset(command_array, 0, sizeof(command_array));
-    command_vec.buf.len = 0;
-
-    ret = gg_byte_vec_append(&command_vec, GG_STR("systemctl daemon-reload"));
-    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create systemctl daemon-reload command.");
-        return ret;
-    }
-
-    // TODO: replace system call with platform independent function.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GG_LOGE("systemctl daemon-reload failed");
-        }
-        GG_LOGI(
-            "systemctl daemon-reload exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GG_LOGE("systemctl daemon-reload did not exit normally");
-    }
-
-    memset(command_array, 0, sizeof(command_array));
-    command_vec.buf.len = 0;
-
-    ret = gg_byte_vec_append(&command_vec, GG_STR("systemctl reset-failed"));
-    gg_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GG_ERR_OK) {
-        GG_LOGE("Failed to create systemctl reset-failed command.");
-        return ret;
-    }
-
-    // TODO: replace system call with platform independent function.
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GG_LOGE("systemctl reset-failed failed");
-        }
-        GG_LOGI(
-            "systemctl reset-failed exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GG_LOGE("systemctl reset-failed did not exit normally");
-    }
-
     return GG_ERR_OK;
+}
+
+GgError systemd_daemon_reload(void) {
+    GgError ret = run_command("systemctl daemon-reload");
+    if (ret != GG_ERR_OK) {
+        GG_LOGE("systemctl daemon-reload failed");
+    }
+    return ret;
 }
 
 // Records @p component_name in @p removed_components_out (with bytes copied
@@ -585,6 +502,9 @@ GgError cleanup_stale_versions(
     uint8_t version_array[NAME_MAX];
     GgBuffer version_buffer_iterator = { .data = version_array, .len = 0 };
 
+    GgError result = GG_ERR_OK;
+    bool units_removed = false;
+
     while (true) {
         ret = iterate_over_components(
             dir,
@@ -599,7 +519,8 @@ GgError cleanup_stale_versions(
         }
 
         if (ret != GG_ERR_OK) {
-            return ret;
+            result = ret;
+            break;
         }
 
         // NucleusLite has no deployed systemd unit — skip stale cleanup.
@@ -655,6 +576,7 @@ GgError cleanup_stale_versions(
             (void) disable_and_unlink_service(
                 &component_name_buffer_iterator, BOOTSTRAP
             );
+            units_removed = true;
 
             // Also delete the .script.install and .script.run and .service
             // files.
@@ -664,5 +586,158 @@ GgError cleanup_stale_versions(
         }
     }
 
-    return GG_ERR_OK;
+    // One reload for all the units removed above.
+    if (units_removed) {
+        (void) systemd_daemon_reload();
+    }
+
+    return result;
 }
+
+#ifdef GG_SDK_TESTING
+
+#include <gg/test.h>
+#include <signal.h>
+#include <unity.h>
+
+#define FAKE_MAX_COMMANDS 16
+#define FAKE_COMMAND_LEN 128
+
+static char fake_commands[FAKE_MAX_COMMANDS][FAKE_COMMAND_LEN];
+static size_t fake_command_count;
+// Raw wait status returned by fake_system() for every command.
+static int fake_status;
+
+static int fake_system(const char *command) {
+    TEST_ASSERT_LESS_THAN_UINT32(FAKE_MAX_COMMANDS, fake_command_count);
+    TEST_ASSERT_LESS_THAN_UINT32(FAKE_COMMAND_LEN, strlen(command));
+    (void) snprintf(
+        fake_commands[fake_command_count], FAKE_COMMAND_LEN, "%s", command
+    );
+    fake_command_count += 1;
+    return fake_status;
+}
+
+static void start_fake_system(int status) {
+    fake_command_count = 0;
+    fake_status = status;
+    system_fn = fake_system;
+}
+
+static void stop_fake_system(void) {
+    system_fn = system;
+}
+
+static void assert_commands(const char *const *expected, size_t count) {
+    TEST_ASSERT_EQUAL_UINT32(count, fake_command_count);
+    for (size_t i = 0; i < count; i++) {
+        TEST_ASSERT_EQUAL_STRING(expected[i], fake_commands[i]);
+    }
+}
+
+// Raw wait status for a process that exited with status 1.
+#define FAKE_EXIT_FAILURE (1 << 8)
+
+GG_TEST_DEFINE(stale_component_disable_install_unit_without_reload) {
+    start_fake_system(0);
+    GgBuffer name = GG_STR("comp");
+
+    TEST_ASSERT_EQUAL(GG_ERR_OK, disable_and_unlink_service(&name, INSTALL));
+
+    // Stops and unlinks the install unit, then unlinks the run unit without
+    // stopping it.
+    const char *const EXPECTED[] = {
+        "systemctl stop ggl.comp.install.service",
+        "systemctl disable --no-reload ggl.comp.install.service",
+        "rm /etc/systemd/system/ggl.comp.install.service",
+        "rm /usr/lib/systemd/system/ggl.comp.install.service",
+        "systemctl disable --no-reload ggl.comp.service",
+        "rm /etc/systemd/system/ggl.comp.service",
+        "rm /usr/lib/systemd/system/ggl.comp.service",
+        "systemctl reset-failed",
+    };
+    assert_commands(EXPECTED, sizeof(EXPECTED) / sizeof(EXPECTED[0]));
+    stop_fake_system();
+}
+
+GG_TEST_DEFINE(stale_component_disable_bootstrap_unit_without_reload) {
+    start_fake_system(0);
+    GgBuffer name = GG_STR("comp");
+
+    TEST_ASSERT_EQUAL(GG_ERR_OK, disable_and_unlink_service(&name, BOOTSTRAP));
+
+    // Stops and unlinks the bootstrap unit, then unlinks the run unit without
+    // stopping it.
+    const char *const EXPECTED[] = {
+        "systemctl stop ggl.comp.bootstrap.service",
+        "systemctl disable --no-reload ggl.comp.bootstrap.service",
+        "rm /etc/systemd/system/ggl.comp.bootstrap.service",
+        "rm /usr/lib/systemd/system/ggl.comp.bootstrap.service",
+        "systemctl disable --no-reload ggl.comp.service",
+        "rm /etc/systemd/system/ggl.comp.service",
+        "rm /usr/lib/systemd/system/ggl.comp.service",
+        "systemctl reset-failed",
+    };
+    assert_commands(EXPECTED, sizeof(EXPECTED) / sizeof(EXPECTED[0]));
+    stop_fake_system();
+}
+
+GG_TEST_DEFINE(stale_component_disable_run_unit_without_reload) {
+    start_fake_system(0);
+    GgBuffer name = GG_STR("comp");
+
+    TEST_ASSERT_EQUAL(
+        GG_ERR_OK, disable_and_unlink_service(&name, RUN_STARTUP)
+    );
+
+    const char *const EXPECTED[] = {
+        "systemctl stop ggl.comp.service",
+        "systemctl disable --no-reload ggl.comp.service",
+        "rm /etc/systemd/system/ggl.comp.service",
+        "rm /usr/lib/systemd/system/ggl.comp.service",
+        "systemctl reset-failed",
+    };
+    assert_commands(EXPECTED, sizeof(EXPECTED) / sizeof(EXPECTED[0]));
+    stop_fake_system();
+}
+
+GG_TEST_DEFINE(stale_component_disable_continues_after_command_failures) {
+    start_fake_system(FAKE_EXIT_FAILURE);
+    GgBuffer name = GG_STR("comp");
+
+    TEST_ASSERT_EQUAL(GG_ERR_OK, disable_and_unlink_service(&name, INSTALL));
+
+    // Every command still runs, and none of them is a reload.
+    TEST_ASSERT_EQUAL_UINT32(8, fake_command_count);
+    for (size_t i = 0; i < fake_command_count; i++) {
+        TEST_ASSERT_NULL(strstr(fake_commands[i], "daemon-reload"));
+    }
+    stop_fake_system();
+}
+
+GG_TEST_DEFINE(stale_component_daemon_reload_runs_single_reload) {
+    start_fake_system(0);
+
+    TEST_ASSERT_EQUAL(GG_ERR_OK, systemd_daemon_reload());
+
+    const char *const EXPECTED[] = { "systemctl daemon-reload" };
+    assert_commands(EXPECTED, sizeof(EXPECTED) / sizeof(EXPECTED[0]));
+    stop_fake_system();
+}
+
+GG_TEST_DEFINE(stale_component_daemon_reload_reports_nonzero_exit) {
+    start_fake_system(FAKE_EXIT_FAILURE);
+
+    TEST_ASSERT_EQUAL(GG_ERR_FAILURE, systemd_daemon_reload());
+    stop_fake_system();
+}
+
+GG_TEST_DEFINE(stale_component_daemon_reload_reports_abnormal_exit) {
+    // Process killed by a signal rather than exiting.
+    start_fake_system(SIGKILL);
+
+    TEST_ASSERT_EQUAL(GG_ERR_FAILURE, systemd_daemon_reload());
+    stop_fake_system();
+}
+
+#endif
