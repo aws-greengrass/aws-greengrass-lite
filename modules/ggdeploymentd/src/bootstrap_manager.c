@@ -268,6 +268,7 @@ GgError retrieve_in_progress_deployment(
         gg_obj_into_buf(*jobs_id_obj).data,
         gg_obj_into_buf(*jobs_id_obj).len
     );
+    jobs_id->len = gg_obj_into_buf(*jobs_id_obj).len;
 
     GgObject *deployment_type;
     ret = gg_map_validate(
