@@ -6,9 +6,18 @@
 #include <gg/types.h>
 #include <gg/vector.h>
 
+/// Stops, disables and unlinks the systemd unit for @p phase of
+/// @p component_name. For INSTALL and BOOTSTRAP it also disables and unlinks
+/// the run unit, without stopping it. Does not reload systemd; call
+/// systemd_daemon_reload() once after a batch of unit changes, before starting
+/// any relinked unit.
 GgError disable_and_unlink_service(
     GgBuffer *component_name, PhaseSelection phase
 );
+
+/// Runs `systemctl daemon-reload`. Each reload blocks systemd's main loop
+/// (including hardware watchdog pings), so batch unit changes and reload once.
+GgError systemd_daemon_reload(void);
 
 /// Iterates installed component recipes and removes any whose name+version is
 /// not in @p latest_components_map. Components whose name is missing entirely

@@ -445,6 +445,11 @@ GgError process_bootstrap_phase(
     GglDeployment *deployment
 ) {
     int bootstrap_component_count = 0;
+    // Names pushed by this call start here; the caller may pass a non-empty
+    // vector.
+    size_t first_new_comp_index = bootstrap_comp_name_buf_vec->buf_list.len;
+
+    // Pass 1: link each bootstrap unit without reloading systemd.
     GG_MAP_FOREACH (component, components) {
         GgBuffer component_name = gg_kv_key(*component);
 
@@ -509,11 +514,12 @@ GgError process_bootstrap_phase(
                 }
                 bootstrap_component_count++;
 
-                // initiate link command for 'bootstrap'
+                // initiate link command for 'bootstrap'. --no-reload: one
+                // reload follows once all bootstrap units are linked.
                 static uint8_t link_command_buf[PATH_MAX];
                 GgByteVec link_command_vec = GG_BYTE_VEC(link_command_buf);
                 ret = gg_byte_vec_append(
-                    &link_command_vec, GG_STR("systemctl link ")
+                    &link_command_vec, GG_STR("systemctl link --no-reload ")
                 );
                 gg_byte_vec_chain_append(
                     &ret, &link_command_vec, bootstrap_service_file_path_vec.buf
@@ -534,7 +540,7 @@ GgError process_bootstrap_phase(
                     link_command_vec.buf.data
                 );
 
-                // NOLINTBEGIN(concurrency-mt-unsafe)
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
                 int system_ret = system((char *) link_command_vec.buf.data);
                 if (WIFEXITED(system_ret)) {
                     if (WEXITSTATUS(system_ret) != 0) {
@@ -559,74 +565,94 @@ GgError process_bootstrap_phase(
                     );
                     return ret;
                 }
-
-                // initiate start command for 'bootstrap'
-                static uint8_t start_command_buf[PATH_MAX];
-                GgByteVec start_command_vec = GG_BYTE_VEC(start_command_buf);
-                ret = gg_byte_vec_append(
-                    &start_command_vec, GG_STR("systemctl start ")
-                );
-                gg_byte_vec_chain_append(
-                    &ret, &start_command_vec, GG_STR("ggl.")
-                );
-                gg_byte_vec_chain_append(
-                    &ret, &start_command_vec, component_name
-                );
-                gg_byte_vec_chain_append(
-                    &ret, &start_command_vec, GG_STR(".bootstrap.service\0")
-                );
-
-                GG_LOGD(
-                    "Command to execute: %.*s",
-                    (int) start_command_vec.buf.len,
-                    start_command_vec.buf.data
-                );
-                if (ret != GG_ERR_OK) {
-                    GG_LOGE(
-                        "Failed to create systemctl start command for %.*s",
-                        (int) bootstrap_service_file_path_vec.buf.len,
-                        bootstrap_service_file_path_vec.buf.data
-                    );
-                    return ret;
-                }
-
-                // save component to config to avoid rerunning bootstrap steps
-                ret = save_component_info(
-                    component_name,
-                    gg_obj_into_buf(*gg_kv_val(component)),
-                    GG_STR("bootstrap")
-                );
-                if (ret != GG_ERR_OK) {
-                    GG_LOGE(
-                        "Failed to save component info to config after completing bootstrap steps."
-                    );
-                    return ret;
-                }
-
-                system_ret = system((char *) start_command_vec.buf.data);
-                // NOLINTEND(concurrency-mt-unsafe)
-                if (WIFEXITED(system_ret)) {
-                    if (WEXITSTATUS(system_ret) != 0) {
-                        GG_LOGE(
-                            "systemctl start failed for%.*s",
-                            (int) bootstrap_service_file_path_vec.buf.len,
-                            bootstrap_service_file_path_vec.buf.data
-                        );
-                        return ret;
-                    }
-                    GG_LOGI(
-                        "systemctl start exited with child status %d\n",
-                        WEXITSTATUS(system_ret)
-                    );
-                } else {
-                    GG_LOGE(
-                        "systemctl start did not exit normally for %.*s",
-                        (int) bootstrap_service_file_path_vec.buf.len,
-                        bootstrap_service_file_path_vec.buf.data
-                    );
-                    return ret;
-                }
             }
+        }
+    }
+
+    if (bootstrap_component_count > 0) {
+        // One reload for all the bootstrap units linked above.
+        GgError ret = systemd_daemon_reload();
+        if (ret != GG_ERR_OK) {
+            return ret;
+        }
+    }
+
+    // Pass 2: start each bootstrap unit linked above.
+    for (size_t i = first_new_comp_index;
+         i < bootstrap_comp_name_buf_vec->buf_list.len;
+         i++) {
+        GgBuffer component_name = bootstrap_comp_name_buf_vec->buf_list.bufs[i];
+        GgObject *component_version = NULL;
+        if (!gg_map_get(components, component_name, &component_version)) {
+            GG_LOGE(
+                "Bootstrap component %.*s missing from deployment.",
+                (int) component_name.len,
+                component_name.data
+            );
+            return GG_ERR_FAILURE;
+        }
+
+        // initiate start command for 'bootstrap'
+        static uint8_t start_command_buf[PATH_MAX];
+        GgByteVec start_command_vec = GG_BYTE_VEC(start_command_buf);
+        GgError ret = gg_byte_vec_append(
+            &start_command_vec, GG_STR("systemctl start ")
+        );
+        gg_byte_vec_chain_append(&ret, &start_command_vec, GG_STR("ggl."));
+        gg_byte_vec_chain_append(&ret, &start_command_vec, component_name);
+        gg_byte_vec_chain_append(
+            &ret, &start_command_vec, GG_STR(".bootstrap.service\0")
+        );
+
+        GG_LOGD(
+            "Command to execute: %.*s",
+            (int) start_command_vec.buf.len,
+            start_command_vec.buf.data
+        );
+        if (ret != GG_ERR_OK) {
+            GG_LOGE(
+                "Failed to create systemctl start command for %.*s",
+                (int) component_name.len,
+                component_name.data
+            );
+            return ret;
+        }
+
+        // save component to config to avoid rerunning bootstrap steps
+        ret = save_component_info(
+            component_name,
+            gg_obj_into_buf(*component_version),
+            GG_STR("bootstrap")
+        );
+        if (ret != GG_ERR_OK) {
+            GG_LOGE(
+                "Failed to save component info to config after completing bootstrap steps."
+            );
+            return ret;
+        }
+
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        int system_ret = system((char *) start_command_vec.buf.data);
+        if (WIFEXITED(system_ret)) {
+            if (WEXITSTATUS(system_ret) != 0) {
+                GG_LOGE(
+                    "systemctl start failed for %.*s",
+                    (int) component_name.len,
+                    component_name.data
+                );
+                return ret;
+            }
+            GG_LOGI(
+                "systemctl start exited with child status %d\n",
+                WEXITSTATUS(system_ret)
+            );
+        } else {
+            GG_LOGE(
+                "systemctl start did not exit normally for %.*s",
+                (int) component_name.len,
+                component_name.data
+            );
+            return ret;
         }
     }
 

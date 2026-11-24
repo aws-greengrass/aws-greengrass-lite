@@ -3700,7 +3700,7 @@ static void handle_deployment(
         static GgBuffer install_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
         GgBufVec install_comp_name_buf_vec = GG_BUF_VEC(install_comp_name_buf);
 
-        // process all install files
+        // Pass 1: link each install unit without reloading systemd.
         GG_MAP_FOREACH (component, components_to_deploy.map) {
             GgBuffer component_name = gg_kv_key(*component);
 
@@ -3749,11 +3749,12 @@ static void handle_deployment(
                         return;
                     }
 
-                    // initiate link command for 'install'
+                    // initiate link command for 'install'. --no-reload: one
+                    // reload follows once all install units are linked.
                     static uint8_t link_command_buf[PATH_MAX];
                     GgByteVec link_command_vec = GG_BYTE_VEC(link_command_buf);
                     ret = gg_byte_vec_append(
-                        &link_command_vec, GG_STR("systemctl link ")
+                        &link_command_vec, GG_STR("systemctl link --no-reload ")
                     );
                     gg_byte_vec_chain_append(
                         &ret,
@@ -3776,7 +3777,7 @@ static void handle_deployment(
                         link_command_vec.buf.data
                     );
 
-                    // NOLINTBEGIN(concurrency-mt-unsafe)
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
                     int system_ret = system((char *) link_command_vec.buf.data);
                     if (WIFEXITED(system_ret)) {
                         if (WEXITSTATUS(system_ret) != 0) {
@@ -3801,65 +3802,72 @@ static void handle_deployment(
                         );
                         return;
                     }
-
-                    // initiate start command for 'install' (non-blocking to
-                    // allow wait_for_phase_status to handle retries via
-                    // gghealthd)
-                    static uint8_t start_command_buf[PATH_MAX];
-                    GgByteVec start_command_vec
-                        = GG_BYTE_VEC(start_command_buf);
-                    ret = gg_byte_vec_append(
-                        &start_command_vec,
-                        GG_STR("systemctl start --no-block ")
-                    );
-                    gg_byte_vec_chain_append(
-                        &ret, &start_command_vec, GG_STR("ggl.")
-                    );
-                    gg_byte_vec_chain_append(
-                        &ret, &start_command_vec, component_name
-                    );
-                    gg_byte_vec_chain_append(
-                        &ret, &start_command_vec, GG_STR(".install.service\0")
-                    );
-
-                    GG_LOGD(
-                        "Command to execute: %.*s",
-                        (int) start_command_vec.buf.len,
-                        start_command_vec.buf.data
-                    );
-                    if (ret != GG_ERR_OK) {
-                        GG_LOGE(
-                            "Failed to create systemctl start command for %.*s",
-                            (int) install_service_file_path_vec.buf.len,
-                            install_service_file_path_vec.buf.data
-                        );
-                        return;
-                    }
-
-                    system_ret = system((char *) start_command_vec.buf.data);
-                    // NOLINTEND(concurrency-mt-unsafe)
-                    if (WIFEXITED(system_ret)) {
-                        if (WEXITSTATUS(system_ret) != 0) {
-                            GG_LOGE(
-                                "systemctl start --no-block failed for %.*s",
-                                (int) install_service_file_path_vec.buf.len,
-                                install_service_file_path_vec.buf.data
-                            );
-                            return;
-                        }
-                        GG_LOGI(
-                            "systemctl start --no-block exited with child status %d\n",
-                            WEXITSTATUS(system_ret)
-                        );
-                    } else {
-                        GG_LOGE(
-                            "systemctl start --no-block did not exit normally for %.*s",
-                            (int) install_service_file_path_vec.buf.len,
-                            install_service_file_path_vec.buf.data
-                        );
-                        return;
-                    }
                 }
+            }
+        }
+
+        if (install_comp_name_buf_vec.buf_list.len > 0) {
+            // One reload for all the install units linked above.
+            ret = systemd_daemon_reload();
+            if (ret != GG_ERR_OK) {
+                return;
+            }
+        }
+
+        // Pass 2: start each install unit linked above.
+        for (size_t i = 0; i < install_comp_name_buf_vec.buf_list.len; i++) {
+            GgBuffer component_name
+                = install_comp_name_buf_vec.buf_list.bufs[i];
+
+            // initiate start command for 'install' (non-blocking to allow
+            // wait_for_phase_status to handle retries via gghealthd)
+            static uint8_t start_command_buf[PATH_MAX];
+            GgByteVec start_command_vec = GG_BYTE_VEC(start_command_buf);
+            ret = gg_byte_vec_append(
+                &start_command_vec, GG_STR("systemctl start --no-block ")
+            );
+            gg_byte_vec_chain_append(&ret, &start_command_vec, GG_STR("ggl."));
+            gg_byte_vec_chain_append(&ret, &start_command_vec, component_name);
+            gg_byte_vec_chain_append(
+                &ret, &start_command_vec, GG_STR(".install.service\0")
+            );
+
+            GG_LOGD(
+                "Command to execute: %.*s",
+                (int) start_command_vec.buf.len,
+                start_command_vec.buf.data
+            );
+            if (ret != GG_ERR_OK) {
+                GG_LOGE(
+                    "Failed to create systemctl start command for %.*s",
+                    (int) component_name.len,
+                    component_name.data
+                );
+                return;
+            }
+
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            int system_ret = system((char *) start_command_vec.buf.data);
+            if (WIFEXITED(system_ret)) {
+                if (WEXITSTATUS(system_ret) != 0) {
+                    GG_LOGE(
+                        "systemctl start --no-block failed for %.*s",
+                        (int) component_name.len,
+                        component_name.data
+                    );
+                    return;
+                }
+                GG_LOGI(
+                    "systemctl start --no-block exited with child status %d\n",
+                    WEXITSTATUS(system_ret)
+                );
+            } else {
+                GG_LOGE(
+                    "systemctl start --no-block did not exit normally for %.*s",
+                    (int) component_name.len,
+                    component_name.data
+                );
+                return;
             }
         }
 
@@ -3909,7 +3917,7 @@ static void handle_deployment(
                     static uint8_t link_command_buf[PATH_MAX];
                     GgByteVec link_command_vec = GG_BYTE_VEC(link_command_buf);
                     ret = gg_byte_vec_append(
-                        &link_command_vec, GG_STR("systemctl link ")
+                        &link_command_vec, GG_STR("systemctl link --no-reload ")
                     );
                     gg_byte_vec_chain_append(
                         &ret, &link_command_vec, service_file_path_vec.buf
@@ -3947,7 +3955,8 @@ static void handle_deployment(
                     GgByteVec enable_command_vec
                         = GG_BYTE_VEC(enable_command_buf);
                     ret = gg_byte_vec_append(
-                        &enable_command_vec, GG_STR("systemctl enable ")
+                        &enable_command_vec,
+                        GG_STR("systemctl enable --no-reload ")
                     );
                     gg_byte_vec_chain_append(
                         &ret, &enable_command_vec, service_file_path_vec.buf
@@ -3991,28 +4000,8 @@ static void handle_deployment(
         }
 
         // run daemon-reload command once all the files are linked
-        static uint8_t reload_command_buf[PATH_MAX];
-        GgByteVec reload_command_vec = GG_BYTE_VEC(reload_command_buf);
-        ret = gg_byte_vec_append(
-            &reload_command_vec, GG_STR("systemctl daemon-reload\0")
-        );
+        ret = systemd_daemon_reload();
         if (ret != GG_ERR_OK) {
-            GG_LOGE("Failed to create systemctl daemon-reload command.");
-            return;
-        }
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        int system_ret = system((char *) reload_command_vec.buf.data);
-        if (WIFEXITED(system_ret)) {
-            if (WEXITSTATUS(system_ret) != 0) {
-                GG_LOGE("systemctl daemon-reload failed");
-                return;
-            }
-            GG_LOGI(
-                "systemctl daemon-reload exited with child status %d\n",
-                WEXITSTATUS(system_ret)
-            );
-        } else {
-            GG_LOGE("systemctl daemon-reload did not exit normally");
             return;
         }
     }
